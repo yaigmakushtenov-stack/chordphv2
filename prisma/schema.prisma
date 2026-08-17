@@ -15,17 +15,46 @@ enum MusicFileStatus {
   FAILED
 }
 
+enum GroupRole {
+  OWNER
+  MODERATOR
+  MEMBER
+}
+
 model BetterAuthUser {
-  id            String              @id
-  name          String
-  email         String              @unique
-  emailVerified Boolean             @default(false)
-  image         String?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  sessions      BetterAuthSession[]
-  accounts      BetterAuthAccount[]
-  musicFiles    MusicFile[]
+  id               String              @id
+  name             String
+  email            String              @unique
+  emailVerified    Boolean             @default(false)
+  image            String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  sessions         BetterAuthSession[]
+  accounts         BetterAuthAccount[]
+  musicFiles       MusicFile[]
+  groupMemberships GroupMembership[]
+}
+
+model Group {
+  id          String            @id @default(cuid())
+  name        String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  memberships GroupMembership[]
+}
+
+model GroupMembership {
+  groupId   String
+  userId    String
+  role      GroupRole      @default(MEMBER)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  group     Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      BetterAuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId, createdAt])
+  @@index([groupId, role])
 }
 
 model BetterAuthSession {

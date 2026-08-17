@@ -66,6 +66,15 @@ Pay special attention to:
 - `public` contains static assets.
 - When repository documentation conflicts with installed packages, the schema, or active source code, verify the current implementation and report the stale documentation instead of following it blindly.
 
+## Groups Domain
+
+- A group represents a band or music group and is a user-selectable application context.
+- Users can belong to multiple groups through `GroupMembership`; group membership is the source of group access.
+- Every membership has a Prisma `GroupRole`: `OWNER`, `MODERATOR`, or `MEMBER`.
+- Creating a group must atomically create the creator's `OWNER` membership.
+- Role permission descriptions may be mapped in the frontend, but frontend descriptions are not an authorization boundary. Every group-scoped backend operation must derive the acting user from the verified session, load that user's membership, and enforce the required role permissions server-side.
+- Until granular permissions are persisted, roles are fixed: owners control the group and membership roles, moderators manage group content and ordinary members, and members access and contribute group content. Ownership transfer, invitations, member management, and current-group persistence are future work unless a task explicitly includes them.
+
 ## Code Style
 
 - Write simple, readable, production-quality code.
