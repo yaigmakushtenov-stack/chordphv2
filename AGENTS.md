@@ -148,6 +148,35 @@ Pay special attention to:
 - Validate client-controlled filenames, content types, file sizes, storage paths, and request payloads before using them.
 - Do not weaken security controls to simplify implementation or testing.
 
+## Error Handling
+
+- Distinguish expected operational failures from unexpected programming or infrastructure errors.
+- Handle expected failures close to the boundary that can make a useful decision. Let unexpected errors propagate to the framework or the established top-level handler.
+- Catch an error only to recover, add safe context, translate a known error, perform cleanup, or enforce a boundary contract. Do not use empty catch blocks or silently ignore failures.
+- Treat caught values as `unknown` and narrow them safely. Do not assume every thrown value is an `Error`.
+- Prefer stable typed error codes or error classes for behavior. Do not identify errors by matching human-readable message text.
+- Preserve the original error as `cause` when wrapping it on the server, unless doing so would cross a serialization or trust boundary.
+- Keep internal diagnostics in server logs and public messages at the client boundary. Never log secrets, credentials, tokens, presigned URLs, full request bodies, or unnecessary personal data.
+- Log unexpected errors once at the boundary that owns reporting. Include only useful safe context, and avoid duplicate logging at every layer.
+- Fail closed for authentication, authorization, signature verification, ownership checks, and other security decisions.
+- Retry only known transient and idempotent operations. Keep retries bounded and do not retry validation, authentication, authorization, or other permanent failures.
+- Use `finally` or an equivalent scoped cleanup mechanism when resources must be released regardless of success or failure.
+- Do not leave partial database or storage state after a handled failure. Use existing transaction, idempotency, and status-tracking patterns where the operation requires them.
+
+## Server Action Responses
+
+- Return `ActionResult<T>` from `src/lib/actions` for expected Server Action outcomes.
+- Return `{ ok: true, data }` for success and `{ ok: false, error }` for expected failures. Use `null` as the success data when an action has no payload.
+- Use `actionSuccess` and `actionFailure` to construct results consistently.
+- Use stable error codes for frontend behavior. Do not make frontend logic depend on error-message text.
+- Convert known validation, authentication, authorization, conflict, not-found, rate-limit, and service-availability failures to concise user-safe messages before returning them.
+- Never return raw exception messages, stack traces, Prisma errors, provider responses, storage details, object keys, or other internal context to the frontend.
+- Include `fieldErrors` only for validation failures and use field names that are safe for the frontend to display.
+- Use an opaque `incidentId` when a safely handled operational failure needs to be correlated with server logs. Do not include sensitive data in logs.
+- Throw unexpected errors so Next.js error handling can process them. Do not convert programming errors or unknown exceptions into expected action failures.
+- Keep `redirect`, `notFound`, and other Next.js control-flow calls outside broad `try`/`catch` blocks so they are not accidentally converted to action failures.
+- Return only serializable, minimal data required by the caller.
+
 ## Commands and Verification
 
 - Use the smallest relevant verification set for the change.
