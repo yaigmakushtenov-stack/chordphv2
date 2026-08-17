@@ -3,6 +3,7 @@ import "server-only";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -10,7 +11,9 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import type {
   CreateUploadInput,
+  CreateUploadUrlForKeyInput,
   SignedUpload,
+  StoredObjectMetadata,
   StorageProvider,
 } from "../storage-provider";
 
@@ -30,11 +33,24 @@ export class BackblazeStorage implements StorageProvider {
   private config: BackblazeConfig | undefined;
 
   async createUploadUrl(input: CreateUploadInput): Promise<SignedUpload> {
-    const config = this.getConfig();
     const key = this.createObjectKey(input);
+
+    return this.createUploadUrlForKey({
+      key,
+      contentType: input.contentType,
+      contentLength: input.contentLength,
+    });
+  }
+
+  async createUploadUrlForKey(
+    input: CreateUploadUrlForKeyInput,
+  ): Promise<SignedUpload> {
+    this.assertManagedKey(input.key);
+
+    const config = this.getConfig();
     const command = new PutObjectCommand({
       Bucket: config.bucket,
-      Key: key,
+      Key: input.key,
       ContentType: input.contentType,
       ContentLength: input.contentLength,
     });
@@ -43,12 +59,40 @@ export class BackblazeStorage implements StorageProvider {
     });
 
     return {
-      key,
+      key: input.key,
       uploadUrl,
       expiresIn: PRESIGNED_URL_TTL_SECONDS,
       headers: {
         "Content-Type": input.contentType,
       },
+    };
+  }
+
+  async getObjectMetadata(key: string): Promise<StoredObjectMetadata> {
+    this.assertManagedKey(key);
+
+    const config = this.getConfig();
+    const result = await this.getClient().send(
+      new HeadObjectCommand({
+        Bucket: config.bucket,
+        Key: key,
+      }),
+    );
+
+    if (
+      typeof result.ContentLength !== "number" ||
+      !Number.isSafeInteger(result.ContentLength) ||
+      result.ContentLength < 0
+    ) {
+      throw new Error("Backblaze returned an invalid object size.");
+    }
+
+    return {
+      contentLength: result.ContentLength,
+      contentType: result.ContentType,
+      etag: result.ETag,
+      lastModified: result.LastModified,
+      metadata: result.Metadata ?? {},
     };
   }
 

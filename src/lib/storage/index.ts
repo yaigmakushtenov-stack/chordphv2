@@ -7,7 +7,9 @@ export const storage: StorageProvider = new BackblazeStorage();
 
 export type {
   CreateUploadInput,
+  CreateUploadUrlForKeyInput,
   SignedUpload,
+  StoredObjectMetadata,
   StorageFolder,
   StorageProvider,
 } from "./storage-provider";

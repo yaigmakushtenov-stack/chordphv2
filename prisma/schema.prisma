@@ -7,6 +7,14 @@ datasource db {
   provider = "postgresql"
 }
 
+enum MusicFileStatus {
+  PENDING
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
+}
+
 model BetterAuthUser {
   id            String              @id
   name          String
@@ -17,6 +25,7 @@ model BetterAuthUser {
   updatedAt     DateTime            @updatedAt
   sessions      BetterAuthSession[]
   accounts      BetterAuthAccount[]
+  musicFiles    MusicFile[]
 }
 
 model BetterAuthSession {
@@ -61,4 +70,30 @@ model BetterAuthVerification {
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
+}
+
+model MusicFile {
+  id                   String          @id @default(cuid())
+  ownerId              String
+  sourceSha256         String          @db.Char(64)
+  sourceHashVerifiedAt DateTime?
+  objectKey            String          @unique
+  storedSha256         String?         @db.Char(64)
+  originalFileName     String
+  contentType          String
+  sourceSizeBytes      Int
+  storedSizeBytes      Int?
+  title                String?
+  artist               String?
+  album                String?
+  status               MusicFileStatus @default(PENDING)
+  metadata             Json            @default("{}")
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  uploadedAt           DateTime?
+  owner                BetterAuthUser  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, sourceSha256])
+  @@index([ownerId, createdAt])
+  @@index([ownerId, status])
 }
