@@ -2,6 +2,7 @@ export {
   GroupServiceError,
   createGroup,
   listGroupsForUser,
+  userHasGroupPermission,
 } from "./group-service";
 
 export type {

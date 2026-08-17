@@ -72,6 +72,7 @@ Pay special attention to:
 - Users can belong to multiple groups through `GroupMembership`; group membership is the source of group access.
 - Every membership has a Prisma `GroupRole`: `OWNER`, `MODERATOR`, or `MEMBER`.
 - Creating a group must atomically create the creator's `OWNER` membership.
+- `src/lib/groups/permissions.ts` is the centralized, client-safe role-permission policy. Frontend code may use its pure role checks for presentation. Backend authorization must use `userHasGroupPermission` from the server-only group service, or load a trusted membership and apply the same policy, rather than trust a client-provided role.
 - Role permission descriptions may be mapped in the frontend, but frontend descriptions are not an authorization boundary. Every group-scoped backend operation must derive the acting user from the verified session, load that user's membership, and enforce the required role permissions server-side.
 - Until granular permissions are persisted, roles are fixed: owners control the group and membership roles, moderators manage group content and ordinary members, and members access and contribute group content. Ownership transfer, invitations, member management, and current-group persistence are future work unless a task explicitly includes them.
 

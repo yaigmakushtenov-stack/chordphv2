@@ -1,6 +1,10 @@
 import "server-only";
 
 import { GroupRole, Prisma } from "@/generated/prisma/client";
+import {
+  hasGroupPermission,
+  type GroupPermission,
+} from "@/lib/groups/permissions";
 import prisma from "@/lib/prisma";
 
 const MAX_GROUP_NAME_LENGTH = 100;
@@ -85,6 +89,28 @@ export async function listGroupsForUser(
     },
     select: groupMembershipSelect,
   });
+}
+
+export async function userHasGroupPermission(
+  userId: string,
+  groupId: string,
+  permission: GroupPermission,
+): Promise<boolean> {
+  const normalizedUserId = requireText(userId, "userId", 255);
+  const normalizedGroupId = requireText(groupId, "groupId", 255);
+  const membership = await prisma.groupMembership.findUnique({
+    where: {
+      groupId_userId: {
+        groupId: normalizedGroupId,
+        userId: normalizedUserId,
+      },
+    },
+    select: {
+      role: true,
+    },
+  });
+
+  return hasGroupPermission(membership?.role, permission);
 }
 
 function requireText(value: string, field: string, maxLength: number): string {
