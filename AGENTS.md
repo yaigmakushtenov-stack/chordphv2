@@ -18,6 +18,16 @@ Pay special attention to:
 - Ably 2 server and React APIs.
 - AWS SDK v3 S3 client and request-presigner APIs used with Backblaze B2.
 
+## Repository Map
+
+- `src/app` contains App Router pages, layouts, and Route Handlers.
+- `src/components` contains UI components and application providers.
+- `src/lib` contains authentication, Prisma, storage, and realtime integrations.
+- `prisma/schema.prisma` is the database schema.
+- `src/generated/prisma` is generated code. Never edit it manually; regenerate it from the schema.
+- `public` contains static assets.
+- When repository documentation conflicts with installed packages, the schema, or active source code, verify the current implementation and report the stale documentation instead of following it blindly.
+
 ## Code Style
 
 - Write simple, readable, production-quality code.
@@ -40,6 +50,20 @@ Pay special attention to:
 - Do not change unrelated files.
 - Do not rename files, folders, functions, types, or variables unless necessary for the requested change.
 - Do not rewrite large areas of code unless explicitly requested.
+
+## Dependencies
+
+- Use `pnpm`. Do not introduce another package manager or lockfile.
+- Prefer existing dependencies and platform APIs before adding a package.
+- Ask before adding a production dependency.
+- When a dependency change is authorized, update `package.json` and `pnpm-lock.yaml` together.
+
+## Git and Workspace Safety
+
+- Inspect the working tree before editing and preserve pre-existing user changes.
+- Do not revert or overwrite unrelated modifications.
+- Do not commit, push, create or delete branches, or rewrite Git history unless explicitly requested.
+- Review the final diff and confirm it contains only changes required by the task.
 
 ## Prisma / Database
 
@@ -69,6 +93,33 @@ Pay special attention to:
 - Keep secrets, signing credentials, storage credentials, and privileged validation on the server.
 - Avoid unnecessary global state.
 - Reuse the existing providers and application structure.
+
+## Security and Sensitive Data
+
+- Never print, log, commit, or expose values from `.env` or other secret-bearing files. Use `.env.example` to inspect required variable names.
+- Treat OAuth tokens, session tokens, API keys, presigned upload URLs, database URLs, and storage credentials as sensitive.
+- Keep secrets, privileged operations, and authorization checks in server-only code.
+- Preserve authentication and authorization checks in Route Handlers and server-side flows.
+- Validate client-controlled filenames, content types, file sizes, storage paths, and request payloads before using them.
+- Do not weaken security controls to simplify implementation or testing.
+
+## Commands and Verification
+
+- Use the smallest relevant verification set for the change.
+- Run `pnpm lint` after TypeScript, React, or application-code changes.
+- Run `pnpm build` for changes that affect compilation, runtime behavior, dependencies, or framework configuration.
+- Run `pnpm exec prisma validate` after changing `prisma/schema.prisma`.
+- Run `pnpm db:generate` when changed schema types are consumed by application code.
+- This project currently has no automated test script. Do not claim tests passed when none were run.
+- If a relevant check cannot run or fails for a pre-existing or environmental reason, report the command and reason clearly.
+
+## Definition of Done
+
+- The requested behavior or artifact is complete and matches the stated scope.
+- Relevant validation commands pass, or any unverified checks and blockers are reported.
+- The final diff contains no unrelated changes.
+- Generated files and documentation are consistent with the change when they are in scope.
+- Remaining risks, assumptions, or follow-up work are stated explicitly.
 
 ## Clarification
 
