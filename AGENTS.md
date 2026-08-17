@@ -1,5 +1,43 @@
 # Project Agent Rules
 
+## Session Role
+
+- Before making edits, the user should declare `Role: Core` or `Role: Vibe` for the session.
+- If no role is declared, ask for the role before editing. Read-only inspection may continue while waiting.
+- `Role: Core` sessions follow all project rules but do not receive role-based protected-path warnings.
+- `Role: Vibe` sessions may work throughout the project, but changes to protected paths or privileged server behavior require a warning and explicit confirmation before editing.
+
+## Vibe Protected-Path Warnings
+
+For a `Role: Vibe` session, warn before modifying any of these paths:
+
+- `AGENTS.md`
+- `.env*`
+- `package.json` and `pnpm-lock.yaml`
+- `prisma/**` and `prisma.config.ts`
+- `src/generated/**`
+- `src/app/api/**`
+- `src/app/layout.tsx`
+- `src/app/login/**`
+- `src/lib/prisma.ts`
+- `src/lib/auth*.ts`
+- `src/lib/storage/**`
+- `src/lib/realtime/**`
+- `src/components/auth/**`
+- `src/components/providers/**`
+- `next.config.*`, `tsconfig.json`, `eslint.config.*`, and `postcss.config.*`
+
+Also warn before adding or changing a Server Action or any file containing the `"use server"` directive, regardless of its path.
+
+Use this warning format:
+
+> **Vibe protected-path warning:** This change modifies `<path or privileged behavior>`. The risk is `<specific risk>`. Do you want me to proceed?
+
+- Raise the warning before editing, not after.
+- Do not modify the protected path or privileged behavior until the user explicitly confirms.
+- Confirmation applies only to the named path or behavior for the current task.
+- All unlisted paths remain subject to the normal project rules but do not require a role-based warning.
+
 ## Version-Specific Guidance
 
 - Before suggesting or applying code, inspect `package.json` and verify the installed versions of all relevant libraries.
