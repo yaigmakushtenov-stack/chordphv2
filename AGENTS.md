@@ -127,7 +127,14 @@ Pay special attention to:
 - Respect Server and Client Component boundaries.
 - Add `"use client"` only when browser APIs, client-side state, effects, event handlers, or client-only libraries require it.
 - Prefer Server Components by default.
-- Follow the project's existing Route Handler patterns for API endpoints. Do not introduce Server Actions merely by assumption; use them when the project establishes that pattern or the task clearly requires them.
+- Prefer Server Actions for application-internal mutations, form submissions, and operations initiated by this Next.js application.
+- Use Route Handlers only for public HTTP endpoints that must be called directly by external clients or services, including webhooks, callbacks, and protocol-required endpoints. Public endpoints may still require authentication or signature verification.
+- Treat every Server Action as an independently reachable, untrusted entry point.
+- Every Server Action must verify the current Better Auth session before processing input or performing work. Do not rely on page-level authentication, hidden UI, middleware, or the calling component as an authentication boundary.
+- Derive the acting user and owner identifiers from the verified session, never from client-provided input.
+- Scope resource reads and mutations to the authenticated user where ownership applies. Add broader role and permission checks when the permission model is implemented.
+- Validate all Server Action inputs and return only the minimal data required by the caller.
+- Keep Server Actions thin and delegate database, storage, and business logic to existing `server-only` services.
 - Keep secrets, signing credentials, storage credentials, and privileged validation on the server.
 - Avoid unnecessary global state.
 - Reuse the existing providers and application structure.
