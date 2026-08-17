@@ -61,6 +61,8 @@ export type PrepareMusicUploadInput = {
   contentType: string;
   sourceSizeBytes: number;
   sourceSha256: string;
+  storedSizeBytes: number;
+  storedSha256: string;
   title?: string;
   artist?: string;
   album?: string;
@@ -92,7 +94,11 @@ export type SearchMusicFilesResult = {
 
 export class MusicFileServiceError extends Error {
   constructor(
-    public readonly code: "INVALID_INPUT" | "NOT_FOUND" | "UPLOAD_MISMATCH",
+    public readonly code:
+      | "INVALID_INPUT"
+      | "NOT_FOUND"
+      | "UPLOAD_CONFLICT"
+      | "UPLOAD_MISMATCH",
     message: string,
   ) {
     super(message);
@@ -127,7 +133,7 @@ export async function prepareMusicUpload(
     folder: "music",
     fileName: values.originalFileName,
     contentType: values.contentType,
-    contentLength: values.sourceSizeBytes,
+    contentLength: values.storedSizeBytes,
   });
 
   const file = await prisma.musicFile.upsert({
@@ -145,6 +151,8 @@ export async function prepareMusicUpload(
       originalFileName: values.originalFileName,
       contentType: values.contentType,
       sourceSizeBytes: values.sourceSizeBytes,
+      storedSizeBytes: values.storedSizeBytes,
+      storedSha256: values.storedSha256,
       title: values.title,
       artist: values.artist,
       album: values.album,
@@ -171,18 +179,42 @@ export async function prepareMusicUpload(
     };
   }
 
+  if (
+    file.status === MusicFileStatus.PENDING &&
+    (file.contentType !== values.contentType ||
+      file.sourceSizeBytes !== values.sourceSizeBytes ||
+      file.storedSizeBytes !== values.storedSizeBytes ||
+      file.storedSha256 !== values.storedSha256)
+  ) {
+    throw new MusicFileServiceError(
+      "UPLOAD_CONFLICT",
+      "A different upload is already pending for this source file.",
+    );
+  }
+
   const resumableFile =
     file.status === MusicFileStatus.FAILED
       ? await prisma.musicFile.update({
           where: { id: file.id },
-          data: { status: MusicFileStatus.PENDING },
+          data: {
+            status: MusicFileStatus.PENDING,
+            contentType: values.contentType,
+            sourceSizeBytes: values.sourceSizeBytes,
+            storedSizeBytes: values.storedSizeBytes,
+            storedSha256: values.storedSha256,
+            originalFileName: values.originalFileName,
+            title: values.title,
+            artist: values.artist,
+            album: values.album,
+            metadata: values.metadata,
+          },
           select: musicFileSelect,
         })
       : file;
   const upload = await storage.createUploadUrlForKey({
     key: resumableFile.objectKey,
     contentType: resumableFile.contentType,
-    contentLength: resumableFile.sourceSizeBytes,
+    contentLength: requireStoredSize(resumableFile.storedSizeBytes),
   });
 
   return {
@@ -220,7 +252,7 @@ export async function completeMusicUpload(
 
   const object = await storage.getObjectMetadata(file.objectKey);
 
-  if (object.contentLength !== file.sourceSizeBytes) {
+  if (object.contentLength !== requireStoredSize(file.storedSizeBytes)) {
     throw new MusicFileServiceError(
       "UPLOAD_MISMATCH",
       "The uploaded object size does not match the prepared upload.",
@@ -237,8 +269,7 @@ export async function completeMusicUpload(
   return prisma.musicFile.update({
     where: { id: file.id },
     data: {
-      status: MusicFileStatus.UPLOADED,
-      storedSizeBytes: object.contentLength,
+      status: MusicFileStatus.READY,
       uploadedAt: new Date(),
     },
     select: musicFileSelect,
@@ -322,17 +353,41 @@ function validatePrepareInput(input: PrepareMusicUploadInput) {
     );
   }
 
+  if (
+    !Number.isSafeInteger(input.storedSizeBytes) ||
+    input.storedSizeBytes < 1 ||
+    input.storedSizeBytes > STORAGE_RULES.music.maxBytes
+  ) {
+    throw new MusicFileServiceError(
+      "INVALID_INPUT",
+      `storedSizeBytes must be between 1 and ${STORAGE_RULES.music.maxBytes}.`,
+    );
+  }
+
   return {
     ownerId,
     originalFileName,
     contentType: input.contentType,
     sourceSizeBytes: input.sourceSizeBytes,
     sourceSha256: normalizeSha256(input.sourceSha256),
+    storedSizeBytes: input.storedSizeBytes,
+    storedSha256: normalizeSha256(input.storedSha256),
     title: normalizeOptionalText(input.title, "title", 255),
     artist: normalizeOptionalText(input.artist, "artist", 255),
     album: normalizeOptionalText(input.album, "album", 255),
     metadata: normalizeMetadata(input.metadata),
   };
+}
+
+function requireStoredSize(value: number | null) {
+  if (value === null) {
+    throw new MusicFileServiceError(
+      "UPLOAD_MISMATCH",
+      "The upload does not have stored object metadata.",
+    );
+  }
+
+  return value;
 }
 
 function normalizeSha256(value: string) {

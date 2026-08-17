@@ -33,7 +33,18 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid storage folder" }, { status: 400 });
   }
 
-  if (typeof body.fileName !== "string" || body.fileName.length > 255) {
+  if (body.folder === "music") {
+    return Response.json(
+      { error: "Music uploads must be prepared through the music upload flow" },
+      { status: 400 },
+    );
+  }
+
+  if (
+    typeof body.fileName !== "string" ||
+    !body.fileName.trim() ||
+    body.fileName.length > 255
+  ) {
     return Response.json({ error: "Invalid file name" }, { status: 400 });
   }
 
