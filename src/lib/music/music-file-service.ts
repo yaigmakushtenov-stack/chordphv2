@@ -6,7 +6,6 @@ import { storage } from "@/lib/storage";
 import type { SignedUpload } from "@/lib/storage";
 import { STORAGE_RULES } from "@/lib/storage/storage-rules";
 
-const MP3_CONTENT_TYPE = "audio/mpeg";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const MAX_METADATA_BYTES = 32 * 1024;
 const MAX_SEARCH_TEXT_LENGTH = 200;
@@ -41,8 +40,10 @@ const musicFileSearchSelect = {
   artist: true,
   album: true,
   contentType: true,
+  sourceSizeBytes: true,
   storedSizeBytes: true,
   status: true,
+  metadata: true,
   createdAt: true,
   uploadedAt: true,
 } satisfies Prisma.MusicFileSelect;
@@ -85,11 +86,19 @@ export type SearchMusicFilesInput = {
   query?: string;
   cursor?: string;
   limit?: number;
+  sort?: MusicFileSort;
 };
 
 export type SearchMusicFilesResult = {
   files: MusicFileSearchResult[];
   nextCursor: string | null;
+};
+
+export type MusicFileSort = "latest" | "alphabetical";
+
+export type ListMusicFilesInput = {
+  ownerId: string;
+  sort?: MusicFileSort;
 };
 
 export class MusicFileServiceError extends Error {
@@ -276,6 +285,43 @@ export async function completeMusicUpload(
   });
 }
 
+export async function createReadyMusicFileDownloadUrl(
+  fileId: string,
+): Promise<string | null> {
+  const normalizedFileId = requireText(fileId, "fileId", 255);
+  const file = await prisma.musicFile.findFirst({
+    where: {
+      id: normalizedFileId,
+      status: MusicFileStatus.READY,
+    },
+    select: {
+      objectKey: true,
+    },
+  });
+
+  if (!file) {
+    return null;
+  }
+
+  return storage.createDownloadUrl(file.objectKey);
+}
+
+export async function listReadyMusicFiles(
+  input: ListMusicFilesInput,
+): Promise<MusicFileSearchResult[]> {
+  const ownerId = requireText(input.ownerId, "ownerId", 255);
+  const sort = normalizeMusicFileSort(input.sort);
+
+  return prisma.musicFile.findMany({
+    where: {
+      ownerId,
+      status: MusicFileStatus.READY,
+    },
+    select: musicFileSearchSelect,
+    orderBy: createMusicFileOrderBy(sort),
+  });
+}
+
 export async function searchMusicFiles(
   input: SearchMusicFilesInput,
 ): Promise<SearchMusicFilesResult> {
@@ -287,6 +333,7 @@ export async function searchMusicFiles(
   );
   const cursor = normalizeOptionalText(input.cursor, "cursor", 255);
   const limit = normalizeLimit(input.limit);
+  const sort = normalizeMusicFileSort(input.sort);
   const where: Prisma.MusicFileWhereInput = {
     ownerId,
     status: MusicFileStatus.READY,
@@ -306,7 +353,7 @@ export async function searchMusicFiles(
   const files = await prisma.musicFile.findMany({
     where,
     select: musicFileSearchSelect,
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    orderBy: createMusicFileOrderBy(sort),
     take: limit + 1,
     ...(cursor
       ? {
@@ -335,13 +382,6 @@ function validatePrepareInput(input: PrepareMusicUploadInput) {
     255,
   );
 
-  if (input.contentType !== MP3_CONTENT_TYPE) {
-    throw new MusicFileServiceError(
-      "INVALID_INPUT",
-      "Only MP3 uploads are supported.",
-    );
-  }
-
   if (
     !Number.isSafeInteger(input.sourceSizeBytes) ||
     input.sourceSizeBytes < 1 ||
@@ -367,7 +407,7 @@ function validatePrepareInput(input: PrepareMusicUploadInput) {
   return {
     ownerId,
     originalFileName,
-    contentType: input.contentType,
+    contentType: normalizeMusicContentType(input.contentType),
     sourceSizeBytes: input.sourceSizeBytes,
     sourceSha256: normalizeSha256(input.sourceSha256),
     storedSizeBytes: input.storedSizeBytes,
@@ -377,6 +417,29 @@ function validatePrepareInput(input: PrepareMusicUploadInput) {
     album: normalizeOptionalText(input.album, "album", 255),
     metadata: normalizeMetadata(input.metadata),
   };
+}
+
+function normalizeMusicContentType(value: string) {
+  if (!STORAGE_RULES.music.allowedContentTypes.has(value)) {
+    throw new MusicFileServiceError(
+      "INVALID_INPUT",
+      "The audio file type is not supported.",
+    );
+  }
+
+  return value;
+}
+
+function normalizeMusicFileSort(value: MusicFileSort | undefined) {
+  return value === "alphabetical" ? value : "latest";
+}
+
+function createMusicFileOrderBy(
+  sort: MusicFileSort,
+): Prisma.MusicFileOrderByWithRelationInput[] {
+  return sort === "alphabetical"
+    ? [{ originalFileName: "asc" }, { id: "asc" }]
+    : [{ uploadedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }];
 }
 
 function requireStoredSize(value: number | null) {

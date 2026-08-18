@@ -8,17 +8,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { auth } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "Log in | ChordPH",
-  description: "Log in to your ChordPH account.",
+  title: "Sign up | ChordPH",
+  description: "Create your ChordPH account.",
 };
 
-type LoginPageProps = {
-  searchParams: Promise<{
-    error?: string;
-  }>;
-};
-
-function LoginMark() {
+function SignupMark() {
   return (
     <div
       aria-hidden="true"
@@ -33,19 +27,16 @@ function LoginMark() {
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d="M13 5h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4" />
-        <path d="m10 8 4 4-4 4" />
-        <path d="M14 12H4" />
+        <path d="M12 5v14M5 12h14" />
       </svg>
     </div>
   );
 }
 
-export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const [session, params] = await Promise.all([
-    auth.api.getSession({ headers: await headers() }),
-    searchParams,
-  ]);
+export default async function SignupPage() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   if (session?.user) {
     redirect("/");
@@ -61,63 +52,39 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
       <section className="relative w-full max-w-[448px]">
         <header className="flex flex-col items-center text-center">
-          <LoginMark />
+          <SignupMark />
           <h1 className="mt-6 text-[30px] font-bold leading-tight tracking-[-0.035em] sm:text-[32px]">
-            Welcome back to ChordPH
+            Create your ChordPH account
           </h1>
           <p className="mt-2 text-[15px] text-[#6f6f6f] dark:text-[#a1a1aa]">
-            Log in to continue making music
+            Sign up to create playlists and upload audio
           </p>
         </header>
 
         <div className="mt-10 rounded-[18px] border border-[#dedede] bg-white p-8 shadow-[0_2px_5px_rgba(0,0,0,0.035)] dark:border-[#343438] dark:bg-[#171719] dark:shadow-[0_12px_35px_rgba(0,0,0,0.25)] sm:p-9">
-          {params.error ? (
-            <div
-              role="alert"
-              className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
-            >
-              We couldn&apos;t complete your login. Please try again.
-            </div>
-          ) : null}
-
           <GoogleSignInButton />
 
           <div className="my-7 flex items-center gap-3" aria-hidden="true">
             <div className="h-px flex-1 bg-[#e3e3e3] dark:bg-[#343438]" />
             <span className="text-[11px] font-medium tracking-[0.08em] text-[#858585] dark:text-[#92929b]">
-              SECURE SIGN IN
+              SECURE SIGN UP
             </span>
             <div className="h-px flex-1 bg-[#e3e3e3] dark:bg-[#343438]" />
           </div>
 
-          <div className="flex gap-3 rounded-xl bg-[#f7f7f7] p-4 dark:bg-[#222225]">
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              fill="none"
-              className="mt-0.5 size-5 shrink-0 text-[#666] dark:text-[#b4b4bc]"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="5" y="10" width="14" height="10" rx="2" />
-              <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-            </svg>
-            <p className="text-[13px] leading-5 text-[#666] dark:text-[#b4b4bc]">
-              ChordPH uses Google to verify your identity. Your Google password is
-              never shared with us.
-            </p>
-          </div>
+          <p className="rounded-xl bg-[#f7f7f7] p-4 text-[13px] leading-5 text-[#666] dark:bg-[#222225] dark:text-[#b4b4bc]">
+            ChordPH creates your account through Google sign-in. Your Google
+            password is never shared with us.
+          </p>
         </div>
 
         <p className="mt-7 text-center text-[13px] text-[#747474] dark:text-[#a1a1aa]">
-          New to ChordPH?{" "}
+          Already have an account?{" "}
           <Link
-            href="/signup"
+            href="/login"
             className="font-semibold text-[#171717] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#f5f5f5]"
           >
-            Create an account.
+            Log in
           </Link>
         </p>
       </section>

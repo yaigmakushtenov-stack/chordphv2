@@ -13,9 +13,12 @@ import {
 import {
   completeMusicUpload,
   findMusicFileByHash,
+  listReadyMusicFiles,
   MusicFileServiceError,
   prepareMusicUpload,
   type MusicFileRecord,
+  type MusicFileSearchResult,
+  type MusicFileSort,
   type PrepareMusicUploadInput,
 } from "@/lib/music";
 
@@ -29,6 +32,7 @@ export type PrepareMusicUploadActionInput = {
   title?: string;
   artist?: string;
   album?: string;
+  durationSeconds?: number | null;
 };
 
 export type CompleteMusicUploadActionInput = {
@@ -37,6 +41,10 @@ export type CompleteMusicUploadActionInput = {
 
 export type FindMusicFileByHashActionInput = {
   sourceSha256: string;
+};
+
+export type ListMusicFilesActionInput = {
+  sort?: MusicFileSort;
 };
 
 export type MusicUploadFileData = {
@@ -49,6 +57,21 @@ export type MusicUploadFileData = {
   artist: string | null;
   album: string | null;
   status: MusicFileRecord["status"];
+};
+
+export type MusicFileListItemData = {
+  id: string;
+  title: string;
+  artist: string | null;
+  album: string | null;
+  originalFileName: string;
+  contentType: string;
+  sourceSizeBytes: number;
+  storedSizeBytes: number | null;
+  durationSeconds: number | null;
+  playbackUrl: string;
+  createdAt: string;
+  uploadedAt: string | null;
 };
 
 type PrepareMusicUploadActionData =
@@ -65,6 +88,29 @@ type PrepareMusicUploadActionData =
         headers: Record<string, string>;
       };
     };
+
+export async function listMusicFilesAction(
+  input: ListMusicFilesActionInput = {},
+): Promise<ActionResult<MusicFileListItemData[]>> {
+  const session = await getSession();
+
+  if (!session?.user?.id) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to view music files.");
+  }
+
+  const sort = parseMusicFileSort(input);
+
+  try {
+    const files = await listReadyMusicFiles({
+      ownerId: session.user.id,
+      sort,
+    });
+
+    return actionSuccess(files.map(toMusicFileListItemData));
+  } catch (error: unknown) {
+    return handleMusicFileServiceError(error);
+  }
+}
 
 export async function findMusicFileByHashAction(
   input: FindMusicFileByHashActionInput,
@@ -198,6 +244,7 @@ function parsePrepareInput(
     title: input.title,
     artist: input.artist,
     album: input.album,
+    metadata: createMusicUploadMetadata(input.durationSeconds),
   };
 }
 
@@ -233,6 +280,59 @@ function toMusicUploadFileData(file: MusicFileRecord): MusicUploadFileData {
     album: file.album,
     status: file.status,
   };
+}
+
+function toMusicFileListItemData(
+  file: MusicFileSearchResult,
+): MusicFileListItemData {
+  return {
+    id: file.id,
+    title: file.title || file.originalFileName,
+    artist: file.artist,
+    album: file.album,
+    originalFileName: file.originalFileName,
+    contentType: file.contentType,
+    sourceSizeBytes: file.sourceSizeBytes,
+    storedSizeBytes: file.storedSizeBytes,
+    durationSeconds: getDurationSeconds(file.metadata),
+    playbackUrl: `/music/files/${encodeURIComponent(file.id)}/play`,
+    createdAt: file.createdAt.toISOString(),
+    uploadedAt: file.uploadedAt?.toISOString() ?? null,
+  };
+}
+
+function parseMusicFileSort(input: ListMusicFilesActionInput): MusicFileSort {
+  return isRecord(input) && input.sort === "alphabetical"
+    ? "alphabetical"
+    : "latest";
+}
+
+function createMusicUploadMetadata(
+  durationSeconds: number | null | undefined,
+) {
+  if (
+    typeof durationSeconds !== "number" ||
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds < 0
+  ) {
+    return undefined;
+  }
+
+  return {
+    durationSeconds,
+  };
+}
+
+function getDurationSeconds(metadata: unknown) {
+  if (!isRecord(metadata)) {
+    return null;
+  }
+
+  const value = metadata.durationSeconds;
+
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

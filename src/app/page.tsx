@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
-import { LandingPage } from "@/components/landing/landing-page";
+import { Dashboard } from "@/components/main/dashboard";
+import { DashboardHome } from "@/components/main/dashboard-home";
+import { AppShell } from "@/components/shared/app-shell";
 
 export const metadata: Metadata = {
   title: "ChordPH | Guitar chords, tabs, and lyrics",
@@ -9,5 +11,15 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  return <LandingPage />;
+  return (
+    <AppShell>
+      <Dashboard
+        eyebrow="CHORDPH - MADE IN THE PHILIPPINES"
+        title="Dashboard"
+        description="Browse chords, upload audio, and keep your practice library in one full-width workspace."
+      >
+        <DashboardHome />
+      </Dashboard>
+    </AppShell>
+  );
 }

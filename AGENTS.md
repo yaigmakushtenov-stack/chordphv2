@@ -91,6 +91,21 @@ Pay special attention to:
 - Keep file organization consistent with the existing structure.
 - Do not add code comments unless explicitly requested.
 
+## Product UI Style
+
+- Match the current home page direction before introducing new visual language.
+- Use `#ed1746` as the primary brand accent, with neutral white, near-black, gray, and zinc-like surfaces.
+- Support light and dark mode in every new page and shared component. Always define both normal and `dark:` states for surfaces, borders, text, hover states, focus states, and empty states.
+- Keep the product UI compact, polished, and music-tool focused. Prefer functional layouts over marketing-style sections for authenticated workflows.
+- Use full-width app layouts for authenticated product surfaces. Favor a Spotify-like structure: top navigation, left library panel, primary main-content panel, and a bottom footer strip for ads, notices, or status.
+- Do not cap app-shell width with `max-w-*` containers. The app shell, top navigation, left panel, main panel, and footer strip should use the full viewport width.
+- Top navigation should put the brand, home button, and rounded search input on the left, with install app, sign up, and log in actions on the right when applicable.
+- Main content wrappers belong under `src/components/main/`. Start with `Dashboard` for the primary app panel and add future wrappers there.
+- Use responsive layouts by default. Components must work at mobile, tablet, and desktop widths without clipped text, overlapping controls, or inaccessible actions.
+- Use rounded pills for primary actions and filters when they match the existing home page. Use cards only for repeated content items or contained tools, not for nested page sections.
+- Preserve strong focus-visible styles and readable contrast in both themes.
+- Prefer existing spacing, border, and typography patterns from `src/components/landing/landing-page.tsx` until a formal design system exists.
+
 ## Change Scope
 
 - Make the smallest safe change that solves the task.
@@ -194,6 +209,7 @@ Pay special attention to:
 - Run `pnpm exec prisma validate` after changing `prisma/schema.prisma`.
 - Run `pnpm db:generate` when changed schema types are consumed by application code.
 - This project currently has no automated test script. Do not claim tests passed when none were run.
+- Do not run `pnpm dev` or start a browser for verification unless the user explicitly asks for it. Actual people will verify browser behavior.
 - If a relevant check cannot run or fails for a pre-existing or environmental reason, report the command and reason clearly.
 
 ## Definition of Done
