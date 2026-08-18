@@ -6,14 +6,16 @@ import { useMemo, useRef, useState } from "react";
 
 import {
   completeMusicUploadAction,
+  findMusicFileByHashAction,
   prepareMusicUploadAction,
   type MusicFileListItemData,
 } from "@/app/music/actions";
+import { MiniAudioPlayer } from "@/components/shared/mini-audio-player";
 import { showToast } from "@/components/shared/toast";
 import {
-  emitMusicFileUploaded,
-  useUploadedMusicFiles,
-} from "@/lib/client/music-upload-events";
+  upsertMusicLibraryFile,
+  useMusicLibraryFiles,
+} from "@/lib/client/music-library-store";
 
 const SUPPORTED_AUDIO_TYPES = new Set([
   "audio/flac",
@@ -31,7 +33,26 @@ type LeftLibraryPanelProps = {
 };
 
 type PanelMode = "library" | "upload";
-type UploadStatus = "idle" | "ready" | "preparing" | "uploading" | "complete" | "error";
+type UploadStatus =
+  | "idle"
+  | "ready"
+  | "preparing"
+  | "duplicate"
+  | "uploading"
+  | "complete"
+  | "error";
+type DuplicateUploadStrategy = "overwrite" | "create";
+type PreparedUploadDraft = {
+  originalFileName: string;
+  contentType: string;
+  sourceSizeBytes: number;
+  sourceSha256: string;
+  storedSizeBytes: number;
+  storedSha256: string;
+  title: string;
+  artist?: string;
+  durationSeconds: number | null;
+};
 
 function LibraryIcon() {
   return (
@@ -96,6 +117,7 @@ export function LeftLibraryPanel({
 }: LeftLibraryPanelProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileCheckIdRef = useRef(0);
   const [mode, setMode] = useState<PanelMode>("library");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -105,6 +127,10 @@ export function LeftLibraryPanel({
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [message, setMessage] = useState("Choose an audio file to upload.");
   const [progress, setProgress] = useState(0);
+  const [duplicateFile, setDuplicateFile] =
+    useState<MusicFileListItemData | null>(null);
+  const [preparedDraft, setPreparedDraft] =
+    useState<PreparedUploadDraft | null>(null);
 
   const isBusy = status === "preparing" || status === "uploading";
 
@@ -119,6 +145,8 @@ export function LeftLibraryPanel({
   }
 
   function resetUploadPanel() {
+    fileCheckIdRef.current += 1;
+
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
@@ -130,11 +158,16 @@ export function LeftLibraryPanel({
     setStatus("idle");
     setMessage("Choose an audio file to upload.");
     setProgress(0);
+    setDuplicateFile(null);
+    setPreparedDraft(null);
     setMode("library");
     inputRef.current?.form?.reset();
   }
 
   function handleFileChange(file: File | null) {
+    const checkId = fileCheckIdRef.current + 1;
+    fileCheckIdRef.current = checkId;
+
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
@@ -144,6 +177,8 @@ export function LeftLibraryPanel({
     setTitle(file ? createTitleFromFileName(file.name) : "");
     setArtist("");
     setProgress(0);
+    setDuplicateFile(null);
+    setPreparedDraft(null);
 
     if (!file) {
       setStatus("idle");
@@ -165,8 +200,71 @@ export function LeftLibraryPanel({
       return;
     }
 
-    setStatus("ready");
-    setMessage("");
+    setStatus("preparing");
+    setMessage("Checking for duplicates.");
+    setProgress(8);
+    void prepareFileForDuplicateReview(file, contentType, checkId);
+  }
+
+  async function prepareFileForDuplicateReview(
+    file: File,
+    contentType: string,
+    checkId: number,
+  ) {
+    try {
+      const [sourceSha256, durationSeconds] = await Promise.all([
+        hashFile(file),
+        readAudioDuration(file),
+      ]);
+
+      if (fileCheckIdRef.current !== checkId) {
+        return;
+      }
+
+      const draft: PreparedUploadDraft = {
+        originalFileName: file.name,
+        contentType,
+        sourceSizeBytes: file.size,
+        sourceSha256,
+        storedSizeBytes: file.size,
+        storedSha256: sourceSha256,
+        title: createTitleFromFileName(file.name),
+        durationSeconds,
+      };
+      setPreparedDraft(draft);
+      setProgress(22);
+
+      const duplicateResult = await findMusicFileByHashAction({
+        sourceSha256,
+      });
+
+      if (fileCheckIdRef.current !== checkId) {
+        return;
+      }
+
+      if (!duplicateResult.ok) {
+        setStatus("error");
+        setMessage(createFriendlyUploadError());
+        return;
+      }
+
+      if (duplicateResult.data) {
+        setDuplicateFile(duplicateResult.data);
+        setStatus("duplicate");
+        setMessage("This audio already exists in your library.");
+        return;
+      }
+
+      setStatus("ready");
+      setMessage("");
+    } catch {
+      if (fileCheckIdRef.current !== checkId) {
+        return;
+      }
+
+      setStatus("error");
+      setMessage(createFriendlyUploadError());
+    }
   }
 
   async function submitUpload() {
@@ -182,7 +280,9 @@ export function LeftLibraryPanel({
       return;
     }
 
-    try {
+    let draft = preparedDraft;
+
+    if (!draft || draft.originalFileName !== selectedFile.name) {
       setStatus("preparing");
       setMessage("Preparing upload.");
       setProgress(6);
@@ -190,19 +290,44 @@ export function LeftLibraryPanel({
         hashFile(selectedFile),
         readAudioDuration(selectedFile),
       ]);
-      setProgress(22);
-
-      const prepareResult = await prepareMusicUploadAction({
+      draft = {
         originalFileName: selectedFile.name,
         contentType,
         sourceSizeBytes: selectedFile.size,
         sourceSha256,
         storedSizeBytes: selectedFile.size,
         storedSha256: sourceSha256,
-        title: title.trim() || createTitleFromFileName(selectedFile.name),
-        artist: artist.trim() || undefined,
+        title: createTitleFromFileName(selectedFile.name),
         durationSeconds,
-      });
+      };
+      setPreparedDraft(draft);
+    }
+
+    await uploadPreparedDraft(applyUploadFormValues(draft, selectedFile));
+  }
+
+  async function submitDuplicateChoice(strategy: DuplicateUploadStrategy) {
+    if (!preparedDraft || !selectedFile || isBusy) {
+      return;
+    }
+
+    await uploadPreparedDraft({
+      ...applyUploadFormValues(preparedDraft, selectedFile),
+      duplicateStrategy: strategy,
+    });
+  }
+
+  async function uploadPreparedDraft(
+    draft: PreparedUploadDraft & { duplicateStrategy?: DuplicateUploadStrategy },
+  ) {
+    if (!selectedFile) {
+      return;
+    }
+
+    try {
+      setStatus("preparing");
+      setMessage("Preparing upload.");
+      const prepareResult = await prepareMusicUploadAction(draft);
 
       if (!prepareResult.ok) {
         setStatus("error");
@@ -211,21 +336,19 @@ export function LeftLibraryPanel({
       }
 
       if (prepareResult.data.outcome === "duplicate") {
-        showToast({
-          title: "Already in your library",
-          description: prepareResult.data.file.title ?? selectedFile.name,
-          tone: "info",
-        });
-        resetUploadPanel();
+        setDuplicateFile(prepareResult.data.file);
+        setStatus("duplicate");
+        setMessage("This audio already exists in your library.");
         return;
       }
 
+      setDuplicateFile(null);
       setStatus("uploading");
       setMessage("Uploading to storage.");
       await uploadFileToStorage({
         file: selectedFile,
         url: createMusicUploadUrl(prepareResult.data.file.id),
-        contentType,
+        contentType: draft.contentType,
         onProgress: (uploadProgress) => {
           setProgress(25 + Math.round(uploadProgress * 0.65));
         },
@@ -243,7 +366,7 @@ export function LeftLibraryPanel({
         return;
       }
 
-      emitMusicFileUploaded(completeResult.data);
+      upsertMusicLibraryFile(completeResult.data);
       showToast({
         title: "Upload complete",
         description: completeResult.data.title,
@@ -254,6 +377,17 @@ export function LeftLibraryPanel({
       setStatus("error");
       setMessage(createFriendlyUploadError());
     }
+  }
+
+  function applyUploadFormValues(
+    draft: PreparedUploadDraft,
+    file: File,
+  ): PreparedUploadDraft {
+    return {
+      ...draft,
+      title: title.trim() || createTitleFromFileName(file.name),
+      artist: artist.trim() || undefined,
+    };
   }
 
   return (
@@ -333,11 +467,13 @@ export function LeftLibraryPanel({
           title={title}
           artist={artist}
           isBusy={isBusy}
+          duplicateFile={duplicateFile}
           onFileChange={handleFileChange}
           onTitleChange={setTitle}
           onArtistChange={setArtist}
           onRemoveFile={() => handleFileChange(null)}
           onSubmit={() => void submitUpload()}
+          onDuplicateChoice={(strategy) => void submitDuplicateChoice(strategy)}
         />
       ) : (
         <LibrarySummary
@@ -360,11 +496,13 @@ type UploadPanelProps = {
   title: string;
   artist: string;
   isBusy: boolean;
+  duplicateFile: MusicFileListItemData | null;
   onFileChange: (file: File | null) => void;
   onTitleChange: (title: string) => void;
   onArtistChange: (artist: string) => void;
   onRemoveFile: () => void;
   onSubmit: () => void;
+  onDuplicateChoice: (strategy: DuplicateUploadStrategy) => void;
 };
 
 function UploadPanel({
@@ -377,11 +515,13 @@ function UploadPanel({
   title,
   artist,
   isBusy,
+  duplicateFile,
   onFileChange,
   onTitleChange,
   onArtistChange,
   onRemoveFile,
   onSubmit,
+  onDuplicateChoice,
 }: UploadPanelProps) {
   const isUploadProgressVisible =
     status === "preparing" || status === "uploading" || status === "complete";
@@ -490,6 +630,13 @@ function UploadPanel({
               </div>
             </div>
           ) : null}
+          {status === "duplicate" && duplicateFile ? (
+            <DuplicateReview
+              file={duplicateFile}
+              onCreateNew={() => onDuplicateChoice("create")}
+              onOverwrite={() => onDuplicateChoice("overwrite")}
+            />
+          ) : null}
         </div>
       ) : null}
 
@@ -502,7 +649,7 @@ function UploadPanel({
         </p>
       ) : null}
 
-      {file ? (
+      {file && status !== "duplicate" ? (
         <div>
           <button
             type="button"
@@ -518,6 +665,51 @@ function UploadPanel({
   );
 }
 
+function DuplicateReview({
+  file,
+  onCreateNew,
+  onOverwrite,
+}: {
+  file: MusicFileListItemData;
+  onCreateNew: () => void;
+  onOverwrite: () => void;
+}) {
+  return (
+    <div className="mt-5 rounded-xl border border-[#ffd0d9] bg-[#fff4f6] p-3 dark:border-[#5c1f2d] dark:bg-[#241016]">
+      <p className="text-[13px] font-bold text-[#be123c] dark:text-[#fb7185]">
+        Duplicate audio detected
+      </p>
+      <p className="mt-1 text-[12px] leading-5 text-[#666] dark:text-[#b4b4bc]">
+        Review the existing track before choosing how to continue.
+      </p>
+      <div className="mt-3">
+        <MiniAudioPlayer
+          src={file.playbackUrl}
+          title={file.title}
+          artist={file.artist}
+          durationSeconds={file.durationSeconds}
+        />
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={onOverwrite}
+          className="inline-flex h-10 items-center justify-center rounded-full bg-[#111] px-4 text-[12px] font-bold text-white transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
+        >
+          Overwrite
+        </button>
+        <button
+          type="button"
+          onClick={onCreateNew}
+          className="inline-flex h-10 items-center justify-center rounded-full bg-[#ed1746] px-4 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+        >
+          Create new
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function LibrarySummary({
   initialItems,
   isAuthenticated,
@@ -527,10 +719,10 @@ function LibrarySummary({
   isAuthenticated: boolean;
   onUpload: () => void;
 }) {
-  const uploadedFiles = useUploadedMusicFiles();
+  const musicFiles = useMusicLibraryFiles(initialItems);
   const items = useMemo(
-    () => mergeMusicFiles(uploadedFiles, initialItems).slice(0, 6),
-    [initialItems, uploadedFiles],
+    () => musicFiles.slice(0, 6),
+    [musicFiles],
   );
 
   return (
@@ -696,30 +888,6 @@ function createTitleFromFileName(fileName: string) {
   const title = name.replace(/\.[^.]+$/, "").trim();
 
   return title || fileName;
-}
-
-function mergeMusicFiles(
-  primaryItems: MusicFileListItemData[],
-  secondaryItems: MusicFileListItemData[],
-) {
-  const merged = new Map<string, MusicFileListItemData>();
-
-  for (const item of [...primaryItems, ...secondaryItems]) {
-    merged.set(item.id, item);
-  }
-
-  return Array.from(merged.values()).sort(compareNewestMusicFiles);
-}
-
-function compareNewestMusicFiles(
-  left: MusicFileListItemData,
-  right: MusicFileListItemData,
-) {
-  return getMusicFileTime(right) - getMusicFileTime(left);
-}
-
-function getMusicFileTime(item: MusicFileListItemData) {
-  return new Date(item.uploadedAt ?? item.createdAt).getTime();
 }
 
 function formatLibrarySubtitle(item: MusicFileListItemData) {

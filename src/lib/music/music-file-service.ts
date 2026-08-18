@@ -64,11 +64,14 @@ export type PrepareMusicUploadInput = {
   sourceSha256: string;
   storedSizeBytes: number;
   storedSha256: string;
+  duplicateStrategy?: MusicUploadDuplicateStrategy;
   title?: string;
   artist?: string;
   album?: string;
   metadata?: Prisma.InputJsonObject;
 };
+
+export type MusicUploadDuplicateStrategy = "overwrite" | "create";
 
 export type PrepareMusicUploadResult =
   | {
@@ -130,13 +133,13 @@ export async function findMusicFileByHash(
   const normalizedOwnerId = requireText(ownerId, "ownerId", 255);
   const normalizedSha256 = normalizeSha256(sourceSha256);
 
-  return prisma.musicFile.findUnique({
+  return prisma.musicFile.findFirst({
     where: {
-      ownerId_sourceSha256: {
-        ownerId: normalizedOwnerId,
-        sourceSha256: normalizedSha256,
-      },
+      ownerId: normalizedOwnerId,
+      sourceSha256: normalizedSha256,
+      status: MusicFileStatus.READY,
     },
+    orderBy: [{ uploadedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
     select: musicFileSelect,
   });
 }
@@ -145,26 +148,68 @@ export async function prepareMusicUpload(
   input: PrepareMusicUploadInput,
 ): Promise<PrepareMusicUploadResult> {
   const values = validatePrepareInput(input);
-  const initialUpload = await storage.createUploadUrl({
+  const duplicateFile = await prisma.musicFile.findFirst({
+    where: {
+      ownerId: values.ownerId,
+      sourceSha256: values.sourceSha256,
+      status: MusicFileStatus.READY,
+    },
+    orderBy: [{ uploadedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    select: musicFileSelect,
+  });
+
+  if (duplicateFile && !values.duplicateStrategy) {
+    return {
+      outcome: "duplicate",
+      file: duplicateFile,
+    };
+  }
+
+  if (duplicateFile && values.duplicateStrategy === "overwrite") {
+    const file = await prisma.musicFile.update({
+      where: {
+        id: duplicateFile.id,
+      },
+      data: {
+        status: MusicFileStatus.PENDING,
+        originalFileName: values.originalFileName,
+        contentType: values.contentType,
+        sourceSizeBytes: values.sourceSizeBytes,
+        storedSizeBytes: values.storedSizeBytes,
+        storedSha256: values.storedSha256,
+        title: values.title,
+        artist: values.artist,
+        album: values.album,
+        metadata: values.metadata,
+        uploadedAt: null,
+      },
+      select: musicFileSelect,
+    });
+    const upload = await storage.createUploadUrlForKey({
+      key: file.objectKey,
+      contentType: file.contentType,
+      contentLength: requireStoredSize(file.storedSizeBytes),
+    });
+
+    return {
+      outcome: "upload",
+      file,
+      upload,
+    };
+  }
+
+  const upload = await storage.createUploadUrl({
     ownerId: values.ownerId,
     folder: "music",
     fileName: values.originalFileName,
     contentType: values.contentType,
     contentLength: values.storedSizeBytes,
   });
-
-  const file = await prisma.musicFile.upsert({
-    where: {
-      ownerId_sourceSha256: {
-        ownerId: values.ownerId,
-        sourceSha256: values.sourceSha256,
-      },
-    },
-    update: {},
-    create: {
+  const file = await prisma.musicFile.create({
+    data: {
       ownerId: values.ownerId,
       sourceSha256: values.sourceSha256,
-      objectKey: initialUpload.key,
+      objectKey: upload.key,
       originalFileName: values.originalFileName,
       contentType: values.contentType,
       sourceSizeBytes: values.sourceSizeBytes,
@@ -178,65 +223,9 @@ export async function prepareMusicUpload(
     select: musicFileSelect,
   });
 
-  if (file.objectKey === initialUpload.key) {
-    return {
-      outcome: "upload",
-      file,
-      upload: initialUpload,
-    };
-  }
-
-  if (
-    file.status !== MusicFileStatus.PENDING &&
-    file.status !== MusicFileStatus.FAILED
-  ) {
-    return {
-      outcome: "duplicate",
-      file,
-    };
-  }
-
-  if (
-    file.status === MusicFileStatus.PENDING &&
-    (file.contentType !== values.contentType ||
-      file.sourceSizeBytes !== values.sourceSizeBytes ||
-      file.storedSizeBytes !== values.storedSizeBytes ||
-      file.storedSha256 !== values.storedSha256)
-  ) {
-    throw new MusicFileServiceError(
-      "UPLOAD_CONFLICT",
-      "A different upload is already pending for this source file.",
-    );
-  }
-
-  const resumableFile =
-    file.status === MusicFileStatus.FAILED
-      ? await prisma.musicFile.update({
-          where: { id: file.id },
-          data: {
-            status: MusicFileStatus.PENDING,
-            contentType: values.contentType,
-            sourceSizeBytes: values.sourceSizeBytes,
-            storedSizeBytes: values.storedSizeBytes,
-            storedSha256: values.storedSha256,
-            originalFileName: values.originalFileName,
-            title: values.title,
-            artist: values.artist,
-            album: values.album,
-            metadata: values.metadata,
-          },
-          select: musicFileSelect,
-        })
-      : file;
-  const upload = await storage.createUploadUrlForKey({
-    key: resumableFile.objectKey,
-    contentType: resumableFile.contentType,
-    contentLength: requireStoredSize(resumableFile.storedSizeBytes),
-  });
-
   return {
     outcome: "upload",
-    file: resumableFile,
+    file,
     upload,
   };
 }
@@ -484,11 +473,25 @@ function validatePrepareInput(input: PrepareMusicUploadInput) {
     sourceSha256: normalizeSha256(input.sourceSha256),
     storedSizeBytes: input.storedSizeBytes,
     storedSha256: normalizeSha256(input.storedSha256),
+    duplicateStrategy: normalizeDuplicateStrategy(input.duplicateStrategy),
     title: normalizeOptionalText(input.title, "title", 255),
     artist: normalizeOptionalText(input.artist, "artist", 255),
     album: normalizeOptionalText(input.album, "album", 255),
     metadata: normalizeMetadata(input.metadata),
   };
+}
+
+function normalizeDuplicateStrategy(
+  value: MusicUploadDuplicateStrategy | undefined,
+) {
+  if (value === undefined || value === "overwrite" || value === "create") {
+    return value;
+  }
+
+  throw new MusicFileServiceError(
+    "INVALID_INPUT",
+    "The duplicate upload strategy is invalid.",
+  );
 }
 
 function normalizeMusicContentType(value: string) {

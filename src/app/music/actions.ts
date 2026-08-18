@@ -29,6 +29,7 @@ export type PrepareMusicUploadActionInput = {
   sourceSha256: string;
   storedSizeBytes: number;
   storedSha256: string;
+  duplicateStrategy?: "overwrite" | "create";
   title?: string;
   artist?: string;
   album?: string;
@@ -77,7 +78,7 @@ export type MusicFileListItemData = {
 type PrepareMusicUploadActionData =
   | {
       outcome: "duplicate";
-      file: MusicUploadFileData;
+      file: MusicFileListItemData;
     }
   | {
       outcome: "upload";
@@ -114,7 +115,7 @@ export async function listMusicFilesAction(
 
 export async function findMusicFileByHashAction(
   input: FindMusicFileByHashActionInput,
-): Promise<ActionResult<MusicUploadFileData | null>> {
+): Promise<ActionResult<MusicFileListItemData | null>> {
   const session = await getSession();
 
   if (!session?.user?.id) {
@@ -131,7 +132,7 @@ export async function findMusicFileByHashAction(
       input.sourceSha256,
     );
 
-    return actionSuccess(file ? toMusicUploadFileData(file) : null);
+    return actionSuccess(file ? toMusicFileListItemData(file) : null);
   } catch (error: unknown) {
     return handleMusicFileServiceError(error);
   }
@@ -160,15 +161,17 @@ export async function prepareMusicUploadAction(
       ...parsedInput,
       ownerId: session.user.id,
     });
-    const file = toMusicUploadFileData(result.file);
 
     if (result.outcome === "duplicate") {
-      return actionSuccess({ outcome: "duplicate", file });
+      return actionSuccess({
+        outcome: "duplicate",
+        file: toMusicFileListItemData(result.file),
+      });
     }
 
     return actionSuccess({
       outcome: "upload",
-      file,
+      file: toMusicUploadFileData(result.file),
       upload: {
         url: result.upload.uploadUrl,
         expiresIn: result.upload.expiresIn,
@@ -241,6 +244,7 @@ function parsePrepareInput(
     sourceSha256: input.sourceSha256,
     storedSizeBytes: input.storedSizeBytes,
     storedSha256: input.storedSha256,
+    duplicateStrategy: parseDuplicateStrategy(input.duplicateStrategy),
     title: input.title,
     artist: input.artist,
     album: input.album,
@@ -305,6 +309,10 @@ function parseMusicFileSort(input: ListMusicFilesActionInput): MusicFileSort {
   return isRecord(input) && input.sort === "alphabetical"
     ? "alphabetical"
     : "latest";
+}
+
+function parseDuplicateStrategy(value: unknown) {
+  return value === "overwrite" || value === "create" ? value : undefined;
 }
 
 function createMusicUploadMetadata(

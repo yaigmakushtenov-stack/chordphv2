@@ -12,25 +12,27 @@ import {
   type PlaylistItem,
   type PlaylistSort,
 } from "@/components/shared/playlist";
-import { useUploadedMusicFiles } from "@/lib/client/music-upload-events";
+import {
+  replaceMusicLibraryFiles,
+  useMusicLibraryFiles,
+} from "@/lib/client/music-library-store";
 
 type MusicLibraryProps = {
   initialItems: PlaylistItem[];
 };
 
 export function MusicLibrary({ initialItems }: MusicLibraryProps) {
-  const [items, setItems] = useState<PlaylistItem[]>(initialItems);
   const [sort, setSort] = useState<PlaylistSort>("latest");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const uploadedFiles = useUploadedMusicFiles();
+  const initialMusicFiles = useMemo(
+    () => initialItems.map(toMusicFileData),
+    [initialItems],
+  );
+  const musicFiles = useMusicLibraryFiles(initialMusicFiles);
   const displayItems = useMemo(
-    () =>
-      sortPlaylistItems(
-        mergePlaylistItems(uploadedFiles.map(toPlaylistItem), items),
-        sort,
-      ),
-    [items, sort, uploadedFiles],
+    () => sortPlaylistItems(musicFiles.map(toPlaylistItem), sort),
+    [musicFiles, sort],
   );
 
   const loadFiles = useCallback(async (nextSort: PlaylistSort = sort) => {
@@ -40,9 +42,9 @@ export function MusicLibrary({ initialItems }: MusicLibraryProps) {
     const result = await listMusicFilesAction({ sort: nextSort });
 
     if (result.ok) {
-      setItems(result.data.map(toPlaylistItem));
+      replaceMusicLibraryFiles(result.data);
     } else {
-      setItems([]);
+      replaceMusicLibraryFiles([]);
       setErrorMessage(result.error.message);
     }
 
@@ -89,17 +91,21 @@ function toPlaylistItem(file: MusicFileListItemData): PlaylistItem {
   };
 }
 
-function mergePlaylistItems(
-  primaryItems: PlaylistItem[],
-  secondaryItems: PlaylistItem[],
-) {
-  const merged = new Map<string, PlaylistItem>();
-
-  for (const item of [...primaryItems, ...secondaryItems]) {
-    merged.set(item.id, item);
-  }
-
-  return Array.from(merged.values());
+function toMusicFileData(item: PlaylistItem): MusicFileListItemData {
+  return {
+    id: item.id,
+    title: item.title,
+    artist: item.artist,
+    album: item.album,
+    originalFileName: item.originalFileName,
+    contentType: item.contentType,
+    sourceSizeBytes: item.sourceSizeBytes,
+    storedSizeBytes: item.storedSizeBytes,
+    durationSeconds: item.durationSeconds,
+    playbackUrl: item.playbackUrl,
+    createdAt: item.createdAt,
+    uploadedAt: item.uploadedAt,
+  };
 }
 
 function sortPlaylistItems(items: PlaylistItem[], sort: PlaylistSort) {

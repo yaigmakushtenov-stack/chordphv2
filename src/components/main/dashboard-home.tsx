@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 
 import type { MusicFileListItemData } from "@/app/music/actions";
-import { useUploadedMusicFiles } from "@/lib/client/music-upload-events";
+import { useMusicLibraryFiles } from "@/lib/client/music-library-store";
 
 const NEWEST_SONGS_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 
@@ -79,10 +79,10 @@ export function DashboardHome({
 }: {
   initialNewestSongs: MusicFileListItemData[];
 }) {
-  const uploadedFiles = useUploadedMusicFiles();
+  const musicFiles = useMusicLibraryFiles(initialNewestSongs);
   const newestSongs = useMemo(
-    () => getNewestSongs(uploadedFiles, initialNewestSongs).slice(0, 6),
-    [initialNewestSongs, uploadedFiles],
+    () => getNewestSongs(musicFiles).slice(0, 6),
+    [musicFiles],
   );
 
   return (
@@ -208,21 +208,11 @@ export function DashboardHome({
 }
 
 function getNewestSongs(
-  primaryItems: MusicFileListItemData[],
-  secondaryItems: MusicFileListItemData[],
+  items: MusicFileListItemData[],
 ) {
   const cutoff = Date.now() - NEWEST_SONGS_WINDOW_MS;
-  const merged = new Map<string, MusicFileListItemData>();
 
-  for (const item of [...primaryItems, ...secondaryItems]) {
-    if (getMusicFileTime(item) >= cutoff) {
-      merged.set(item.id, item);
-    }
-  }
-
-  return Array.from(merged.values()).sort(
-    (left, right) => getMusicFileTime(right) - getMusicFileTime(left),
-  );
+  return items.filter((item) => getMusicFileTime(item) >= cutoff);
 }
 
 function getMusicFileTime(item: MusicFileListItemData) {

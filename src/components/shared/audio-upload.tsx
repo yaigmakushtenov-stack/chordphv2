@@ -2,9 +2,14 @@
 
 import { useRef, useState } from "react";
 
-import { completeMusicUploadAction, prepareMusicUploadAction } from "@/app/music/actions";
+import {
+  completeMusicUploadAction,
+  prepareMusicUploadAction,
+  type MusicFileListItemData,
+} from "@/app/music/actions";
+import { MiniAudioPlayer } from "@/components/shared/mini-audio-player";
 import { showToast } from "@/components/shared/toast";
-import { emitMusicFileUploaded } from "@/lib/client/music-upload-events";
+import { upsertMusicLibraryFile } from "@/lib/client/music-library-store";
 
 const SUPPORTED_AUDIO_TYPES = new Set([
   "audio/flac",
@@ -24,9 +29,24 @@ type UploadStatus = "queued" | "preparing" | "uploading" | "complete" | "error" 
 
 type UploadItem = {
   id: string;
+  file: File;
   fileName: string;
   status: UploadStatus;
   message: string;
+  draft?: PreparedUploadDraft;
+  duplicateFile?: MusicFileListItemData;
+};
+
+type DuplicateUploadStrategy = "overwrite" | "create";
+type PreparedUploadDraft = {
+  originalFileName: string;
+  contentType: string;
+  sourceSizeBytes: number;
+  sourceSha256: string;
+  storedSizeBytes: number;
+  storedSha256: string;
+  title: string;
+  durationSeconds: number | null;
 };
 
 export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
@@ -48,7 +68,7 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
       for (const file of audioFiles) {
         const id = crypto.randomUUID();
         setItems((current) => [
-          { id, fileName: file.name, status: "queued", message: "Queued" },
+          { id, file, fileName: file.name, status: "queued", message: "Queued" },
           ...current,
         ]);
         await uploadFile(id, file);
@@ -78,7 +98,7 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
         hashFile(file),
         readAudioDuration(file),
       ]);
-      const prepareResult = await prepareMusicUploadAction({
+      const draft: PreparedUploadDraft = {
         originalFileName: file.name,
         contentType,
         sourceSizeBytes: file.size,
@@ -87,7 +107,22 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
         storedSha256: sourceSha256,
         title: createTitleFromFileName(file.name),
         durationSeconds,
-      });
+      };
+
+      await uploadPreparedFile(id, file, draft);
+    } catch (error: unknown) {
+      updateItem(id, "error", getUploadErrorMessage(error));
+    }
+  }
+
+  async function uploadPreparedFile(
+    id: string,
+    file: File,
+    draft: PreparedUploadDraft & { duplicateStrategy?: DuplicateUploadStrategy },
+  ) {
+    try {
+      updateItem(id, "preparing", "Preparing");
+      const prepareResult = await prepareMusicUploadAction(draft);
 
       if (!prepareResult.ok) {
         updateItem(id, "error", prepareResult.error.message);
@@ -95,13 +130,10 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
       }
 
       if (prepareResult.data.outcome === "duplicate") {
-        updateItem(id, "duplicate", "Already uploaded");
-        showToast({
-          title: "Already in your library",
-          description: prepareResult.data.file.title ?? file.name,
-          tone: "info",
+        updateItem(id, "duplicate", "Duplicate detected", {
+          draft,
+          duplicateFile: prepareResult.data.file,
         });
-        onUploadComplete?.();
         return;
       }
 
@@ -111,7 +143,7 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
         {
           method: "PUT",
           headers: {
-            "Content-Type": contentType,
+            "Content-Type": draft.contentType,
           },
           body: file,
         },
@@ -131,7 +163,7 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
         return;
       }
 
-      emitMusicFileUploaded(completeResult.data);
+      upsertMusicLibraryFile(completeResult.data);
       showToast({
         title: "Upload complete",
         description: completeResult.data.title,
@@ -144,10 +176,30 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
     }
   }
 
-  function updateItem(id: string, status: UploadStatus, message: string) {
+  function continueDuplicateUpload(
+    item: UploadItem,
+    strategy: DuplicateUploadStrategy,
+  ) {
+    if (!item.draft) {
+      updateItem(item.id, "error", "Upload details are missing.");
+      return;
+    }
+
+    void uploadPreparedFile(item.id, item.file, {
+      ...item.draft,
+      duplicateStrategy: strategy,
+    });
+  }
+
+  function updateItem(
+    id: string,
+    status: UploadStatus,
+    message: string,
+    data: Pick<UploadItem, "draft" | "duplicateFile"> = {},
+  ) {
     setItems((current) =>
       current.map((item) =>
-        item.id === id ? { ...item, status, message } : item,
+        item.id === id ? { ...item, ...data, status, message } : item,
       ),
     );
   }
@@ -215,7 +267,7 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-[#ececec] bg-[#fafafa] px-3 py-2 dark:border-[#36363b] dark:bg-[#1d1d20]"
+              className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-[#ececec] bg-[#fafafa] px-3 py-2 dark:border-[#36363b] dark:bg-[#1d1d20]"
             >
               <p className="min-w-0 truncate text-[13px] font-medium">
                 {item.fileName}
@@ -227,6 +279,32 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
               >
                 {item.message}
               </span>
+              {item.status === "duplicate" && item.duplicateFile ? (
+                <div className="col-span-2 mt-2 grid gap-2">
+                  <MiniAudioPlayer
+                    src={item.duplicateFile.playbackUrl}
+                    title={item.duplicateFile.title}
+                    artist={item.duplicateFile.artist}
+                    durationSeconds={item.duplicateFile.durationSeconds}
+                  />
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => continueDuplicateUpload(item, "overwrite")}
+                      className="inline-flex h-9 items-center justify-center rounded-full bg-[#111] px-4 text-[12px] font-bold text-white transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
+                    >
+                      Overwrite
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => continueDuplicateUpload(item, "create")}
+                      className="inline-flex h-9 items-center justify-center rounded-full bg-[#ed1746] px-4 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+                    >
+                      Create new
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

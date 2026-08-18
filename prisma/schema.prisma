@@ -122,7 +122,7 @@ model MusicFile {
   uploadedAt           DateTime?
   owner                BetterAuthUser  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  @@unique([ownerId, sourceSha256])
+  @@index([ownerId, sourceSha256])
   @@index([ownerId, createdAt])
   @@index([ownerId, status])
 }
