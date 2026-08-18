@@ -141,14 +141,30 @@ export async function AppShell({
             <button
               type="button"
               aria-label="Search music"
-              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#ededed] text-[#111] transition hover:bg-[#e2e2e2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#1f1f1f] dark:text-white dark:hover:bg-[#2a2a2a]"
+              className="hidden size-11 shrink-0 items-center justify-center rounded-full bg-[#ededed] text-[#111] transition hover:bg-[#e2e2e2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] max-md:flex dark:bg-[#1f1f1f] dark:text-white dark:hover:bg-[#2a2a2a]"
             >
               <SearchIcon />
             </button>
+            <label className="hidden h-11 min-w-0 flex-1 items-center gap-3 rounded-full border border-[#dedede] bg-white px-4 text-[#696969] transition focus-within:border-[#b8b8b8] focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(237,23,70,0.08)] md:flex md:max-w-[620px] dark:border-[#2a2a2a] dark:bg-[#1f1f1f] dark:text-[#b4b4bc] dark:focus-within:border-[#494949] dark:focus-within:bg-[#252525]">
+              <span className="sr-only">Search music</span>
+              <SearchIcon />
+              <input
+                type="search"
+                placeholder="What do you want to play?"
+                className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-medium text-[#171717] outline-none placeholder:text-[#777] dark:text-[#f5f5f5] dark:placeholder:text-[#a1a1aa]"
+              />
+            </label>
             <nav
               aria-label="Account navigation"
               className="ml-auto flex min-w-0 items-center justify-end gap-2"
             >
+              <Link
+                href="/"
+                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-[#ed1746] px-5 text-[13px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#ed1746] dark:hover:bg-[#d90f3b]"
+              >
+                <DownloadIcon />
+                Install App
+              </Link>
               {user ? (
                 <PixelAvatar email={user.email} name={user.name} />
               ) : (
@@ -170,13 +186,6 @@ export async function AppShell({
               <ThemeToggle className="size-10" />
             </nav>
           </div>
-          <Link
-            href="/"
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[#ed1746] px-4 text-[13px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#ed1746] dark:hover:bg-[#d90f3b]"
-          >
-            <DownloadIcon />
-            Install App
-          </Link>
         </div>
       </header>
 
