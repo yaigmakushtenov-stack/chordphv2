@@ -1,3 +1,12 @@
+"use client";
+
+import { useMemo } from "react";
+
+import type { MusicFileListItemData } from "@/app/music/actions";
+import { useUploadedMusicFiles } from "@/lib/client/music-upload-events";
+
+const NEWEST_SONGS_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+
 const TRENDING_SONGS = [
   {
     title: "Riptide",
@@ -65,9 +74,77 @@ function MusicIcon() {
   );
 }
 
-export function DashboardHome() {
+export function DashboardHome({
+  initialNewestSongs,
+}: {
+  initialNewestSongs: MusicFileListItemData[];
+}) {
+  const uploadedFiles = useUploadedMusicFiles();
+  const newestSongs = useMemo(
+    () => getNewestSongs(uploadedFiles, initialNewestSongs).slice(0, 6),
+    [initialNewestSongs, uploadedFiles],
+  );
+
   return (
     <div className="grid gap-8">
+      <section>
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-[22px] font-black tracking-[-0.03em]">
+            Newest songs
+          </h2>
+          <span className="rounded-full bg-[#ffe2e7] px-3 py-1 text-[12px] font-bold text-[#ed1746] dark:bg-[#3a1720]">
+            48 hours
+          </span>
+        </div>
+        {newestSongs.length ? (
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {newestSongs.map((song) => (
+              <article
+                key={song.id}
+                className="rounded-xl border border-[#e8e8e8] bg-[#fafafa] p-4 dark:border-[#303034] dark:bg-[#18181b]"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#111] text-white dark:bg-white dark:text-[#111]">
+                    <MusicIcon />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-[15px] font-bold">
+                      {song.title}
+                    </h3>
+                    <p className="mt-1 truncate text-[13px] text-[#666] dark:text-[#b4b4bc]">
+                      {formatSongSubtitle(song)}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-[#666] dark:text-[#b4b4bc]">
+                      <span className="rounded-full bg-white px-2.5 py-1 dark:bg-[#28282c]">
+                        {formatDuration(song.durationSeconds)}
+                      </span>
+                      <span className="rounded-full bg-white px-2.5 py-1 dark:bg-[#28282c]">
+                        {formatRelativeUploadTime(song)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <audio
+                  controls
+                  preload="none"
+                  src={song.playbackUrl}
+                  className="mt-3 h-10 w-full"
+                >
+                  <a href={song.playbackUrl}>Play audio</a>
+                </audio>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-[#e8e8e8] bg-[#fafafa] p-5 dark:border-[#303034] dark:bg-[#18181b]">
+            <p className="text-[14px] font-bold">No newest songs yet</p>
+            <p className="mt-1 text-[13px] leading-5 text-[#666] dark:text-[#b4b4bc]">
+              Uploads from the last two days appear here.
+            </p>
+          </div>
+        )}
+      </section>
+
       <section>
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-[22px] font-black tracking-[-0.03em]">
@@ -128,4 +205,56 @@ export function DashboardHome() {
       </section>
     </div>
   );
+}
+
+function getNewestSongs(
+  primaryItems: MusicFileListItemData[],
+  secondaryItems: MusicFileListItemData[],
+) {
+  const cutoff = Date.now() - NEWEST_SONGS_WINDOW_MS;
+  const merged = new Map<string, MusicFileListItemData>();
+
+  for (const item of [...primaryItems, ...secondaryItems]) {
+    if (getMusicFileTime(item) >= cutoff) {
+      merged.set(item.id, item);
+    }
+  }
+
+  return Array.from(merged.values()).sort(
+    (left, right) => getMusicFileTime(right) - getMusicFileTime(left),
+  );
+}
+
+function getMusicFileTime(item: MusicFileListItemData) {
+  return new Date(item.uploadedAt ?? item.createdAt).getTime();
+}
+
+function formatSongSubtitle(song: MusicFileListItemData) {
+  const parts = [song.artist, song.album].filter(Boolean);
+
+  return parts.length ? parts.join(" · ") : song.originalFileName;
+}
+
+function formatDuration(durationSeconds: number | null) {
+  if (durationSeconds === null) {
+    return "Duration unknown";
+  }
+
+  const minutes = Math.floor(durationSeconds / 60);
+  const seconds = Math.round(durationSeconds % 60)
+    .toString()
+    .padStart(2, "0");
+
+  return `${minutes}:${seconds}`;
+}
+
+function formatRelativeUploadTime(song: MusicFileListItemData) {
+  const ageMs = Math.max(0, Date.now() - getMusicFileTime(song));
+  const hours = Math.max(1, Math.floor(ageMs / (60 * 60 * 1000)));
+
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+
+  return "Yesterday";
 }

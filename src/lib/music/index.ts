@@ -6,6 +6,7 @@ export {
   listReadyMusicFiles,
   prepareMusicUpload,
   searchMusicFiles,
+  uploadPreparedMusicFile,
 } from "./music-file-service";
 
 export type {
@@ -17,4 +18,5 @@ export type {
   PrepareMusicUploadResult,
   SearchMusicFilesInput,
   SearchMusicFilesResult,
+  UploadPreparedMusicFileInput,
 } from "./music-file-service";

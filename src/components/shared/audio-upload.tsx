@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 
 import { completeMusicUploadAction, prepareMusicUploadAction } from "@/app/music/actions";
+import { showToast } from "@/components/shared/toast";
+import { emitMusicFileUploaded } from "@/lib/client/music-upload-events";
 
 const SUPPORTED_AUDIO_TYPES = new Set([
   "audio/flac",
@@ -94,16 +96,26 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
 
       if (prepareResult.data.outcome === "duplicate") {
         updateItem(id, "duplicate", "Already uploaded");
+        showToast({
+          title: "Already in your library",
+          description: prepareResult.data.file.title ?? file.name,
+          tone: "info",
+        });
         onUploadComplete?.();
         return;
       }
 
       updateItem(id, "uploading", "Uploading");
-      const uploadResponse = await fetch(prepareResult.data.upload.url, {
-        method: "PUT",
-        headers: prepareResult.data.upload.headers,
-        body: file,
-      });
+      const uploadResponse = await fetch(
+        createMusicUploadUrl(prepareResult.data.file.id),
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": contentType,
+          },
+          body: file,
+        },
+      );
 
       if (!uploadResponse.ok) {
         updateItem(id, "error", "Upload failed.");
@@ -119,6 +131,12 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
         return;
       }
 
+      emitMusicFileUploaded(completeResult.data);
+      showToast({
+        title: "Upload complete",
+        description: completeResult.data.title,
+        tone: "success",
+      });
       updateItem(id, "complete", "Uploaded");
       onUploadComplete?.();
     } catch (error: unknown) {
@@ -286,6 +304,10 @@ function createTitleFromFileName(fileName: string) {
   const title = name.replace(/\.[^.]+$/, "").trim();
 
   return title || fileName;
+}
+
+function createMusicUploadUrl(fileId: string) {
+  return `/music/files/${encodeURIComponent(fileId)}/upload`;
 }
 
 function getUploadErrorMessage(error: unknown) {

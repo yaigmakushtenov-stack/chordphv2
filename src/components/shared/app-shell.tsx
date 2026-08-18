@@ -3,12 +3,16 @@ import { headers } from "next/headers";
 import type { ReactNode } from "react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
-import { LoginPromptTooltip } from "@/components/shared/login-prompt-tooltip";
+import { LeftLibraryPanel } from "@/components/shared/left-library-panel";
+import { ToastProvider } from "@/components/shared/toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { auth } from "@/lib/auth";
+import { listReadyMusicFiles, type MusicFileSearchResult } from "@/lib/music";
+import type { MusicFileListItemData } from "@/app/music/actions";
 
 type AppShellProps = {
   children: ReactNode;
+  initialLibraryItems?: MusicFileListItemData[];
 };
 
 type AppShellUser = {
@@ -42,23 +46,6 @@ function SearchIcon() {
     >
       <circle cx="11" cy="11" r="7" />
       <path d="m16 16 4 4" />
-    </svg>
-  );
-}
-
-function LibraryIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="size-5"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 5v14M10 5v14M15 7l4 12" />
     </svg>
   );
 }
@@ -115,7 +102,10 @@ function PixelAvatar({ email, name }: AppShellUser) {
   );
 }
 
-export async function AppShell({ children }: AppShellProps) {
+export async function AppShell({
+  children,
+  initialLibraryItems: providedInitialLibraryItems,
+}: AppShellProps) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -126,9 +116,18 @@ export async function AppShell({ children }: AppShellProps) {
           name: session.user.name,
         }
       : null;
+  const initialLibraryItems =
+    providedInitialLibraryItems ??
+    (session?.user?.id
+      ? (await listReadyMusicFiles({
+          ownerId: session.user.id,
+          sort: "latest",
+        })).map(toMusicFileListItemData)
+      : []);
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#f4f4f4] text-[#111] dark:bg-black dark:text-[#f5f5f5]">
+      <ToastProvider />
       <header className="shrink-0 border-b border-[#e5e5e5] bg-white px-3 py-2 dark:border-[#151515] dark:bg-black">
         <div className="flex min-h-14 flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 items-center gap-2 md:flex-1">
@@ -194,64 +193,10 @@ export async function AppShell({ children }: AppShellProps) {
       </header>
 
       <div className="grid min-h-0 flex-1 gap-2 p-2 lg:grid-cols-[minmax(260px,360px)_1fr]">
-        <aside className="min-h-[220px] rounded-xl bg-white p-4 dark:bg-[#121214] lg:min-h-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[15px] font-bold">
-              <LibraryIcon />
-              Your Library
-            </div>
-            {user ? (
-              <button
-                type="button"
-                aria-label="Create playlist"
-                className="flex size-9 items-center justify-center rounded-full bg-[#f3f3f3] text-[22px] leading-none text-[#555] transition hover:bg-[#e8e8e8] hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#242427] dark:text-[#c4c4cc] dark:hover:bg-[#303034] dark:hover:text-white"
-              >
-                +
-              </button>
-            ) : (
-              <LoginPromptTooltip
-                label="Create playlist"
-                title="Create a playlist"
-                message="Log in to create and share playlists."
-                align="end"
-                className="flex size-9 items-center justify-center rounded-full bg-[#f3f3f3] text-[22px] leading-none text-[#555] transition hover:bg-[#e8e8e8] hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#242427] dark:text-[#c4c4cc] dark:hover:bg-[#303034] dark:hover:text-white"
-              >
-                +
-              </LoginPromptTooltip>
-            )}
-          </div>
-          <div className="mt-6 grid gap-3">
-            <section className="rounded-xl bg-[#f4f4f4] p-4 dark:bg-[#1f1f1f]">
-              <h2 className="text-[14px] font-bold">Create your first playlist</h2>
-              <p className="mt-2 text-[13px] leading-5 text-[#5f5f5f] dark:text-[#b4b4bc]">
-                Save uploaded tracks and organize songs for rehearsal.
-              </p>
-              {user ? (
-                <button
-                  type="button"
-                  className="mt-4 inline-flex h-9 items-center rounded-full bg-[#111] px-4 text-[12px] font-bold text-white transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
-                >
-                  Create playlist
-                </button>
-              ) : (
-                <LoginPromptTooltip
-                  label="Create playlist"
-                  title="Create a playlist"
-                  message="Log in to create and share playlists."
-                  className="mt-4 inline-flex h-9 items-center rounded-full bg-[#111] px-4 text-[12px] font-bold text-white transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
-                >
-                  Create playlist
-                </LoginPromptTooltip>
-              )}
-            </section>
-            <section className="rounded-xl bg-[#f4f4f4] p-4 dark:bg-[#1f1f1f]">
-              <h2 className="text-[14px] font-bold">Upload audio files</h2>
-              <p className="mt-2 text-[13px] leading-5 text-[#5f5f5f] dark:text-[#b4b4bc]">
-                Files you own appear in the dashboard playlist.
-              </p>
-            </section>
-          </div>
-        </aside>
+        <LeftLibraryPanel
+          initialItems={initialLibraryItems}
+          isAuthenticated={Boolean(user)}
+        />
         <main className="flex min-h-0 min-w-0">{children}</main>
       </div>
 
@@ -284,4 +229,39 @@ function hashText(value: string) {
   }
 
   return Math.abs(hash);
+}
+
+function toMusicFileListItemData(
+  file: MusicFileSearchResult,
+): MusicFileListItemData {
+  return {
+    id: file.id,
+    title: file.title || file.originalFileName,
+    artist: file.artist,
+    album: file.album,
+    originalFileName: file.originalFileName,
+    contentType: file.contentType,
+    sourceSizeBytes: file.sourceSizeBytes,
+    storedSizeBytes: file.storedSizeBytes,
+    durationSeconds: getDurationSeconds(file.metadata),
+    playbackUrl: `/music/files/${encodeURIComponent(file.id)}/play`,
+    createdAt: file.createdAt.toISOString(),
+    uploadedAt: file.uploadedAt?.toISOString() ?? null,
+  };
+}
+
+function getDurationSeconds(metadata: unknown) {
+  if (
+    typeof metadata !== "object" ||
+    metadata === null ||
+    Array.isArray(metadata)
+  ) {
+    return null;
+  }
+
+  const value = (metadata as Record<string, unknown>).durationSeconds;
+
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : null;
 }

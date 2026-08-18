@@ -12,6 +12,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type {
   CreateUploadInput,
   CreateUploadUrlForKeyInput,
+  PutObjectInput,
   SignedUpload,
   StoredObjectMetadata,
   StorageProvider,
@@ -66,6 +67,21 @@ export class BackblazeStorage implements StorageProvider {
         "Content-Type": input.contentType,
       },
     };
+  }
+
+  async putObject(input: PutObjectInput): Promise<void> {
+    this.assertManagedKey(input.key);
+
+    const config = this.getConfig();
+    await this.getClient().send(
+      new PutObjectCommand({
+        Bucket: config.bucket,
+        Key: input.key,
+        Body: input.body,
+        ContentType: input.contentType,
+        ContentLength: input.contentLength,
+      }),
+    );
   }
 
   async getObjectMetadata(key: string): Promise<StoredObjectMetadata> {

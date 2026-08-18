@@ -182,7 +182,7 @@ export async function prepareMusicUploadAction(
 
 export async function completeMusicUploadAction(
   input: CompleteMusicUploadActionInput,
-): Promise<ActionResult<MusicUploadFileData>> {
+): Promise<ActionResult<MusicFileListItemData>> {
   const session = await getSession();
 
   if (!session?.user?.id) {
@@ -196,7 +196,7 @@ export async function completeMusicUploadAction(
   try {
     const file = await completeMusicUpload(session.user.id, input.fileId);
 
-    return actionSuccess(toMusicUploadFileData(file));
+    return actionSuccess(toMusicFileListItemData(file));
   } catch (error: unknown) {
     return handleMusicFileServiceError(error);
   }

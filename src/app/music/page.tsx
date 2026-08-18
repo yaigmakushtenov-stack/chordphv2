@@ -27,15 +27,16 @@ export default async function MusicPage() {
     ownerId: session.user.id,
     sort: "latest",
   });
+  const libraryItems = files.map(toPlaylistItem);
 
   return (
-    <AppShell>
+    <AppShell initialLibraryItems={libraryItems}>
       <Dashboard
         eyebrow="MUSIC LIBRARY"
         title="Dashboard"
         description="Upload audio, review files owned by your account, and play shareable public-by-link tracks."
       >
-        <MusicLibrary initialItems={files.map(toPlaylistItem)} />
+        <MusicLibrary initialItems={libraryItems} />
       </Dashboard>
     </AppShell>
   );

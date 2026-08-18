@@ -101,6 +101,14 @@ export type ListMusicFilesInput = {
   sort?: MusicFileSort;
 };
 
+export type UploadPreparedMusicFileInput = {
+  ownerId: string;
+  fileId: string;
+  contentType: string;
+  contentLength: number;
+  body: Uint8Array;
+};
+
 export class MusicFileServiceError extends Error {
   constructor(
     public readonly code:
@@ -231,6 +239,70 @@ export async function prepareMusicUpload(
     file: resumableFile,
     upload,
   };
+}
+
+export async function uploadPreparedMusicFile(
+  input: UploadPreparedMusicFileInput,
+): Promise<void> {
+  const ownerId = requireText(input.ownerId, "ownerId", 255);
+  const fileId = requireText(input.fileId, "fileId", 255);
+  const contentType = normalizeMusicContentType(input.contentType);
+
+  if (
+    !Number.isSafeInteger(input.contentLength) ||
+    input.contentLength < 1 ||
+    input.contentLength > STORAGE_RULES.music.maxBytes ||
+    input.contentLength !== input.body.byteLength
+  ) {
+    throw new MusicFileServiceError(
+      "INVALID_INPUT",
+      "The upload body size is invalid.",
+    );
+  }
+
+  const file = await prisma.musicFile.findFirst({
+    where: {
+      id: fileId,
+      ownerId,
+    },
+    select: {
+      objectKey: true,
+      contentType: true,
+      storedSizeBytes: true,
+      status: true,
+    },
+  });
+
+  if (!file) {
+    throw new MusicFileServiceError("NOT_FOUND", "Music file not found.");
+  }
+
+  if (
+    file.status !== MusicFileStatus.PENDING &&
+    file.status !== MusicFileStatus.FAILED
+  ) {
+    throw new MusicFileServiceError(
+      "UPLOAD_CONFLICT",
+      "This music file is not waiting for an upload.",
+    );
+  }
+
+  if (
+    file.contentType !== contentType ||
+    requireStoredSize(file.storedSizeBytes) !== input.contentLength
+  ) {
+    throw new MusicFileServiceError(
+      "UPLOAD_MISMATCH",
+      "The upload does not match the prepared file.",
+    );
+  }
+
+  await storage.putObject({
+    key: file.objectKey,
+    contentType,
+    contentLength: input.contentLength,
+    body: input.body,
+  });
 }
 
 export async function completeMusicUpload(
