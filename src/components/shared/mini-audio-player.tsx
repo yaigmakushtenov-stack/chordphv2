@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import type { MouseEvent } from "react";
+import { useRef, useState } from "react";
+
+import { WaveformSeekBar } from "@/components/shared/waveform-seek-bar";
 
 type MiniAudioPlayerProps = {
   src: string;
@@ -24,7 +25,6 @@ export function MiniAudioPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(durationSeconds ?? 0);
-  const bars = useMemo(() => createWaveBars(title), [title]);
   const resolvedDuration = duration || durationSeconds || 0;
   const progress =
     resolvedDuration > 0 ? Math.min(1, currentTime / resolvedDuration) : 0;
@@ -46,13 +46,8 @@ export function MiniAudioPlayer({
     setIsPlaying(false);
   }
 
-  function handleWaveSeek(event: MouseEvent<HTMLButtonElement>) {
+  function handleWaveSeek(nextProgress: number) {
     const audio = audioRef.current;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const nextProgress = Math.min(
-      1,
-      Math.max(0, (event.clientX - rect.left) / rect.width),
-    );
     const nextTime = nextProgress * resolvedDuration;
 
     if (audio && resolvedDuration > 0) {
@@ -102,52 +97,25 @@ export function MiniAudioPlayer({
           </p>
         </div>
       </div>
-      <button
-        type="button"
-        aria-label="Seek duplicate track"
-        onClick={handleWaveSeek}
+      <WaveformSeekBar
+        src={src}
+        seed={title}
+        progress={progress}
+        barCount={WAVE_BAR_COUNT}
+        ariaLabel="Seek duplicate track"
+        onSeek={handleWaveSeek}
         className={`mt-3 flex h-12 w-full items-center gap-0.5 rounded-lg px-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
           variant === "compact"
             ? "bg-white dark:bg-[#18181b]"
             : "bg-[#f4f4f4] dark:bg-[#242427]"
         }`}
-      >
-        {bars.map((height, index) => {
-          const active = index / bars.length <= progress;
-
-          return (
-            <span
-              key={`${height}-${index}`}
-              aria-hidden="true"
-              className={`flex-1 rounded-full transition-colors ${
-                active ? "bg-[#ed1746]" : "bg-[#c9c9c9] dark:bg-[#55555c]"
-              }`}
-              style={{ height: `${height}%` }}
-            />
-          );
-        })}
-      </button>
+      />
       <div className="mt-1 flex justify-between text-[11px] font-semibold text-[#666] dark:text-[#b4b4bc]">
         <span>{formatDuration(currentTime)}</span>
         <span>{formatDuration(resolvedDuration)}</span>
       </div>
     </div>
   );
-}
-
-function createWaveBars(seed: string) {
-  let hash = 0;
-
-  for (const character of seed) {
-    hash = (hash << 5) - hash + character.charCodeAt(0);
-    hash |= 0;
-  }
-
-  return Array.from({ length: WAVE_BAR_COUNT }, (_, index) => {
-    const value = Math.sin((index + 1) * 1.7 + hash) * 0.5 + 0.5;
-
-    return 24 + Math.round(value * 58);
-  });
 }
 
 function formatDuration(seconds: number) {

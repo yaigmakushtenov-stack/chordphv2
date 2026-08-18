@@ -2,7 +2,6 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 
-import { LogoutButton } from "@/components/auth/logout-button";
 import { LeftLibraryPanel } from "@/components/shared/left-library-panel";
 import { StickyMusicPlayer } from "@/components/shared/sticky-music-player";
 import { ToastProvider } from "@/components/shared/toast";
@@ -21,15 +20,15 @@ type AppShellUser = {
   name: string;
 };
 
-function HomeIcon() {
+function MusicLogoIcon() {
   return (
     <svg
       aria-hidden="true"
       viewBox="0 0 24 24"
       fill="currentColor"
-      className="size-5"
+      className="size-6"
     >
-      <path d="M11.4 2.25a1 1 0 0 1 1.2 0l8.5 6.38a1 1 0 0 1-1.2 1.6L19 9.56V20a1 1 0 0 1-1 1h-4.25a1 1 0 0 1-1-1v-5.25h-1.5V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V9.56l-.9.67a1 1 0 1 1-1.2-1.6l8.5-6.38Z" />
+      <path d="M17 3.8a1 1 0 0 0-1.2-.98l-8 1.6A1 1 0 0 0 7 5.4v9.26A3.48 3.48 0 0 0 5.5 14.3C3.56 14.3 2 15.57 2 17.15S3.56 20 5.5 20 9 18.73 9 17.15V9.02l6-1.2v5.24a3.48 3.48 0 0 0-1.5-.34c-1.94 0-3.5 1.27-3.5 2.85s1.56 2.85 3.5 2.85 3.5-1.27 3.5-2.85V3.8Z" />
     </svg>
   );
 }
@@ -87,7 +86,7 @@ function PixelAvatar({ email, name }: AppShellUser) {
     <span
       aria-label={`${name} profile`}
       title={name}
-      className="grid size-10 shrink-0 grid-cols-5 overflow-hidden rounded-full border border-[#dedede] bg-white p-1 dark:border-[#36363a] dark:bg-[#19191b]"
+      className="grid size-11 shrink-0 grid-cols-5 overflow-hidden rounded-full border border-[#dedede] bg-white dark:border-[#36363a] dark:bg-[#19191b]"
     >
       {cells.map((active, index) => (
         <span
@@ -130,66 +129,54 @@ export async function AppShell({
     <div className="flex min-h-dvh flex-col bg-[#f4f4f4] text-[#111] dark:bg-black dark:text-[#f5f5f5]">
       <ToastProvider />
       <header className="shrink-0 border-b border-[#e5e5e5] bg-white px-3 py-2 dark:border-[#151515] dark:bg-black">
-        <div className="flex min-h-14 flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex min-w-0 items-center gap-2 md:flex-1">
+        <div className="flex flex-col gap-2">
+          <div className="flex min-h-14 min-w-0 items-center gap-2">
             <Link
               href="/"
               aria-label="ChordPH home"
-              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#111] text-[14px] font-black text-white transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
+              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#111] text-[#ed1746] transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#111] dark:text-[#ed1746] dark:hover:bg-[#1f1f1f]"
             >
-              CP
+              <MusicLogoIcon />
             </Link>
-            <Link
-              href="/"
-              aria-label="Home"
+            <button
+              type="button"
+              aria-label="Search music"
               className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#ededed] text-[#111] transition hover:bg-[#e2e2e2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#1f1f1f] dark:text-white dark:hover:bg-[#2a2a2a]"
             >
-              <HomeIcon />
-            </Link>
-            <label className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-full border border-[#dedede] bg-white px-4 text-[#696969] transition focus-within:border-[#b8b8b8] focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(237,23,70,0.08)] md:max-w-[620px] dark:border-[#2a2a2a] dark:bg-[#1f1f1f] dark:text-[#b4b4bc] dark:focus-within:border-[#494949] dark:focus-within:bg-[#252525]">
-              <span className="sr-only">Search music</span>
               <SearchIcon />
-              <input
-                type="search"
-                placeholder="What do you want to play?"
-                className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-medium text-[#171717] outline-none placeholder:text-[#777] dark:text-[#f5f5f5] dark:placeholder:text-[#a1a1aa]"
-              />
-            </label>
-          </div>
-          <nav
-            aria-label="Account navigation"
-            className="flex flex-wrap items-center justify-end gap-2 md:shrink-0 md:flex-nowrap"
-          >
-            <Link
-              href="/"
-              className="inline-flex h-9 items-center gap-2 rounded-full px-3 text-[13px] font-bold text-[#5f5f5f] transition hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#b4b4bc] dark:hover:text-white"
+            </button>
+            <nav
+              aria-label="Account navigation"
+              className="ml-auto flex min-w-0 items-center justify-end gap-2"
             >
-              <DownloadIcon />
-              Install App
-            </Link>
-            {user ? (
-              <>
-                <LogoutButton />
+              {user ? (
                 <PixelAvatar email={user.email} name={user.name} />
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/signup"
-                  className="inline-flex h-9 items-center rounded-full px-3 text-[13px] font-bold text-[#5f5f5f] transition hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#b4b4bc] dark:hover:text-white"
-                >
-                  Sign up
-                </Link>
-                <Link
-                  href="/login"
-                  className="inline-flex h-10 items-center rounded-full bg-[#111] px-5 text-[13px] font-bold text-white transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
-                >
-                  Log in
-                </Link>
-              </>
-            )}
-            <ThemeToggle className="size-10" />
-          </nav>
+              ) : (
+                <>
+                  <Link
+                    href="/signup"
+                    className="inline-flex h-9 items-center rounded-full px-3 text-[13px] font-bold text-[#5f5f5f] transition hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#b4b4bc] dark:hover:text-white"
+                  >
+                    Sign up
+                  </Link>
+                  <Link
+                    href="/login"
+                    className="inline-flex h-10 items-center rounded-full bg-[#111] px-5 text-[13px] font-bold text-white transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
+                  >
+                    Log in
+                  </Link>
+                </>
+              )}
+              <ThemeToggle className="size-10" />
+            </nav>
+          </div>
+          <Link
+            href="/"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[#ed1746] px-4 text-[13px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#ed1746] dark:hover:bg-[#d90f3b]"
+          >
+            <DownloadIcon />
+            Install App
+          </Link>
         </div>
       </header>
 
