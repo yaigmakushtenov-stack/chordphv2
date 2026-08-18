@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { LeftLibraryPanel } from "@/components/shared/left-library-panel";
+import { StickyMusicPlayer } from "@/components/shared/sticky-music-player";
 import { ToastProvider } from "@/components/shared/toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { auth } from "@/lib/auth";
@@ -216,6 +217,7 @@ export async function AppShell({
           </Link>
         </div>
       </footer>
+      <StickyMusicPlayer />
     </div>
   );
 }

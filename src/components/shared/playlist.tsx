@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  toggleMusicTrack,
+  useMusicPlayback,
+} from "@/lib/client/music-playback-store";
+
 export type PlaylistSort = "latest" | "alphabetical";
 
 export type PlaylistItem = {
@@ -37,6 +42,8 @@ export function Playlist({
   isLoading = false,
   emptyMessage = "No audio files yet.",
 }: PlaylistProps) {
+  const playback = useMusicPlayback();
+
   return (
     <section className="rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]">
       <div className="flex flex-col gap-3 border-b border-[#ececec] pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#303034]">
@@ -88,6 +95,29 @@ export function Playlist({
               className="rounded-xl border border-[#ececec] bg-[#fafafa] p-3 dark:border-[#36363b] dark:bg-[#1d1d20]"
             >
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <button
+                  type="button"
+                  aria-label={
+                    playback.track?.id === item.id &&
+                    playback.status === "playing"
+                      ? `Pause ${item.title}`
+                      : `Play ${item.title}`
+                  }
+                  onClick={() => toggleMusicTrack(item)}
+                  className={`flex size-10 shrink-0 items-center justify-center rounded-full text-[13px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+                    playback.track?.id === item.id &&
+                    playback.status === "playing"
+                      ? "bg-[#ed1746] text-white hover:bg-[#d90f3b]"
+                      : "bg-white text-[#111] hover:bg-[#f0f0f0] dark:bg-[#28282c] dark:text-white dark:hover:bg-[#343438]"
+                  }`}
+                >
+                  <span aria-hidden="true">
+                    {playback.track?.id === item.id &&
+                    playback.status === "playing"
+                      ? "Ⅱ"
+                      : "▶"}
+                  </span>
+                </button>
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate text-[14px] font-semibold text-[#111] dark:text-[#f5f5f5]">
                     {item.title}
@@ -105,14 +135,6 @@ export function Playlist({
                   </span>
                 </div>
               </div>
-              <audio
-                controls
-                preload="none"
-                src={item.playbackUrl}
-                className="mt-3 h-10 w-full"
-              >
-                <a href={item.playbackUrl}>Play audio</a>
-              </audio>
             </article>
           ))}
         </div>

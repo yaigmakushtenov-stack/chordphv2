@@ -4,6 +4,10 @@ import { useMemo } from "react";
 
 import type { MusicFileListItemData } from "@/app/music/actions";
 import { useMusicLibraryFiles } from "@/lib/client/music-library-store";
+import {
+  toggleMusicTrack,
+  useMusicPlayback,
+} from "@/lib/client/music-playback-store";
 
 const NEWEST_SONGS_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 
@@ -80,6 +84,7 @@ export function DashboardHome({
   initialNewestSongs: MusicFileListItemData[];
 }) {
   const musicFiles = useMusicLibraryFiles(initialNewestSongs);
+  const playback = useMusicPlayback();
   const newestSongs = useMemo(
     () => getNewestSongs(musicFiles).slice(0, 6),
     [musicFiles],
@@ -104,9 +109,29 @@ export function DashboardHome({
                 className="rounded-xl border border-[#e8e8e8] bg-[#fafafa] p-4 dark:border-[#303034] dark:bg-[#18181b]"
               >
                 <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#111] text-white dark:bg-white dark:text-[#111]">
-                    <MusicIcon />
-                  </div>
+                  <button
+                    type="button"
+                    aria-label={
+                      playback.track?.id === song.id &&
+                      playback.status === "playing"
+                        ? `Pause ${song.title}`
+                        : `Play ${song.title}`
+                    }
+                    onClick={() => toggleMusicTrack(song)}
+                    className={`flex size-12 shrink-0 items-center justify-center rounded-xl text-[14px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+                      playback.track?.id === song.id &&
+                      playback.status === "playing"
+                        ? "bg-[#ed1746] text-white hover:bg-[#d90f3b]"
+                        : "bg-[#111] text-white hover:bg-[#2c2c2c] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
+                    }`}
+                  >
+                    <span aria-hidden="true">
+                      {playback.track?.id === song.id &&
+                      playback.status === "playing"
+                        ? "Ⅱ"
+                        : "▶"}
+                    </span>
+                  </button>
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-[15px] font-bold">
                       {song.title}
@@ -124,14 +149,6 @@ export function DashboardHome({
                     </div>
                   </div>
                 </div>
-                <audio
-                  controls
-                  preload="none"
-                  src={song.playbackUrl}
-                  className="mt-3 h-10 w-full"
-                >
-                  <a href={song.playbackUrl}>Play audio</a>
-                </audio>
               </article>
             ))}
           </div>

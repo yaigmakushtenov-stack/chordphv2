@@ -16,6 +16,10 @@ import {
   upsertMusicLibraryFile,
   useMusicLibraryFiles,
 } from "@/lib/client/music-library-store";
+import {
+  toggleMusicTrack,
+  useMusicPlayback,
+} from "@/lib/client/music-playback-store";
 
 const SUPPORTED_AUDIO_TYPES = new Set([
   "audio/flac",
@@ -776,6 +780,8 @@ function UploadedFilesPlaylist({
   items: MusicFileListItemData[];
   onUpload: () => void;
 }) {
+  const playback = useMusicPlayback();
+
   return (
     <section className="rounded-xl bg-[#f4f4f4] p-4 dark:bg-[#1f1f1f]">
       <div className="flex items-center justify-between gap-3">
@@ -796,11 +802,30 @@ function UploadedFilesPlaylist({
       </div>
       <div className="mt-4 grid gap-2">
         {items.map((item) => (
-          <Link
+          <div
             key={item.id}
-            href="/music"
-            className="group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg p-2 transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]"
+            className="group grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg p-2 transition hover:bg-white dark:hover:bg-[#28282c]"
           >
+            <button
+              type="button"
+              aria-label={
+                playback.track?.id === item.id && playback.status === "playing"
+                  ? `Pause ${item.title}`
+                  : `Play ${item.title}`
+              }
+              onClick={() => toggleMusicTrack(item)}
+              className={`flex size-9 shrink-0 items-center justify-center rounded-full text-[13px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+                playback.track?.id === item.id && playback.status === "playing"
+                  ? "bg-[#ed1746] text-white hover:bg-[#d90f3b]"
+                  : "bg-white text-[#111] hover:bg-[#f0f0f0] dark:bg-[#28282c] dark:text-white dark:hover:bg-[#343438]"
+              }`}
+            >
+              <span aria-hidden="true">
+                {playback.track?.id === item.id && playback.status === "playing"
+                  ? "Ⅱ"
+                  : "▶"}
+              </span>
+            </button>
             <span className="min-w-0">
               <span className="block truncate text-[13px] font-bold">
                 {item.title}
@@ -812,7 +837,7 @@ function UploadedFilesPlaylist({
             <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-[#666] dark:bg-[#28282c] dark:text-[#c4c4cc] dark:group-hover:bg-[#343438]">
               {formatDuration(item.durationSeconds)}
             </span>
-          </Link>
+          </div>
         ))}
       </div>
     </section>
