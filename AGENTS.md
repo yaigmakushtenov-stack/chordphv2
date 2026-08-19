@@ -54,7 +54,7 @@ Pay special attention to:
 - Better Auth and its Prisma adapter APIs and model configuration.
 - Tailwind CSS 4 and `@tailwindcss/postcss` configuration.
 - Ably 2 server and React APIs.
-- AWS SDK v3 S3 client and request-presigner APIs used with Backblaze B2.
+- AWS SDK v3 S3 client and request-presigner APIs used with Cloudflare R2.
 
 ## Repository Map
 
