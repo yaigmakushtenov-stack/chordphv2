@@ -21,17 +21,17 @@ import type {
 const ROOT_PREFIX = "chordph";
 const PRESIGNED_URL_TTL_SECONDS = 5 * 60;
 
-type BackblazeConfig = {
+type CloudflareR2Config = {
   endpoint: string;
   region: string;
   bucket: string;
-  keyId: string;
-  applicationKey: string;
+  accessKeyId: string;
+  secretAccessKey: string;
 };
 
-export class BackblazeStorage implements StorageProvider {
+export class CloudflareR2Storage implements StorageProvider {
   private client: S3Client | undefined;
-  private config: BackblazeConfig | undefined;
+  private config: CloudflareR2Config | undefined;
 
   async createUploadUrl(input: CreateUploadInput): Promise<SignedUpload> {
     const key = this.createObjectKey(input);
@@ -100,7 +100,7 @@ export class BackblazeStorage implements StorageProvider {
       !Number.isSafeInteger(result.ContentLength) ||
       result.ContentLength < 0
     ) {
-      throw new Error("Backblaze returned an invalid object size.");
+      throw new Error("Cloudflare R2 returned an invalid object size.");
     }
 
     return {
@@ -148,8 +148,8 @@ export class BackblazeStorage implements StorageProvider {
       region: config.region,
       forcePathStyle: true,
       credentials: {
-        accessKeyId: config.keyId,
-        secretAccessKey: config.applicationKey,
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
       },
     });
 
@@ -161,19 +161,19 @@ export class BackblazeStorage implements StorageProvider {
       return this.config;
     }
 
-    const endpoint = this.requireEnvironmentVariable("B2_ENDPOINT");
+    const endpoint = this.requireEnvironmentVariable("R2_ENDPOINT");
     const endpointUrl = new URL(endpoint);
 
     if (endpointUrl.protocol !== "https:") {
-      throw new Error("B2_ENDPOINT must use HTTPS.");
+      throw new Error("R2_ENDPOINT must use HTTPS.");
     }
 
     this.config = {
       endpoint: endpointUrl.origin,
-      region: this.requireEnvironmentVariable("B2_REGION"),
-      bucket: this.requireEnvironmentVariable("B2_BUCKET"),
-      keyId: this.requireEnvironmentVariable("B2_KEY_ID"),
-      applicationKey: this.requireEnvironmentVariable("B2_APPLICATION_KEY"),
+      region: "auto",
+      bucket: this.requireEnvironmentVariable("R2_BUCKET"),
+      accessKeyId: this.requireEnvironmentVariable("R2_ACCESS_KEY_ID"),
+      secretAccessKey: this.requireEnvironmentVariable("R2_SECRET_ACCESS_KEY"),
     };
 
     return this.config;
