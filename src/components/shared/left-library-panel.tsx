@@ -834,9 +834,13 @@ function UploadedFilesPlaylist({
                 {formatLibrarySubtitle(item)}
               </span>
             </span>
-            <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-[#666] dark:bg-[#28282c] dark:text-[#c4c4cc] dark:group-hover:bg-[#343438]">
-              {formatDuration(item.durationSeconds)}
-            </span>
+            <Link
+              href={`/track/${encodeURIComponent(item.id)}/annotate`}
+              aria-label={`Annotate ${item.title}`}
+              className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-[#666] transition hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#28282c] dark:text-[#c4c4cc] dark:group-hover:bg-[#343438] dark:hover:text-[#fb7185]"
+            >
+              Annotate
+            </Link>
           </div>
         ))}
       </div>
@@ -920,19 +924,6 @@ function formatLibrarySubtitle(item: MusicFileListItemData) {
     .filter(Boolean);
 
   return parts.length ? parts.join(" · ") : item.originalFileName;
-}
-
-function formatDuration(durationSeconds: number | null) {
-  if (durationSeconds === null) {
-    return "--:--";
-  }
-
-  const minutes = Math.floor(durationSeconds / 60);
-  const seconds = Math.round(durationSeconds % 60)
-    .toString()
-    .padStart(2, "0");
-
-  return `${minutes}:${seconds}`;
 }
 
 function formatBytes(bytes: number) {

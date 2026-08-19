@@ -102,12 +102,12 @@ model BetterAuthVerification {
 }
 
 model MusicFile {
-  id                   String          @id @default(cuid())
+  id                   String           @id @default(cuid())
   ownerId              String
-  sourceSha256         String          @db.Char(64)
+  sourceSha256         String           @db.Char(64)
   sourceHashVerifiedAt DateTime?
-  objectKey            String          @unique
-  storedSha256         String?         @db.Char(64)
+  objectKey            String           @unique
+  storedSha256         String?          @db.Char(64)
   originalFileName     String
   contentType          String
   sourceSizeBytes      Int
@@ -115,14 +115,33 @@ model MusicFile {
   title                String?
   artist               String?
   album                String?
-  status               MusicFileStatus @default(PENDING)
-  metadata             Json            @default("{}")
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
+  status               MusicFileStatus  @default(PENDING)
+  metadata             Json             @default("{}")
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
   uploadedAt           DateTime?
-  owner                BetterAuthUser  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner                BetterAuthUser   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  annotation           TrackAnnotation?
 
   @@index([ownerId, sourceSha256])
   @@index([ownerId, createdAt])
   @@index([ownerId, status])
+}
+
+model TrackAnnotation {
+  id              String    @id @default(cuid())
+  musicFileId     String    @unique
+  originalKey     String?
+  capo            Int?
+  tempo           Int?
+  timeSignature   String?
+  tuning          String?
+  lyricsAndChords String    @default("") @db.Text
+  notes           String    @default("") @db.Text
+  formatVersion   Int       @default(1)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  musicFile       MusicFile @relation(fields: [musicFileId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt])
 }

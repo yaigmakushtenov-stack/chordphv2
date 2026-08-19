@@ -20,3 +20,14 @@ export type {
   SearchMusicFilesResult,
   UploadPreparedMusicFileInput,
 } from "./music-file-service";
+
+export {
+  getAnnotationTrack,
+  saveTrackAnnotation,
+  TrackAnnotationServiceError,
+} from "./track-annotation-service";
+
+export type {
+  AnnotationTrack,
+  SaveTrackAnnotationInput,
+} from "./track-annotation-service";
