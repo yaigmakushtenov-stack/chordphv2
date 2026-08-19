@@ -32,12 +32,12 @@ code. `AUTH_TRUST_HOST=true` is appropriate for local development and deployment
 behind a trusted reverse proxy; review it if requests can reach the app directly
 with arbitrary host headers.
 
-## Backblaze B2 storage
+## Cloudflare R2 storage
 
-Storage uses Backblaze B2 through its S3-compatible API. Create a bucket-scoped
-application key with read, write, and delete permissions, then add the five
-`B2_*` values from `.env.example` to `.env`. Use the S3 endpoint and region shown
-for the bucket in the Backblaze console.
+Storage uses Cloudflare R2 through its S3-compatible API. Create a bucket-scoped
+R2 API token with Object Read & Write permission, then add the four `R2_*`
+values from `.env.example` to `.env`. Use the account-level S3 endpoint shown in
+the R2 dashboard. The application uses R2's `auto` region internally.
 
 Objects are organized under this enforced prefix structure:
 
@@ -59,12 +59,17 @@ Authenticated clients request a five-minute upload URL from
 }
 ```
 
-The response contains the Backblaze object key, upload URL, expiration, and
+The response contains the R2 object key, upload URL, expiration, and
 required headers. Upload the file body directly to that URL with `PUT`.
 
 Configure the bucket's CORS rules to allow `PUT` and `Content-Type` from
 `http://localhost:3000` and each trusted production origin. Never expose
-`B2_KEY_ID` or `B2_APPLICATION_KEY` to browser code.
+`R2_ACCESS_KEY_ID` or `R2_SECRET_ACCESS_KEY` to browser code. Presigned URLs must
+use the R2 S3 API endpoint rather than a public bucket URL or custom domain.
+
+When migrating existing objects, preserve their complete `chordph/` keys so
+existing database records continue to resolve. Keep the Backblaze bucket until
+the R2 copy and application cutover have been verified.
 
 ## Checks
 
