@@ -27,6 +27,37 @@ const NOTE_INDEX: Record<string, number> = {
 };
 
 const CHORD_PATTERN = /^([A-G])([#b]?)([^/\s]*)(?:\/([A-G])([#b]?))?$/;
+export type ChordLineFormatResult = {
+  formattedSource: string;
+  convertedChordCount: number;
+  convertedLineCount: number;
+};
+
+export function formatPlainChordLines(source: string): ChordLineFormatResult {
+  let convertedChordCount = 0;
+  let convertedLineCount = 0;
+  const formattedSource = source
+    .split("\n")
+    .map((line) => {
+      if (!isPlainChordLine(line)) {
+        return line;
+      }
+
+      convertedLineCount += 1;
+
+      return line.replace(/\S+/g, (chord) => {
+        convertedChordCount += 1;
+        return `[${removeInvisibleCharacters(chord)}]`;
+      });
+    })
+    .join("\n");
+
+  return {
+    formattedSource,
+    convertedChordCount,
+    convertedLineCount,
+  };
+}
 
 export function transposeChordPro(
   source: string,
@@ -68,6 +99,23 @@ export function transposeChord(
   );
 
   return transposedBass ? `${transposedRoot}${quality}/${transposedBass}` : null;
+}
+
+function isPlainChordLine(line: string): boolean {
+  const trimmedLine = line.trim();
+
+  if (!trimmedLine || trimmedLine.includes("[") || trimmedLine.includes("]")) {
+    return false;
+  }
+
+  const tokens = trimmedLine.split(/\s+/);
+  return tokens.every((token) =>
+    Boolean(transposeChord(removeInvisibleCharacters(token), 0, "sharps")),
+  );
+}
+
+function removeInvisibleCharacters(value: string): string {
+  return value.replace(/[\u200B-\u200D\uFEFF]/g, "");
 }
 
 function transposeNote(

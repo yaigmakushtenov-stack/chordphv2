@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 import {
   toggleMusicTrack,
   useMusicPlayback,
@@ -135,12 +133,6 @@ export function Playlist({
                   <span className="rounded-full bg-white px-2.5 py-1 dark:bg-[#28282c]">
                     {formatBytes(item.storedSizeBytes ?? item.sourceSizeBytes)}
                   </span>
-                  <Link
-                    href={`/track/${encodeURIComponent(item.id)}/annotate`}
-                    className="inline-flex h-7 items-center rounded-full bg-[#ed1746] px-3 font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-                  >
-                    Annotate
-                  </Link>
                 </div>
               </div>
             </article>

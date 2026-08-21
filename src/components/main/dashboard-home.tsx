@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo } from "react";
 
 import type { MusicFileListItemData } from "@/app/music/actions";
@@ -46,10 +47,6 @@ const TRENDING_SONGS = [
 
 const QUICK_ACTIONS = [
   {
-    title: "Upload audio",
-    description: "Add rehearsal tracks to your library.",
-  },
-  {
     title: "Create playlist",
     description: "Organize songs for practice sets.",
   },
@@ -92,6 +89,29 @@ export function DashboardHome({
 
   return (
     <div className="grid gap-8">
+      <section className="overflow-hidden rounded-2xl bg-[linear-gradient(120deg,#ed1746_0%,#b8143a_55%,#71152c_100%)] p-5 text-white shadow-[0_18px_45px_rgba(237,23,70,0.2)] sm:p-7">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-[720px]">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/75">
+              Start your music workspace
+            </p>
+            <h2 className="mt-2 text-[28px] font-black tracking-[-0.04em] sm:text-[36px]">
+              Create a track annotation
+            </h2>
+            <p className="mt-2 text-[14px] leading-6 text-white/85">
+              Add song and artist details, musical information, reference links,
+              optional audio, lyrics, and chords in one guided flow.
+            </p>
+          </div>
+          <Link
+            href="/track/new/annotate"
+            className="inline-flex h-12 shrink-0 items-center justify-center rounded-full bg-white px-7 text-[14px] font-black text-[#b8143a] shadow-[0_10px_25px_rgba(0,0,0,0.16)] transition hover:bg-[#fff0f3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            Create annotation
+          </Link>
+        </div>
+      </section>
+
       <section>
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-[22px] font-black tracking-[-0.03em]">
@@ -201,9 +221,9 @@ export function DashboardHome({
 
       <section>
         <h2 className="text-[22px] font-black tracking-[-0.03em]">
-          Start here
+          More ways to use ChordPH
         </h2>
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
           {QUICK_ACTIONS.map((action) => (
             <article
               key={action.title}

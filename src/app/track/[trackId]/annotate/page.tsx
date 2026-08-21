@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
-import type { MusicFileListItemData } from "@/app/music/actions";
 import { Dashboard } from "@/components/main/dashboard";
 import {
   AnnotationEditor,
@@ -12,9 +11,8 @@ import { AppShell } from "@/components/shared/app-shell";
 import { auth } from "@/lib/auth";
 import {
   getAnnotationTrack,
-  listReadyMusicFiles,
+  getTemporaryTrackArtists,
   type AnnotationTrack,
-  type MusicFileSearchResult,
 } from "@/lib/music";
 
 export const metadata: Metadata = {
@@ -34,23 +32,18 @@ export default async function AnnotateTrackPage({
   }
 
   const { trackId } = await params;
-  const [track, libraryFiles] = await Promise.all([
-    getAnnotationTrack(session.user.id, trackId),
-    listReadyMusicFiles({ ownerId: session.user.id, sort: "latest" }),
-  ]);
+  const track = await getAnnotationTrack(session.user.id, trackId);
 
   if (!track) {
     notFound();
   }
 
-  const libraryItems = libraryFiles.map(toMusicFileListItemData);
-
   return (
-    <AppShell initialLibraryItems={libraryItems}>
+    <AppShell>
       <Dashboard
         eyebrow="TRACK WORKSPACE"
         title="Annotate track"
-        description="Listen while you add song details, ChordPro lyrics, chords, and rehearsal notes. Preview transposition without changing the saved source."
+        description="Add song details, collaborators, lyrics, chords, and rehearsal notes. Preview transposition without changing the saved source."
       >
         <AnnotationEditor initialData={toAnnotationEditorData(track)} />
       </Dashboard>
@@ -61,39 +54,28 @@ export default async function AnnotateTrackPage({
 function toAnnotationEditorData(track: AnnotationTrack): AnnotationEditorData {
   return {
     trackId: track.id,
-    title: track.title || track.originalFileName,
-    artist: track.artist ?? "",
-    album: track.album ?? "",
-    originalKey: track.annotation?.originalKey ?? "",
-    capo: track.annotation?.capo ?? null,
-    tempo: track.annotation?.tempo ?? null,
-    timeSignature: track.annotation?.timeSignature ?? "",
-    tuning: track.annotation?.tuning ?? "",
+    title: track.title,
+    artistName: track.artistName,
+    key: track.key ?? "",
+    capo: track.capo,
+    tempo: track.tempo,
+    timeSignature: track.timeSignature ?? "",
+    tuning: track.tuning ?? "",
+    youtubeLink: track.youtubeLink ?? "",
+    spotifyLink: track.spotifyLink ?? "",
+    tags: track.tags,
+    additionalArtists: getTemporaryTrackArtists(track.metadata),
     lyricsAndChords: track.annotation?.lyricsAndChords ?? "",
     notes: track.annotation?.notes ?? "",
-    playbackUrl: `/music/files/${encodeURIComponent(track.id)}/play`,
-    originalFileName: track.originalFileName,
-    durationSeconds: getDurationSeconds(track.metadata),
-    updatedAt: track.annotation?.updatedAt.toISOString() ?? null,
-  };
-}
-
-function toMusicFileListItemData(
-  file: MusicFileSearchResult,
-): MusicFileListItemData {
-  return {
-    id: file.id,
-    title: file.title || file.originalFileName,
-    artist: file.artist,
-    album: file.album,
-    originalFileName: file.originalFileName,
-    contentType: file.contentType,
-    sourceSizeBytes: file.sourceSizeBytes,
-    storedSizeBytes: file.storedSizeBytes,
-    durationSeconds: getDurationSeconds(file.metadata),
-    playbackUrl: `/music/files/${encodeURIComponent(file.id)}/play`,
-    createdAt: file.createdAt.toISOString(),
-    uploadedAt: file.uploadedAt?.toISOString() ?? null,
+    audio: track.musicFile
+      ? {
+          playbackUrl: `/music/files/${encodeURIComponent(track.musicFile.id)}/play`,
+          originalFileName: track.musicFile.originalFileName,
+          durationSeconds: getDurationSeconds(track.musicFile.metadata),
+        }
+      : null,
+    detailsUpdatedAt: track.updatedAt.toISOString(),
+    annotationUpdatedAt: track.annotation?.updatedAt.toISOString() ?? null,
   };
 }
 
