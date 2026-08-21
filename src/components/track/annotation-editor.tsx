@@ -272,7 +272,7 @@ export function AnnotationEditor({
           description: "Your private track and annotation are ready.",
           tone: "success",
         });
-        router.replace(`/track/${result.data.trackId}/annotate`);
+        router.replace(`/track/${result.data.trackId}`);
         return;
       }
 
