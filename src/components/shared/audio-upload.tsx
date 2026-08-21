@@ -22,7 +22,11 @@ const ACCEPTED_AUDIO_TYPES = Array.from(SUPPORTED_AUDIO_TYPES).join(",");
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 
 type AudioUploadProps = {
-  onUploadComplete?: () => void;
+  description?: string;
+  embedded?: boolean;
+  heading?: string;
+  multiple?: boolean;
+  onUploadComplete?: (file: MusicFileListItemData) => void;
 };
 
 type UploadStatus = "queued" | "preparing" | "uploading" | "complete" | "error" | "duplicate";
@@ -49,7 +53,13 @@ type PreparedUploadDraft = {
   durationSeconds: number | null;
 };
 
-export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
+export function AudioUpload({
+  description = "MP3, M4A, Ogg, FLAC, and WAV files up to 50 MB.",
+  embedded = false,
+  heading = "Upload audio",
+  multiple = true,
+  onUploadComplete,
+}: AudioUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<UploadItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -170,7 +180,7 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
         tone: "success",
       });
       updateItem(id, "complete", "Uploaded");
-      onUploadComplete?.();
+      onUploadComplete?.(completeResult.data);
     } catch (error: unknown) {
       updateItem(id, "error", getUploadErrorMessage(error));
     }
@@ -205,7 +215,13 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
   }
 
   return (
-    <section className="rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]">
+    <section
+      className={
+        embedded
+          ? ""
+          : "rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]"
+      }
+    >
       <div
         onDragEnter={(event) => {
           event.preventDefault();
@@ -233,16 +249,16 @@ export function AudioUpload({ onUploadComplete }: AudioUploadProps) {
           </span>
         </div>
         <h2 className="mt-4 text-[16px] font-semibold tracking-[-0.015em]">
-          Upload audio
+          {heading}
         </h2>
         <p className="mt-1 max-w-[460px] text-[13px] leading-5 text-[#717171] dark:text-[#a1a1aa]">
-          MP3, M4A, Ogg, FLAC, and WAV files up to 50 MB.
+          {description}
         </p>
         <form className="mt-5">
           <input
             ref={inputRef}
             type="file"
-            multiple
+            multiple={multiple}
             accept={ACCEPTED_AUDIO_TYPES}
             className="sr-only"
             onChange={(event) => {

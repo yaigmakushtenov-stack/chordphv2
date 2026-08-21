@@ -29,11 +29,11 @@ export default async function Home() {
   const newestSongs = libraryItems.filter(isNewestSong);
 
   return (
-    <AppShell initialLibraryItems={libraryItems}>
+    <AppShell>
       <Dashboard
         eyebrow="CHORDPH - MADE IN THE PHILIPPINES"
         title="Dashboard"
-        description="Browse chords, upload audio, and keep your practice library in one full-width workspace."
+        description="Create track annotations and keep your chords, lyrics, references, and practice library in one workspace."
       >
         <DashboardHome initialNewestSongs={newestSongs} />
       </Dashboard>

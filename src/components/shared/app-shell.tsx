@@ -7,12 +7,16 @@ import { StickyMusicPlayer } from "@/components/shared/sticky-music-player";
 import { ToastProvider } from "@/components/shared/toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { auth } from "@/lib/auth";
-import { listReadyMusicFiles, type MusicFileSearchResult } from "@/lib/music";
-import type { MusicFileListItemData } from "@/app/music/actions";
+import {
+  listPersonalAnnotationTracks,
+  type PersonalTrackRecord,
+} from "@/lib/music";
+import type { PersonalTrackListItem } from "@/lib/music/personal-track";
 
 type AppShellProps = {
   children: ReactNode;
-  initialLibraryItems?: MusicFileListItemData[];
+  initialLibraryItems?: PersonalTrackListItem[];
+  focusMode?: boolean;
 };
 
 type AppShellUser = {
@@ -105,6 +109,7 @@ function PixelAvatar({ email, name }: AppShellUser) {
 export async function AppShell({
   children,
   initialLibraryItems: providedInitialLibraryItems,
+  focusMode = false,
 }: AppShellProps) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -117,13 +122,14 @@ export async function AppShell({
         }
       : null;
   const initialLibraryItems =
-    providedInitialLibraryItems ??
-    (session?.user?.id
-      ? (await listReadyMusicFiles({
-          ownerId: session.user.id,
-          sort: "latest",
-        })).map(toMusicFileListItemData)
-      : []);
+    focusMode
+      ? []
+      : providedInitialLibraryItems ??
+        (session?.user?.id
+          ? (await listPersonalAnnotationTracks(session.user.id)).map(
+              toPersonalTrackListItem,
+            )
+          : []);
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#f4f4f4] text-[#111] dark:bg-black dark:text-[#f5f5f5]">
@@ -189,15 +195,24 @@ export async function AppShell({
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 gap-2 p-2 lg:grid-cols-[minmax(260px,360px)_1fr]">
-        <LeftLibraryPanel
-          initialItems={initialLibraryItems}
-          isAuthenticated={Boolean(user)}
-        />
-        <main className="flex min-h-0 min-w-0">{children}</main>
+      <div
+        className={
+          focusMode
+            ? "flex min-h-0 flex-1 p-2"
+            : "grid min-h-0 flex-1 gap-2 p-2 lg:grid-cols-[minmax(260px,360px)_1fr]"
+        }
+      >
+        {!focusMode ? (
+          <LeftLibraryPanel
+            initialItems={initialLibraryItems}
+            isAuthenticated={Boolean(user)}
+          />
+        ) : null}
+        <main className="flex min-h-0 min-w-0 flex-1">{children}</main>
       </div>
 
-      <footer className="shrink-0 px-2 pb-2">
+      {!focusMode ? (
+        <footer className="shrink-0 px-2 pb-2">
         <div className="flex flex-col gap-3 rounded-xl bg-[linear-gradient(90deg,#ed1746_0%,#7c5cff_55%,#4f8cff_100%)] px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[13px] font-bold">ChordPH notice</p>
@@ -206,14 +221,15 @@ export async function AppShell({
             </p>
           </div>
           <Link
-            href="/music"
+            href="/annotation"
             className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-white px-5 text-[13px] font-bold text-[#111] transition hover:bg-[#f4f4f4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             Open library
           </Link>
         </div>
-      </footer>
-      <StickyMusicPlayer />
+        </footer>
+      ) : null}
+      {!focusMode ? <StickyMusicPlayer /> : null}
     </div>
   );
 }
@@ -229,37 +245,17 @@ function hashText(value: string) {
   return Math.abs(hash);
 }
 
-function toMusicFileListItemData(
-  file: MusicFileSearchResult,
-): MusicFileListItemData {
+function toPersonalTrackListItem(
+  track: PersonalTrackRecord,
+): PersonalTrackListItem {
   return {
-    id: file.id,
-    title: file.title || file.originalFileName,
-    artist: file.artist,
-    album: file.album,
-    originalFileName: file.originalFileName,
-    contentType: file.contentType,
-    sourceSizeBytes: file.sourceSizeBytes,
-    storedSizeBytes: file.storedSizeBytes,
-    durationSeconds: getDurationSeconds(file.metadata),
-    playbackUrl: `/music/files/${encodeURIComponent(file.id)}/play`,
-    createdAt: file.createdAt.toISOString(),
-    uploadedAt: file.uploadedAt?.toISOString() ?? null,
+    id: track.id,
+    title: track.title,
+    artistName: track.artistName,
+    key: track.key,
+    tuning: track.tuning,
+    tags: track.tags,
+    hasAudio: Boolean(track.musicFileId),
+    updatedAt: track.updatedAt.toISOString(),
   };
-}
-
-function getDurationSeconds(metadata: unknown) {
-  if (
-    typeof metadata !== "object" ||
-    metadata === null ||
-    Array.isArray(metadata)
-  ) {
-    return null;
-  }
-
-  const value = (metadata as Record<string, unknown>).durationSeconds;
-
-  return typeof value === "number" && Number.isFinite(value) && value >= 0
-    ? value
-    : null;
 }

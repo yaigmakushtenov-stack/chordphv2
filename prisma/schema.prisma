@@ -32,6 +32,7 @@ model BetterAuthUser {
   sessions         BetterAuthSession[]
   accounts         BetterAuthAccount[]
   musicFiles       MusicFile[]
+  tracks           Track[]
   groupMemberships GroupMembership[]
 }
 
@@ -121,8 +122,102 @@ model MusicFile {
   updatedAt            DateTime        @updatedAt
   uploadedAt           DateTime?
   owner                BetterAuthUser  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  track                Track?
 
   @@index([ownerId, sourceSha256])
   @@index([ownerId, createdAt])
   @@index([ownerId, status])
+}
+
+enum VisibilityStatus {
+  DRAFT
+  PRIVATE
+  PUBLIC
+}
+
+enum PublicityStatus {
+  PRIVATE
+  PENDING
+  REJECTED
+  APPROVED
+}
+
+model Track {
+  id                String             @id @default(cuid())
+  ownerId           String
+  visibilityStatus  VisibilityStatus   @default(PRIVATE)
+  publicityStatus   PublicityStatus    @default(PRIVATE)
+  artistId          String?
+  artistName        String
+  musicFileId       String?            @unique
+  title             String
+  key               String
+  capo              Int?
+  tempo             Int?
+  timeSignature     String?
+  tuning            String
+  youtubeLink       String?
+  spotifyLink       String?
+  tags              String[]           @default([])
+  metadata          Json               @default("{}")
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  owner             BetterAuthUser     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  artist            Artist?            @relation("PrimaryTrackArtist", fields: [artistId], references: [id], onDelete: SetNull)
+  musicFile         MusicFile?         @relation(fields: [musicFileId], references: [id], onDelete: SetNull)
+  annotation        TrackAnnotation?
+  additionalArtists AdditionalArtist[]
+
+  @@index([ownerId, updatedAt])
+  @@index([ownerId, visibilityStatus])
+  @@index([artistId])
+  @@index([visibilityStatus, updatedAt])
+  @@index([publicityStatus, updatedAt])
+}
+
+enum TrackAnnotationType {
+  VOCALS
+  CHORDS
+  TAB
+  BASS
+  DRUMS
+}
+
+model TrackAnnotation {
+  id              String              @id @default(cuid())
+  trackId         String              @unique
+  lyricsAndChords String              @default("") @db.Text
+  type            TrackAnnotationType @default(CHORDS)
+  notes           String              @default("") @db.Text
+  formatVersion   Int                 @default(1)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  track           Track               @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt])
+}
+
+model Artist {
+  id        String             @id @default(cuid())
+  name      String
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  tracks    Track[]            @relation("PrimaryTrackArtist")
+  credits   AdditionalArtist[]
+
+  @@index([name])
+}
+
+model AdditionalArtist {
+  id         String   @id @default(cuid())
+  trackId    String
+  artistId   String
+  joinPhrase String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  track      Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  artist     Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([trackId, artistId])
+  @@index([artistId])
 }
