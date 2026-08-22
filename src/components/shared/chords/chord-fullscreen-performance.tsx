@@ -544,25 +544,29 @@ export function ChordFullscreenPerformanceView({
                   }}
                   className="scroll-mt-8 pb-1.5 pt-8 first:pt-0"
                 >
-                  <h2
-                    className={`mb-3 flex items-center gap-4 text-[13px] font-black uppercase tracking-[0.16em] ${
-                      isDarkMode ? "text-[#8a8d92]" : "text-[#ed1746]"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
+                  <div className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-x-4">
+                    <div className="flex justify-center">
                       <SectionNumberBadge
                         isDarkMode={isDarkMode}
                         number={section.number}
+                        size="large"
                       />
-                      <span>{section.title}</span>
-                    </span>
-                    <span
-                      className={`h-px flex-1 ${
-                        isDarkMode ? "bg-[#2b2d30]" : "bg-[#e4e4e7]"
+                    </div>
+                    <h2
+                      className={`text-[13px] font-black uppercase tracking-[0.16em] ${
+                        isDarkMode ? "text-[#8a8d92]" : "text-[#ed1746]"
+                      }`}
+                    >
+                      {section.title}
+                    </h2>
+                  </div>
+                  <div className="grid grid-cols-[40px_minmax(0,1fr)] gap-x-4">
+                    <div
+                      className={`mx-auto w-1 rounded-full ${
+                        isDarkMode ? "bg-[#34363a]" : "bg-[#d6d6dc]"
                       }`}
                     />
-                  </h2>
-                  <div className="space-y-0 font-mono text-[19px] leading-[1.18]">
+                    <div className="space-y-0 font-mono text-[19px] leading-[1.18]">
                     {section.lines.length ? (
                       section.lines.map((line, index) => (
                         <ChordPerformanceLine
@@ -580,6 +584,7 @@ export function ChordFullscreenPerformanceView({
                         No lyrics in this section
                       </p>
                     )}
+                    </div>
                   </div>
                 </section>
               ))
@@ -800,13 +805,17 @@ function ChordPerformanceLine({
 function SectionNumberBadge({
   isDarkMode,
   number,
+  size = "default",
 }: {
   isDarkMode: boolean;
   number: number;
+  size?: "default" | "large";
 }) {
   return (
     <span
-      className={`inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-black tabular-nums ${
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-black tabular-nums ${
+        size === "large" ? "size-10 text-[14px]" : "size-6 text-[11px]"
+      } ${
         isDarkMode
           ? "bg-[#2b2d30] text-[#f3f0e8]"
           : "bg-[#f0f0f1] text-[#111]"
