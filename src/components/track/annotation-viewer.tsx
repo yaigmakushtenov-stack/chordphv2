@@ -19,6 +19,7 @@ import {
   type AccidentalPreference,
 } from "@/components/track/chord-pro";
 import { GUITAR_CHORDS, type ChordDefinition } from "@/data/chords";
+import { APP_CONSTANTS } from "@/lib/app-constants";
 
 export type AnnotationViewerData = {
   id: string;
@@ -254,12 +255,13 @@ function ChordLine({ line }: { line: string }) {
         key={index}
         chord={chordReference.chord}
         initialVariationIndex={chordReference.variationIndex}
+        variationLabel={getChordVariationLabel(chordReference)}
       >
         <button
           type="button"
           className="mr-1 inline-block rounded bg-[#e7e7e9] px-1.5 py-0.5 text-[13px] font-black leading-none text-[#111] transition hover:bg-[#ffdce4] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#343438] dark:text-white dark:hover:bg-[#4a1c28]"
         >
-          {chordReference.displaySymbol}
+          <ChordSymbolLabel chordReference={chordReference} />
         </button>
       </ChordPopover>
     );
@@ -313,12 +315,43 @@ function TrackChordSection({
             <ChordCard
               chord={chordReference.chord}
               initialVariationIndex={chordReference.variationIndex}
+              variationLabel={getChordVariationLabel(chordReference)}
             />
           </div>
         ))}
       </div>
     </section>
   );
+}
+
+function ChordSymbolLabel({
+  chordReference,
+}: {
+  chordReference: GuitarChordReference;
+}) {
+  if (
+    !APP_CONSTANTS.featureFlag.showChordVariationLabel ||
+    !chordReference.hasExplicitVariation ||
+    !chordReference.variationNumber
+  ) {
+    return <>{chordReference.displaySymbol}</>;
+  }
+
+  return (
+    <>
+      {chordReference.displaySymbol}
+      <sup className="ml-0.5 align-super text-[0.62em] leading-none">
+        {chordReference.variationNumber}
+      </sup>
+    </>
+  );
+}
+
+function getChordVariationLabel(chordReference: GuitarChordReference) {
+  return APP_CONSTANTS.featureFlag.showChordVariationLabel &&
+    chordReference.hasExplicitVariation
+    ? chordReference.variationNumber
+    : null;
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
@@ -329,7 +362,9 @@ type GuitarChordReference = {
   key: string;
   chord: ChordDefinition;
   displaySymbol: string;
+  hasExplicitVariation: boolean;
   variationIndex: number;
+  variationNumber: number | null;
 };
 
 function getUsedGuitarChords(source: string): GuitarChordReference[] {
@@ -338,11 +373,11 @@ function getUsedGuitarChords(source: string): GuitarChordReference[] {
   for (const match of source.matchAll(/\[([^\]\r\n]+)\]/g)) {
     const reference = getGuitarChordReference(match[1].trim());
 
-    if (!reference || references.has(reference.displaySymbol)) {
+    if (!reference || references.has(reference.key)) {
       continue;
     }
 
-    references.set(reference.displaySymbol, reference);
+    references.set(reference.key, reference);
   }
 
   return Array.from(references.values());
@@ -360,9 +395,11 @@ function getGuitarChordReference(value: string): GuitarChordReference | null {
     key: `${chord.symbol}-${parsedChord.variationNumber ?? 1}`,
     chord,
     displaySymbol: parsedChord.symbol,
+    hasExplicitVariation: parsedChord.variationNumber !== null,
     variationIndex: parsedChord.variationNumber
       ? parsedChord.variationNumber - 1
       : 0,
+    variationNumber: parsedChord.variationNumber,
   };
 }
 

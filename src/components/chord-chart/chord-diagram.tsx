@@ -3,6 +3,7 @@ import type { ChordVariation } from "@/data/chords";
 type ChordDiagramProps = {
   symbol: string;
   variation: ChordVariation;
+  variationLabel?: number | null;
   className?: string;
 };
 
@@ -21,6 +22,7 @@ const DOT_RADIUS = 5.3;
 export function ChordDiagram({
   symbol,
   variation,
+  variationLabel = null,
   className,
 }: ChordDiagramProps) {
   const baseFret = variation.baseFret ?? 1;
@@ -43,6 +45,11 @@ export function ChordDiagram({
           className="fill-[#222] text-[18px] font-black dark:fill-[#f5f5f5]"
         >
           {symbol}
+          {variationLabel ? (
+            <tspan dy="-7" className="text-[9px]">
+              {variationLabel}
+            </tspan>
+          ) : null}
         </text>
 
         {variation.frets.map((fret, index) => {

@@ -15,12 +15,14 @@ import type { ChordDefinition } from "@/data/chords";
 type ChordPopoverProps = {
   chord: ChordDefinition;
   initialVariationIndex?: number;
+  variationLabel?: number | null;
   children: ReactNode;
 };
 
 export function ChordPopover({
   chord,
   initialVariationIndex = 0,
+  variationLabel = null,
   children,
 }: ChordPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -111,6 +113,7 @@ export function ChordPopover({
             chord={chord}
             compact
             initialVariationIndex={initialVariationIndex}
+            variationLabel={variationLabel}
           />
         </span>
       ) : null}

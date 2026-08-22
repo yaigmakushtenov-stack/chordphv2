@@ -9,12 +9,14 @@ type ChordCardProps = {
   chord: ChordDefinition;
   compact?: boolean;
   initialVariationIndex?: number;
+  variationLabel?: number | null;
 };
 
 export function ChordCard({
   chord,
   compact = false,
   initialVariationIndex = 0,
+  variationLabel = null,
 }: ChordCardProps) {
   const [variationIndex, setVariationIndex] = useState(() =>
     clampVariationIndex(initialVariationIndex, chord.variations.length),
@@ -45,6 +47,7 @@ export function ChordCard({
       <ChordDiagram
         symbol={chord.symbol}
         variation={variation}
+        variationLabel={variationLabel}
         className={compact ? "mt-2" : ""}
       />
 
