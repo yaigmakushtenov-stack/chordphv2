@@ -4,11 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
-import {
-  saveTrackAnnotationAction,
-  saveTrackDetailsAction,
-} from "@/app/track/[trackId]/annotate/actions";
-import { createTrackAnnotationAction } from "@/app/track/new/annotate/actions";
+import * as TrackActions from "@/actions/track-actions";
 import { AudioUpload } from "@/components/shared/audio-upload";
 import { showToast } from "@/components/shared/toast";
 import {
@@ -200,7 +196,7 @@ export function AnnotationEditor({
     }
 
     startDetailsTransition(async () => {
-      const result = await saveTrackDetailsAction({
+      const result = await TrackActions.saveDetails({
         trackId,
         ...details,
       });
@@ -226,7 +222,7 @@ export function AnnotationEditor({
   function saveAnnotation() {
     startAnnotationTransition(async () => {
       if (isCreateMode) {
-        const result = await createTrackAnnotationAction({
+        const result = await TrackActions.createNew({
           musicFileId: selectedAudio?.id ?? null,
           ...details,
           ...annotation,
@@ -259,7 +255,7 @@ export function AnnotationEditor({
         return;
       }
 
-      const result = await saveTrackAnnotationAction({
+      const result = await TrackActions.saveAnnotation({
         trackId: initialData.trackId,
         ...annotation,
       });

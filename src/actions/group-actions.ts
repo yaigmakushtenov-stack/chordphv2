@@ -11,7 +11,7 @@ import {
   type ActionResult,
 } from "@/lib/actions";
 import { auth } from "@/lib/auth";
-import { createGroup, GroupServiceError } from "@/lib/groups";
+import { GroupService, GroupServiceError } from "@/services/group-service";
 
 export type CreateGroupActionInput = {
   name: string;
@@ -25,7 +25,7 @@ export type GroupActionData = {
   updatedAt: string;
 };
 
-export async function createGroupAction(
+export async function create(
   input: CreateGroupActionInput,
 ): Promise<ActionResult<GroupActionData>> {
   const session = await auth.api.getSession({
@@ -45,7 +45,7 @@ export async function createGroupAction(
   }
 
   try {
-    const group = await createGroup({
+    const group = await GroupService.createGroup({
       userId: session.user.id,
       name: input.name,
     });

@@ -617,3 +617,13 @@ function normalizeLimit(limit: number | undefined) {
 
   return limit;
 }
+
+export const MusicService = {
+  completeMusicUpload,
+  createReadyMusicFileDownloadUrl,
+  findMusicFileByHash,
+  listReadyMusicFiles,
+  prepareMusicUpload,
+  searchMusicFiles,
+  uploadPreparedMusicFile,
+};

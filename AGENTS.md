@@ -74,7 +74,7 @@ Pay special attention to:
 ## Actions and Services
 
 - Use a flat `src/actions` and `src/services` layout. Prefer domain-specific files such as `src/actions/track-actions.ts`, `src/actions/music-actions.ts`, `src/services/track-service.ts`, and `src/services/music-service.ts`.
-- Export actions as domain namespaces so frontend call sites make the server boundary explicit, for example `TrackActions.createNew(...)`, `TrackActions.saveDetails(...)`, or `MusicActions.prepareUpload(...)`.
+- Export top-level async functions from domain action modules and import them as module namespaces at frontend call sites so the server boundary is explicit, for example `import * as TrackActions from "@/actions/track-actions"` followed by `TrackActions.createNew(...)`, `TrackActions.saveDetails(...)`, or `MusicActions.prepareUpload(...)`.
 - Every file in `src/actions` must use the `"use server"` directive and expose Server Actions for UI-initiated application workflows.
 - Actions are boundary and orchestration code. They may verify the Better Auth session, validate client input, compose multiple services or third-party clients, translate known failures to user-safe responses, and return action results.
 - Actions must return `ActionResult<T>` from `src/lib/actions` for expected outcomes. Use `actionSuccess` and `actionFailure`; return `{ ok: true, data }` on success and `{ ok: false, error }` on expected failure. Use `null` as success data when there is no payload.

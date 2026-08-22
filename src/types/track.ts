@@ -86,3 +86,14 @@ export type AnnotationViewerData = {
   isAuthenticated: boolean;
   publicityStatus: "PRIVATE" | "PENDING" | "REJECTED" | "APPROVED";
 };
+
+export type PersonalTrackListItem = {
+  id: string;
+  title: string;
+  artistName: string;
+  key: string;
+  tuning: string;
+  tags: string[];
+  hasAudio: boolean;
+  updatedAt: string;
+};

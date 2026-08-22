@@ -8,10 +8,10 @@ import { ToastProvider } from "@/components/shared/toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { auth } from "@/lib/auth";
 import {
-  listPersonalAnnotationTracks,
+  TrackService,
   type PersonalTrackRecord,
-} from "@/lib/music";
-import type { PersonalTrackListItem } from "@/lib/music/personal-track";
+} from "@/services/track-service";
+import type { PersonalTrackListItem } from "@/types/track";
 
 type AppShellProps = {
   children: ReactNode;
@@ -126,7 +126,7 @@ export async function AppShell({
       ? []
       : providedInitialLibraryItems ??
         (session?.user?.id
-          ? (await listPersonalAnnotationTracks(session.user.id)).map(
+          ? (await TrackService.listPersonalAnnotationTracks(session.user.id)).map(
               toPersonalTrackListItem,
             )
           : []);

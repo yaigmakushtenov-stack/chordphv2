@@ -11,16 +11,13 @@ import {
   type ActionResult,
 } from "@/lib/actions";
 import {
-  completeMusicUpload,
-  findMusicFileByHash,
-  listReadyMusicFiles,
   MusicFileServiceError,
-  prepareMusicUpload,
+  MusicService,
   type MusicFileRecord,
   type MusicFileSearchResult,
   type MusicFileSort,
   type PrepareMusicUploadInput,
-} from "@/lib/music";
+} from "@/services/music-service";
 import type { MusicFileListItemData } from "@/types/music";
 
 export type PrepareMusicUploadActionInput = {
@@ -76,7 +73,7 @@ type PrepareMusicUploadActionData =
       };
     };
 
-export async function listMusicFilesAction(
+export async function listFiles(
   input: ListMusicFilesActionInput = {},
 ): Promise<ActionResult<MusicFileListItemData[]>> {
   const session = await getSession();
@@ -88,7 +85,7 @@ export async function listMusicFilesAction(
   const sort = parseMusicFileSort(input);
 
   try {
-    const files = await listReadyMusicFiles({
+    const files = await MusicService.listReadyMusicFiles({
       ownerId: session.user.id,
       sort,
     });
@@ -99,7 +96,7 @@ export async function listMusicFilesAction(
   }
 }
 
-export async function findMusicFileByHashAction(
+export async function findByHash(
   input: FindMusicFileByHashActionInput,
 ): Promise<ActionResult<MusicFileListItemData | null>> {
   const session = await getSession();
@@ -113,7 +110,7 @@ export async function findMusicFileByHashAction(
   }
 
   try {
-    const file = await findMusicFileByHash(
+    const file = await MusicService.findMusicFileByHash(
       session.user.id,
       input.sourceSha256,
     );
@@ -124,7 +121,7 @@ export async function findMusicFileByHashAction(
   }
 }
 
-export async function prepareMusicUploadAction(
+export async function prepareUpload(
   input: PrepareMusicUploadActionInput,
 ): Promise<ActionResult<PrepareMusicUploadActionData>> {
   const session = await getSession();
@@ -143,7 +140,7 @@ export async function prepareMusicUploadAction(
   }
 
   try {
-    const result = await prepareMusicUpload({
+    const result = await MusicService.prepareMusicUpload({
       ...parsedInput,
       ownerId: session.user.id,
     });
@@ -169,7 +166,7 @@ export async function prepareMusicUploadAction(
   }
 }
 
-export async function completeMusicUploadAction(
+export async function completeUpload(
   input: CompleteMusicUploadActionInput,
 ): Promise<ActionResult<MusicFileListItemData>> {
   const session = await getSession();
@@ -183,7 +180,10 @@ export async function completeMusicUploadAction(
   }
 
   try {
-    const file = await completeMusicUpload(session.user.id, input.fileId);
+    const file = await MusicService.completeMusicUpload(
+      session.user.id,
+      input.fileId,
+    );
 
     return actionSuccess(toMusicFileListItemData(file));
   } catch (error: unknown) {

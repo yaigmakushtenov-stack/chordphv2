@@ -692,3 +692,15 @@ function toMetadataObject(metadata: Prisma.JsonValue): Prisma.InputJsonObject {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+export const TrackService = {
+  copyPublicTrackToPersonalLibrary,
+  createTrackWithAnnotation,
+  getAnnotationTrack,
+  getTemporaryTrackArtists,
+  getViewableAnnotationTrack,
+  listPersonalAnnotationTracks,
+  saveTrackAnnotation,
+  saveTrackDetails,
+  submitTrackForPublicReview,
+};

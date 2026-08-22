@@ -7,10 +7,10 @@ import { AnnotationLibrary } from "@/components/shared/annotation-library";
 import { AppShell } from "@/components/shared/app-shell";
 import { auth } from "@/lib/auth";
 import {
-  listPersonalAnnotationTracks,
+  TrackService,
   type PersonalTrackRecord,
-} from "@/lib/music";
-import type { PersonalTrackListItem } from "@/lib/music/personal-track";
+} from "@/services/track-service";
+import type { PersonalTrackListItem } from "@/types/track";
 
 export const metadata: Metadata = {
   title: "Your Annotations | ChordPH",
@@ -24,7 +24,7 @@ export default async function AnnotationLibraryPage() {
     redirect("/login");
   }
 
-  const items = (await listPersonalAnnotationTracks(session.user.id)).map(
+  const items = (await TrackService.listPersonalAnnotationTracks(session.user.id)).map(
     toPersonalTrackListItem,
   );
 

@@ -2,9 +2,9 @@ import { notFound } from "next/navigation";
 import { NextResponse } from "next/server";
 
 import {
-  createReadyMusicFileDownloadUrl,
   MusicFileServiceError,
-} from "@/lib/music";
+  MusicService,
+} from "@/services/music-service";
 
 type PlayRouteContext = {
   params: Promise<{
@@ -20,7 +20,7 @@ export async function GET(
   let downloadUrl: string | null;
 
   try {
-    downloadUrl = await createReadyMusicFileDownloadUrl(fileId);
+    downloadUrl = await MusicService.createReadyMusicFileDownloadUrl(fileId);
   } catch (error: unknown) {
     if (
       error instanceof MusicFileServiceError &&

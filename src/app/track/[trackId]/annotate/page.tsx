@@ -7,10 +7,9 @@ import { AnnotationEditor } from "@/components/track/annotation-editor";
 import { AppShell } from "@/components/shared/app-shell";
 import { auth } from "@/lib/auth";
 import {
-  getAnnotationTrack,
-  getTemporaryTrackArtists,
+  TrackService,
   type AnnotationTrack,
-} from "@/lib/music";
+} from "@/services/track-service";
 import type { AnnotationEditorData } from "@/types/track";
 
 export const metadata: Metadata = {
@@ -30,7 +29,7 @@ export default async function AnnotateTrackPage({
   }
 
   const { trackId } = await params;
-  const track = await getAnnotationTrack(session.user.id, trackId);
+  const track = await TrackService.getAnnotationTrack(session.user.id, trackId);
 
   if (!track) {
     notFound();
@@ -62,7 +61,7 @@ function toAnnotationEditorData(track: AnnotationTrack): AnnotationEditorData {
     youtubeLink: track.youtubeLink ?? "",
     spotifyLink: track.spotifyLink ?? "",
     tags: track.tags,
-    additionalArtists: getTemporaryTrackArtists(track.metadata),
+    additionalArtists: TrackService.getTemporaryTrackArtists(track.metadata),
     lyricsAndChords: track.annotation?.lyricsAndChords ?? "",
     notes: track.annotation?.notes ?? "",
     audio: track.musicFile

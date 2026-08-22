@@ -2,10 +2,7 @@
 
 import { useRef, useState } from "react";
 
-import {
-  completeMusicUploadAction,
-  prepareMusicUploadAction,
-} from "@/app/music/actions";
+import * as MusicActions from "@/actions/music-actions";
 import { MiniAudioPlayer } from "@/components/shared/mini-audio-player";
 import { showToast } from "@/components/shared/toast";
 import { upsertMusicLibraryFile } from "@/lib/client/music-library-store";
@@ -132,7 +129,7 @@ export function AudioUpload({
   ) {
     try {
       updateItem(id, "preparing", "Preparing");
-      const prepareResult = await prepareMusicUploadAction(draft);
+      const prepareResult = await MusicActions.prepareUpload(draft);
 
       if (!prepareResult.ok) {
         updateItem(id, "error", prepareResult.error.message);
@@ -164,7 +161,7 @@ export function AudioUpload({
         return;
       }
 
-      const completeResult = await completeMusicUploadAction({
+      const completeResult = await MusicActions.completeUpload({
         fileId: prepareResult.data.file.id,
       });
 

@@ -1,7 +1,10 @@
 import { headers } from "next/headers";
 
 import { auth } from "@/lib/auth";
-import { MusicFileServiceError, uploadPreparedMusicFile } from "@/lib/music";
+import {
+  MusicFileServiceError,
+  MusicService,
+} from "@/services/music-service";
 
 export const runtime = "nodejs";
 
@@ -48,7 +51,7 @@ export async function PUT(
   }
 
   try {
-    await uploadPreparedMusicFile({
+    await MusicService.uploadPreparedMusicFile({
       ownerId: session.user.id,
       fileId,
       contentType,

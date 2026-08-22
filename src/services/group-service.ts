@@ -103,3 +103,8 @@ function requireText(value: string, field: string, maxLength: number): string {
 
   return normalizedValue;
 }
+
+export const GroupService = {
+  createGroup,
+  listGroupsForUser,
+};

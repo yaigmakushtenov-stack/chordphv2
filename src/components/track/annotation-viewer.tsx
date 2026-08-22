@@ -4,10 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
-import {
-  copyPublicAnnotationAction,
-  submitAnnotationForReviewAction,
-} from "@/app/track/[trackId]/actions";
+import * as TrackActions from "@/actions/track-actions";
 import { ChordCard } from "@/components/chord-chart/chord-card";
 import { ChordPopover } from "@/components/chord-chart/chord-popover";
 import { PianoChordCard } from "@/components/chord-chart/piano-chord-card";
@@ -53,7 +50,7 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
 
   function handleCopy(): void {
     startTransition(async () => {
-      const result = await copyPublicAnnotationAction(track.id);
+      const result = await TrackActions.copyPublicAnnotation(track.id);
 
       if (!result.ok) {
         showToast({
@@ -75,7 +72,7 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
 
   function handleReviewSubmission(): void {
     startTransition(async () => {
-      const result = await submitAnnotationForReviewAction(track.id);
+      const result = await TrackActions.submitForReview(track.id);
 
       if (!result.ok) {
         showToast({

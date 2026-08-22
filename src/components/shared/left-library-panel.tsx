@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import type { PersonalTrackListItem } from "@/lib/music/personal-track";
+import type { PersonalTrackListItem } from "@/types/track";
 
 type LeftLibraryPanelProps = {
   isAuthenticated: boolean;

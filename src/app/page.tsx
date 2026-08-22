@@ -5,7 +5,10 @@ import { Dashboard } from "@/components/main/dashboard";
 import { DashboardHome } from "@/components/main/dashboard-home";
 import { AppShell } from "@/components/shared/app-shell";
 import { auth } from "@/lib/auth";
-import { listReadyMusicFiles, type MusicFileSearchResult } from "@/lib/music";
+import {
+  MusicService,
+  type MusicFileSearchResult,
+} from "@/services/music-service";
 import type { MusicFileListItemData } from "@/types/music";
 
 export const metadata: Metadata = {
@@ -21,7 +24,7 @@ export default async function Home() {
     headers: await headers(),
   });
   const libraryItems = session?.user?.id
-    ? (await listReadyMusicFiles({
+    ? (await MusicService.listReadyMusicFiles({
         ownerId: session.user.id,
         sort: "latest",
       })).map(toMusicFileListItemData)

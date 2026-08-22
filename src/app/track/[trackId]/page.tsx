@@ -6,7 +6,7 @@ import { Dashboard } from "@/components/main/dashboard";
 import { AppShell } from "@/components/shared/app-shell";
 import { AnnotationViewer } from "@/components/track/annotation-viewer";
 import { auth } from "@/lib/auth";
-import { getViewableAnnotationTrack, type AnnotationTrack } from "@/lib/music";
+import { TrackService, type AnnotationTrack } from "@/services/track-service";
 import type { AnnotationViewerData } from "@/types/track";
 
 export const metadata: Metadata = {
@@ -23,7 +23,10 @@ export default async function TrackPage({
 
   const { trackId } = await params;
   const viewerId = session?.user?.id ?? null;
-  const track = await getViewableAnnotationTrack(trackId, viewerId);
+  const track = await TrackService.getViewableAnnotationTrack(
+    trackId,
+    viewerId,
+  );
 
   if (!track) {
     notFound();
