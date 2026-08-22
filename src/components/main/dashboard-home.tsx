@@ -53,6 +53,7 @@ const QUICK_ACTIONS = [
   {
     title: "Browse chords",
     description: "Find tabs, lyrics, and chord diagrams.",
+    href: "/chord-chart",
   },
 ] as const;
 
@@ -224,23 +225,41 @@ export function DashboardHome({
           More ways to use ChordPH
         </h2>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          {QUICK_ACTIONS.map((action) => (
-            <article
-              key={action.title}
-              className="rounded-xl border border-[#e4e4e4] bg-[#fafafa] p-5 dark:border-[#303034] dark:bg-[#18181b]"
-            >
-              <div className="flex size-11 items-center justify-center rounded-xl bg-[#ffe2e7] text-[#ed1746] dark:bg-[#3a1720]">
-                <MusicIcon />
-              </div>
-              <h3 className="mt-4 text-[15px] font-bold">{action.title}</h3>
-              <p className="mt-2 text-[13px] leading-5 text-[#6f6f6f] dark:text-[#a1a1aa]">
-                {action.description}
-              </p>
-            </article>
-          ))}
+          {QUICK_ACTIONS.map((action) =>
+            "href" in action ? (
+              <Link
+                key={action.title}
+                href={action.href}
+                className="rounded-xl border border-[#e4e4e4] bg-[#fafafa] p-5 transition hover:border-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#303034] dark:bg-[#18181b]"
+              >
+                <QuickActionContent action={action} />
+              </Link>
+            ) : (
+              <article
+                key={action.title}
+                className="rounded-xl border border-[#e4e4e4] bg-[#fafafa] p-5 dark:border-[#303034] dark:bg-[#18181b]"
+              >
+                <QuickActionContent action={action} />
+              </article>
+            ),
+          )}
         </div>
       </section>
     </div>
+  );
+}
+
+function QuickActionContent({ action }: { action: (typeof QUICK_ACTIONS)[number] }) {
+  return (
+    <>
+      <div className="flex size-11 items-center justify-center rounded-xl bg-[#ffe2e7] text-[#ed1746] dark:bg-[#3a1720]">
+        <MusicIcon />
+      </div>
+      <h3 className="mt-4 text-[15px] font-bold">{action.title}</h3>
+      <p className="mt-2 text-[13px] leading-5 text-[#6f6f6f] dark:text-[#a1a1aa]">
+        {action.description}
+      </p>
+    </>
   );
 }
 

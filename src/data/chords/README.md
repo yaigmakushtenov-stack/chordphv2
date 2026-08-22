@@ -1,0 +1,39 @@
+# Chord Data
+
+Chord definitions are stored as compact data and rendered by components outside this directory.
+
+## Guitar Format
+
+Guitar `frets` arrays are ordered from the lowest string to the highest string:
+
+```ts
+[E, A, D, G, B, e]
+```
+
+Use these values:
+
+- `0` means the string is played open.
+- `"x"` means the string is muted.
+- Positive numbers are actual fret numbers.
+- `baseFret` defaults to `1` when omitted.
+- `fingers` mirrors the `frets` array and uses `1`, `2`, `3`, `4`, `"T"`, or `null`.
+- `barres` use guitar string numbers: `6` is low E and `1` is high e.
+
+Example:
+
+```ts
+{
+  symbol: "Em",
+  root: "E",
+  quality: "m",
+  variations: [
+    {
+      id: "em-open-022000",
+      frets: [0, 2, 2, 0, 0, 0],
+      fingers: [null, 1, 2, null, null, null],
+    },
+  ],
+}
+```
+
+Do not put display concerns in these files. Pixel sizes, colors, hover behavior, labels, and layout belong in components.
