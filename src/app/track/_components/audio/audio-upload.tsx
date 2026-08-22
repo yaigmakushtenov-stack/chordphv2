@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 
 import * as MusicActions from "@/actions/music-actions";
-import { MiniAudioPlayer } from "@/components/shared/mini-audio-player";
+import { MiniAudioPlayer } from "@/app/track/_components/audio/mini-audio-player";
 import { showToast } from "@/components/shared/toast";
 import { upsertMusicLibraryFile } from "@/lib/client/music-library-store";
 import type { MusicFileListItemData } from "@/types/music";

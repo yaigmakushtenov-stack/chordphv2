@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { PianoChordDiagram } from "@/components/chord-chart/piano-chord-diagram";
+import { PianoChordDiagram } from "@/components/shared/chords/piano-chord-diagram";
 import type { PianoChordDefinition } from "@/data/chords";
 
 type PianoChordCardProps = {

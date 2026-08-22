@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 
-import { Dashboard } from "@/components/main/dashboard";
-import { DashboardHome } from "@/components/main/dashboard-home";
+import { Dashboard } from "@/components/shared/dashboard";
+import { DashboardHome } from "@/app/_components/dashboard-home";
 import { AppShell } from "@/components/shared/app-shell";
 import { auth } from "@/lib/auth";
 import {

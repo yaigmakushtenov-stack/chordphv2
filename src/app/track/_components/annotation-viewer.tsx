@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
 import * as TrackActions from "@/actions/track-actions";
-import { ChordCard } from "@/components/chord-chart/chord-card";
-import { ChordPopover } from "@/components/chord-chart/chord-popover";
-import { PianoChordCard } from "@/components/chord-chart/piano-chord-card";
+import { ChordCard } from "@/components/shared/chords/chord-card";
+import { ChordPopover } from "@/app/track/_components/chord-popover";
+import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
 import { showToast } from "@/components/shared/toast";
 
 import {
@@ -15,7 +15,7 @@ import {
   transposeChord,
   transposeChordPro,
   type AccidentalPreference,
-} from "@/components/track/chord-pro";
+} from "@/app/track/_lib/chord-pro";
 import {
   GUITAR_CHORDS,
   PIANO_CHORDS,

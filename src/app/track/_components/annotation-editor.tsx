@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
 import * as TrackActions from "@/actions/track-actions";
-import { AudioUpload } from "@/components/shared/audio-upload";
+import { AudioUpload } from "@/app/track/_components/audio/audio-upload";
 import { showToast } from "@/components/shared/toast";
 import {
   MUSICAL_KEYS,
@@ -20,7 +20,7 @@ import {
   transposeChord,
   transposeChordPro,
   type AccidentalPreference,
-} from "@/components/track/chord-pro";
+} from "@/app/track/_lib/chord-pro";
 import type { MusicFileListItemData } from "@/types/music";
 import type {
   AnnotationEditorData,

@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { LogoutButton } from "@/components/auth/logout-button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { LogoutButton } from "@/app/_components/auth/logout-button";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { authClient } from "@/lib/auth-client";
 
 const ACCENT = "#ed1746";

@@ -2,10 +2,10 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 
-import { LeftLibraryPanel } from "@/components/shared/left-library-panel";
-import { StickyMusicPlayer } from "@/components/shared/sticky-music-player";
+import { LeftLibraryPanel } from "@/components/shared/app-shell/left-library-panel";
+import { StickyMusicPlayer } from "@/components/shared/app-shell/sticky-music-player";
 import { ToastProvider } from "@/components/shared/toast";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { auth } from "@/lib/auth";
 import {
   TrackService,

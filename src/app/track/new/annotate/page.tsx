@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { Dashboard } from "@/components/main/dashboard";
+import { Dashboard } from "@/components/shared/dashboard";
 import { AppShell } from "@/components/shared/app-shell";
-import { AnnotationEditor } from "@/components/track/annotation-editor";
+import { AnnotationEditor } from "@/app/track/_components/annotation-editor";
 import { auth } from "@/lib/auth";
 
 export const metadata: Metadata = {

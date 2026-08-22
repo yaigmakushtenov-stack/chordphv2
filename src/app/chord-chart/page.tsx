@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
-import { ChordChart } from "@/components/chord-chart/chord-chart";
-import { Dashboard } from "@/components/main/dashboard";
+import { ChordChart } from "@/app/chord-chart/_components/chord-chart";
+import { Dashboard } from "@/components/shared/dashboard";
 import { AppShell } from "@/components/shared/app-shell";
 
 export const metadata: Metadata = {

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
-import { Dashboard } from "@/components/main/dashboard";
-import { AnnotationEditor } from "@/components/track/annotation-editor";
+import { Dashboard } from "@/components/shared/dashboard";
+import { AnnotationEditor } from "@/app/track/_components/annotation-editor";
 import { AppShell } from "@/components/shared/app-shell";
 import { auth } from "@/lib/auth";
 import {

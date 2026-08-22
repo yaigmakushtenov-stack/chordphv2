@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 
-import { ChordCard } from "@/components/chord-chart/chord-card";
-import { PianoChordCard } from "@/components/chord-chart/piano-chord-card";
+import { ChordCard } from "@/components/shared/chords/chord-card";
+import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
 import {
   GUITAR_CHORDS,
   PIANO_CHORDS,

@@ -25,8 +25,8 @@ For a `Role: Vibe` session, warn before modifying any of these paths:
 - `src/lib/auth*.ts`
 - `src/lib/storage/**`
 - `src/lib/realtime/**`
-- `src/components/auth/**`
-- `src/components/providers/**`
+- `src/app/_components/auth/**`
+- `src/components/shared/providers/**`
 - `next.config.*`, `tsconfig.json`, `eslint.config.*`, and `postcss.config.*`
 
 Also warn before adding or changing a Server Action or any file containing the `"use server"` directive, regardless of its path.
@@ -62,7 +62,7 @@ Pay special attention to:
 
 - `src/app` contains App Router pages, layouts, and Route Handlers.
 - `src/actions` contains flat, domain-specific Server Action modules.
-- `src/components` contains UI components and application providers.
+- `src/components/shared` contains UI components reused across multiple pages or domains.
 - `src/lib` contains authentication, Prisma, storage, and realtime integrations.
 - `src/services` contains flat, domain-specific server-only service modules.
 - `src/types` contains shared application types used across multiple folders. Keep component props and local helper types colocated with their implementation.
@@ -112,6 +112,14 @@ Pay special attention to:
 - Keep file organization consistent with the existing structure.
 - Do not add code comments unless explicitly requested.
 
+## Component Organization
+
+- Keep page-specific or domain-specific components close to the route or domain that owns them. Prefer local component folders such as `src/app/_components`, `src/app/chord-chart/_components`, or `src/app/track/_components` over broad shared placement.
+- Put components in `src/components/shared` only when they are reused across multiple pages or domains, or are intended as app-wide primitives.
+- Do not place component prop types in `src/types`; keep props and local helper types in the component file or local component folder.
+- When a component starts local and later becomes reused across the app, move it to `src/components/shared` in the same change that introduces the second real use.
+- Avoid broad component folders named by vague UI areas, such as `main`, when a component is either page-local or clearly shared.
+
 ## Product UI Style
 
 - Match the current home page direction before introducing new visual language.
@@ -121,11 +129,11 @@ Pay special attention to:
 - Use full-width app layouts for authenticated product surfaces. Favor a Spotify-like structure: top navigation, left library panel, primary main-content panel, and a bottom footer strip for ads, notices, or status.
 - Do not cap app-shell width with `max-w-*` containers. The app shell, top navigation, left panel, main panel, and footer strip should use the full viewport width.
 - Top navigation should put the brand, home button, and rounded search input on the left, with install app, sign up, and log in actions on the right when applicable.
-- Main content wrappers belong under `src/components/main/`. Start with `Dashboard` for the primary app panel and add future wrappers there.
+- Shared main content wrappers belong under `src/components/shared/`.
 - Use responsive layouts by default. Components must work at mobile, tablet, and desktop widths without clipped text, overlapping controls, or inaccessible actions.
 - Use rounded pills for primary actions and filters when they match the existing home page. Use cards only for repeated content items or contained tools, not for nested page sections.
 - Preserve strong focus-visible styles and readable contrast in both themes.
-- Prefer existing spacing, border, and typography patterns from `src/components/landing/landing-page.tsx` until a formal design system exists.
+- Prefer existing spacing, border, and typography patterns from `src/app/_components/landing-page.tsx` until a formal design system exists.
 
 ## Change Scope
 

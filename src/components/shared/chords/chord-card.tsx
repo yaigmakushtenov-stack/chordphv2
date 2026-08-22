@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { ChordDiagram } from "@/components/chord-chart/chord-diagram";
+import { ChordDiagram } from "@/components/shared/chords/chord-diagram";
 import type { ChordDefinition } from "@/data/chords";
 
 type ChordCardProps = {

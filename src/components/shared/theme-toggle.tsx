@@ -1,6 +1,6 @@
 "use client";
 
-import { useAppTheme } from "@/components/providers/theme-provider";
+import { useAppTheme } from "@/components/shared/providers/theme-provider";
 
 function SunIcon() {
   return (

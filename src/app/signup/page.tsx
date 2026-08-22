@@ -3,8 +3,8 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { GoogleSignInButton } from "@/app/_components/auth/google-sign-in-button";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { auth } from "@/lib/auth";
 
 export const metadata: Metadata = {

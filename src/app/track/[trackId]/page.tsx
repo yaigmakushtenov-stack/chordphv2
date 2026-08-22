@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
-import { Dashboard } from "@/components/main/dashboard";
+import { Dashboard } from "@/components/shared/dashboard";
 import { AppShell } from "@/components/shared/app-shell";
-import { AnnotationViewer } from "@/components/track/annotation-viewer";
+import { AnnotationViewer } from "@/app/track/_components/annotation-viewer";
 import { auth } from "@/lib/auth";
 import { TrackService, type AnnotationTrack } from "@/services/track-service";
 import type { AnnotationViewerData } from "@/types/track";
