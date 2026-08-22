@@ -30,6 +30,7 @@ export type ChordDefinition = {
 
 export type PianoChordVariation = {
   id: string;
+  symbol: string;
   label: string;
   notes: string[];
 };

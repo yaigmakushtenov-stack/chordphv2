@@ -9,15 +9,15 @@ type ChordDiagramProps = {
 
 const STRING_COUNT = 6;
 const FRET_COUNT = 5;
-const WIDTH = 96;
-const HEIGHT = 132;
+const WIDTH = 104;
+const HEIGHT = 126;
 const GRID_LEFT = 18;
 const GRID_TOP = 34;
-const GRID_WIDTH = 60;
-const GRID_HEIGHT = 72;
+const GRID_WIDTH = 52;
+const GRID_HEIGHT = 64;
 const STRING_GAP = GRID_WIDTH / (STRING_COUNT - 1);
 const FRET_GAP = GRID_HEIGHT / FRET_COUNT;
-const DOT_RADIUS = 5.3;
+const DOT_RADIUS = 4.8;
 
 export function ChordDiagram({
   symbol,
@@ -36,7 +36,7 @@ export function ChordDiagram({
       <svg
         aria-hidden="true"
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className="h-auto w-full max-w-[96px] overflow-visible"
+        className="h-auto w-full max-w-[86px] overflow-visible"
       >
         <text
           x={WIDTH / 2}
@@ -77,7 +77,7 @@ export function ChordDiagram({
           <text
             x={GRID_LEFT + GRID_WIDTH + 8}
             y={GRID_TOP + 12}
-            className="fill-[#222] text-[13px] font-bold dark:fill-[#f5f5f5]"
+            className="fill-[#222] text-[12px] font-bold dark:fill-[#f5f5f5]"
           >
             {baseFret}fr
           </text>
@@ -93,7 +93,7 @@ export function ChordDiagram({
               y1={GRID_TOP}
               x2={x}
               y2={GRID_TOP + GRID_HEIGHT}
-              className="stroke-[#222] stroke-[1.8] dark:stroke-[#f5f5f5]"
+              className="stroke-[#222] stroke-[1.7] dark:stroke-[#f5f5f5]"
             />
           );
         })}
@@ -112,7 +112,7 @@ export function ChordDiagram({
               className={
                 isNut
                   ? "stroke-[#222] stroke-[3.8] dark:stroke-[#f5f5f5]"
-                  : "stroke-[#8b8b8b] stroke-[1.3] dark:stroke-[#777]"
+                  : "stroke-[#8b8b8b] stroke-[1.2] dark:stroke-[#777]"
               }
             />
           );
@@ -131,7 +131,7 @@ export function ChordDiagram({
               x2={toX}
               y2={y}
               strokeLinecap="round"
-              className="stroke-[#222] stroke-[7] dark:stroke-[#f5f5f5]"
+              className="stroke-[#222] stroke-[6] dark:stroke-[#f5f5f5]"
             />
           );
         })}
@@ -179,7 +179,7 @@ export function ChordDiagram({
               x={stringX(stringNumber)}
               y={GRID_TOP + GRID_HEIGHT + 16}
               textAnchor="middle"
-              className="fill-[#222] text-[13px] font-medium dark:fill-[#f5f5f5]"
+              className="fill-[#222] text-[12px] font-medium dark:fill-[#f5f5f5]"
             >
               {finger}
             </text>

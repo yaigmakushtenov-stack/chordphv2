@@ -9,6 +9,8 @@ type ChordCardProps = {
   chord: ChordDefinition;
   compact?: boolean;
   initialVariationIndex?: number;
+  selectedVariationIndex?: number;
+  onVariationIndexChange?: (variationIndex: number) => void;
   variationLabel?: number | null;
   unframed?: boolean;
 };
@@ -17,6 +19,8 @@ export function ChordCard({
   chord,
   compact = false,
   initialVariationIndex = 0,
+  selectedVariationIndex,
+  onVariationIndexChange,
   variationLabel = null,
   unframed = false,
 }: ChordCardProps) {
@@ -26,21 +30,35 @@ export function ChordCard({
   const [slideDirection, setSlideDirection] = useState<"left" | "right" | null>(
     null,
   );
-  const variation = chord.variations[variationIndex] ?? chord.variations[0];
+  const activeVariationIndex = clampVariationIndex(
+    selectedVariationIndex ?? variationIndex,
+    chord.variations.length,
+  );
+  const variation =
+    chord.variations[activeVariationIndex] ?? chord.variations[0];
   const hasVariations = chord.variations.length > 1;
 
   function showPreviousVariation() {
     setSlideDirection("right");
-    setVariationIndex((currentIndex) =>
-      currentIndex === 0 ? chord.variations.length - 1 : currentIndex - 1,
+    setActiveVariationIndex(
+      activeVariationIndex === 0
+        ? chord.variations.length - 1
+        : activeVariationIndex - 1,
     );
   }
 
   function showNextVariation() {
     setSlideDirection("left");
-    setVariationIndex((currentIndex) =>
-      currentIndex === chord.variations.length - 1 ? 0 : currentIndex + 1,
+    setActiveVariationIndex(
+      activeVariationIndex === chord.variations.length - 1
+        ? 0
+        : activeVariationIndex + 1,
     );
+  }
+
+  function setActiveVariationIndex(nextVariationIndex: number) {
+    setVariationIndex(nextVariationIndex);
+    onVariationIndexChange?.(nextVariationIndex);
   }
 
   return (
@@ -51,9 +69,9 @@ export function ChordCard({
           : "border border-transparent bg-white focus-within:border-[#d8d8d8] hover:border-[#d8d8d8] dark:bg-[#121214] dark:focus-within:border-[#36363a] dark:hover:border-[#36363a]"
       } ${
         compact && !unframed
-          ? "w-[176px] rounded-md shadow-[0_12px_35px_rgba(0,0,0,0.22)] [&_figure_svg]:max-w-[82px]"
+          ? "w-[164px] rounded-md shadow-[0_12px_35px_rgba(0,0,0,0.22)] [&_figure_svg]:max-w-[78px]"
           : compact
-            ? "w-[176px] [&_figure_svg]:max-w-[82px]"
+            ? "w-[164px] [&_figure_svg]:max-w-[78px]"
           : "min-h-[190px] rounded-xl px-4 pb-3 pt-4"
       }`}
     >
@@ -97,7 +115,7 @@ export function ChordCard({
               <ChevronLeftIcon />
             </button>
             <span className="min-w-20 text-center text-[14px] font-medium">
-              {variationIndex + 1}/{chord.variations.length}
+              {activeVariationIndex + 1}/{chord.variations.length}
             </span>
             <button
               type="button"

@@ -109,6 +109,7 @@ function createPianoChord(
 function createInversions(symbol: string, notes: NoteName[]) {
   return notes.map((_, index) => ({
     id: `${slugify(symbol)}-${index === 0 ? "root" : `inversion-${index}`}`,
+    symbol: index === 0 ? symbol : `${symbol}/${notes[index]}`,
     label: index === 0 ? "Root" : `Inversion #${index}`,
     notes: [...notes.slice(index), ...notes.slice(0, index)],
   }));

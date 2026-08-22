@@ -9,6 +9,8 @@ type PianoChordCardProps = {
   chord: PianoChordDefinition;
   compact?: boolean;
   initialVariationIndex?: number;
+  selectedVariationIndex?: number;
+  onVariationIndexChange?: (variationIndex: number) => void;
   variationLabel?: number | null;
   unframed?: boolean;
 };
@@ -17,6 +19,8 @@ export function PianoChordCard({
   chord,
   compact = false,
   initialVariationIndex = 0,
+  selectedVariationIndex,
+  onVariationIndexChange,
   variationLabel = null,
   unframed = false,
 }: PianoChordCardProps) {
@@ -26,21 +30,35 @@ export function PianoChordCard({
   const [slideDirection, setSlideDirection] = useState<"left" | "right" | null>(
     null,
   );
-  const variation = chord.variations[variationIndex] ?? chord.variations[0];
+  const activeVariationIndex = clampVariationIndex(
+    selectedVariationIndex ?? variationIndex,
+    chord.variations.length,
+  );
+  const variation =
+    chord.variations[activeVariationIndex] ?? chord.variations[0];
   const hasVariations = chord.variations.length > 1;
 
   function showPreviousVariation() {
     setSlideDirection("right");
-    setVariationIndex((currentIndex) =>
-      currentIndex === 0 ? chord.variations.length - 1 : currentIndex - 1,
+    setActiveVariationIndex(
+      activeVariationIndex === 0
+        ? chord.variations.length - 1
+        : activeVariationIndex - 1,
     );
   }
 
   function showNextVariation() {
     setSlideDirection("left");
-    setVariationIndex((currentIndex) =>
-      currentIndex === chord.variations.length - 1 ? 0 : currentIndex + 1,
+    setActiveVariationIndex(
+      activeVariationIndex === chord.variations.length - 1
+        ? 0
+        : activeVariationIndex + 1,
     );
+  }
+
+  function setActiveVariationIndex(nextVariationIndex: number) {
+    setVariationIndex(nextVariationIndex);
+    onVariationIndexChange?.(nextVariationIndex);
   }
 
   return (
@@ -69,7 +87,7 @@ export function PianoChordCard({
           }
         >
           <PianoChordDiagram
-            symbol={chord.symbol}
+            symbol={variation.symbol}
             variation={variation}
             variationLabel={variationLabel}
             className={compact ? "mt-2" : ""}
