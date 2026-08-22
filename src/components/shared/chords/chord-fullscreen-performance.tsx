@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 
 import { ChordCard } from "@/components/shared/chords/chord-card";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
@@ -104,6 +105,7 @@ export function ChordFullscreenPerformanceView({
   const [transpose, setTranspose] = useState(0);
   const accidentals: AccidentalPreference = "sharps";
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isHelperPanelOpen, setIsHelperPanelOpen] = useState(true);
   const [scrollSpeed, setScrollSpeed] = useState(0);
   const [visibleSectionIds, setVisibleSectionIds] = useState<string[]>([]);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -279,25 +281,55 @@ export function ChordFullscreenPerformanceView({
     );
   }
 
+  function handlePlaceholderTool(toolName: string): void {
+    window.alert(`${toolName} view is not available yet.`);
+  }
+
   return (
     <div
-      className={`fixed inset-0 z-50 grid grid-cols-[minmax(320px,33.333vw)_minmax(0,1fr)] ${
+      className={`fixed inset-0 z-50 flex ${
         isDarkMode ? "dark bg-[#171819] text-white" : "bg-white text-[#111]"
       }`}
     >
       <aside
-        className={`flex min-h-0 min-w-0 flex-col overflow-x-hidden border-r px-6 py-5 ${
+        className={`relative flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-r transition-[width] duration-300 ease-out ${
+          isHelperPanelOpen ? "w-[33.333vw] min-w-[320px] px-6 py-5" : "w-5 px-0 py-0"
+        } ${
           isDarkMode
             ? "border-[#2c2c31] bg-[#18181b]"
             : "border-[#dfdfe2] bg-[#f7f7f8]"
         }`}
       >
+        <button
+          type="button"
+          aria-label={isHelperPanelOpen ? "Collapse helper panel" : "Expand helper panel"}
+          onClick={() => setIsHelperPanelOpen((value) => !value)}
+          className={`absolute right-0 top-0 z-20 h-full w-5 cursor-pointer transition focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] ${
+            isDarkMode
+              ? "bg-[#202124] hover:bg-[#292b2f]"
+              : "bg-[#ececef] hover:bg-[#e0e0e4]"
+          }`}
+        >
+          <span
+            className={`absolute left-1/2 top-1/2 h-12 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full ${
+              isDarkMode ? "bg-[#4b4d52]" : "bg-[#c6c6cc]"
+            }`}
+          />
+        </button>
+        <div
+          className={`flex min-h-0 min-w-0 flex-1 flex-col transition duration-300 ease-out ${
+            isHelperPanelOpen
+              ? "translate-x-0 opacity-100"
+              : "-translate-x-4 opacity-0 pointer-events-none"
+          }`}
+          aria-hidden={!isHelperPanelOpen}
+        >
         <div
           className={`min-w-0 border-b pb-5 ${
             isDarkMode ? "border-[#303034]" : "border-[#dedee3]"
           }`}
         >
-          <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
             <div className="min-w-0">
               <h1 className="truncate text-2xl font-black">{track.title}</h1>
               <p
@@ -308,18 +340,6 @@ export function ChordFullscreenPerformanceView({
                 {track.artistName}
               </p>
             </div>
-            <button
-              type="button"
-              aria-label="Close fullscreen chord performance view"
-              onClick={handleClose}
-              className={`flex size-10 shrink-0 items-center justify-center rounded-full border transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
-                isDarkMode
-                  ? "border-[#38383d] bg-[#222226] text-white"
-                  : "border-[#d6d6d9] bg-white text-[#111]"
-              }`}
-            >
-              <CloseIcon />
-            </button>
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-2">
             <div
@@ -452,27 +472,52 @@ export function ChordFullscreenPerformanceView({
             })}
           </div>
         </div>
+        </div>
       </aside>
 
       <main
-        className={`relative min-h-0 ${
+        className={`relative min-h-0 flex-1 ${
           isDarkMode
             ? "bg-[#171819] text-[#6f7175]"
             : "bg-white text-[#111]"
         }`}
       >
-        <button
-          type="button"
-          aria-label={isDarkMode ? "Use light play mode" : "Use dark play mode"}
-          onClick={() => setIsDarkMode((value) => !value)}
-          className={`absolute right-5 top-5 z-10 flex size-11 items-center justify-center rounded-full border shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+        <div
+          className={`absolute right-5 top-5 z-10 flex items-center gap-1 rounded-full border p-1 shadow-sm backdrop-blur ${
             isDarkMode
-              ? "border-[#34363a] bg-[#202124] text-[#f3f0e8] hover:bg-[#282a2d]"
-              : "border-[#dedee3] bg-white text-[#111] hover:bg-[#f3f3f4]"
+              ? "border-[#34363a] bg-[#202124]/95 text-[#f3f0e8]"
+              : "border-[#dedee3] bg-white/95 text-[#111]"
           }`}
         >
-          {isDarkMode ? <SunIcon /> : <MoonIcon />}
-        </button>
+          <ToolbarButton
+            ariaLabel="Open alternate track view"
+            isDarkMode={isDarkMode}
+            onClick={() => handlePlaceholderTool("Alternate track")}
+          >
+            <GridIcon />
+          </ToolbarButton>
+          <ToolbarButton
+            ariaLabel="Open quick tools"
+            isDarkMode={isDarkMode}
+            onClick={() => handlePlaceholderTool("Quick tools")}
+          >
+            <SparkIcon />
+          </ToolbarButton>
+          <ToolbarButton
+            ariaLabel={isDarkMode ? "Use light play mode" : "Use dark play mode"}
+            isDarkMode={isDarkMode}
+            onClick={() => setIsDarkMode((value) => !value)}
+          >
+            {isDarkMode ? <SunIcon /> : <MoonIcon />}
+          </ToolbarButton>
+          <ToolbarButton
+            ariaLabel="Close fullscreen chord performance view"
+            isDarkMode={isDarkMode}
+            onClick={handleClose}
+          >
+            <CloseIcon />
+          </ToolbarButton>
+        </div>
         <div
           ref={scrollerRef}
           onScroll={updateVisibleSections}
@@ -1089,6 +1134,33 @@ function PlayIcon() {
   );
 }
 
+function ToolbarButton({
+  ariaLabel,
+  children,
+  isDarkMode,
+  onClick,
+}: {
+  ariaLabel: string;
+  children: ReactNode;
+  isDarkMode: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      onClick={onClick}
+      className={`flex size-10 items-center justify-center rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+        isDarkMode
+          ? "text-[#f3f0e8] hover:bg-[#2b2d30]"
+          : "text-[#111] hover:bg-[#f3f3f4]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function CloseIcon() {
   return (
     <svg
@@ -1103,6 +1175,43 @@ function CloseIcon() {
     >
       <path d="m18 6-12 12" />
       <path d="m6 6 12 12" />
+    </svg>
+  );
+}
+
+function GridIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
+function SparkIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      <path d="M13 2 9.7 9.7 2 13l7.7 3.3L13 24l3.3-7.7L24 13l-7.7-3.3L13 2Z" />
     </svg>
   );
 }
