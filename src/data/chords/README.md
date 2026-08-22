@@ -4,10 +4,19 @@ Chord definitions are stored as compact data and rendered by components outside 
 
 ## Guitar Format
 
-Guitar `frets` arrays are ordered from the lowest string to the highest string:
+Fretted instrument `frets` arrays are ordered from the lowest displayed string
+to the highest displayed string.
+
+Guitar uses six values:
 
 ```ts
 [E, A, D, G, B, e]
+```
+
+Ukulele uses four values in standard GCEA tuning:
+
+```ts
+[G, C, E, A]
 ```
 
 Use these values:
@@ -38,7 +47,7 @@ Example:
 
 Do not put display concerns in these files. Pixel sizes, colors, hover behavior, labels, and layout belong in components.
 
-## Guitar Coverage
+## Guitar And Ukulele Coverage
 
 The guitar library combines:
 
@@ -66,6 +75,27 @@ Current generated qualities:
 - Augmented
 
 Movable templates should not contain open strings. If a useful open-position shape exists, add it to the curated open variations for that exact chord symbol instead of relying on transposition.
+
+The ukulele library uses compact common-shape templates for standard GCEA
+tuning and generates all 12 roots for the supported qualities.
+
+## Chord Equivalence
+
+Annotation chord input is normalized before lookup so equivalent spellings share
+one canonical data symbol across guitar, ukulele, and piano.
+
+Examples:
+
+```ts
+EM7 -> Emaj7
+Emajor7 -> Emaj7
+Emin7 -> Em7
+D#maj7 -> Ebmaj7
+Aadd2 -> Aadd9
+```
+
+Each instrument keeps its own variation preference slot. Selecting a guitar
+variation does not change ukulele or piano variation choices.
 
 ## Piano Format
 

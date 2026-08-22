@@ -3,11 +3,11 @@ import type { ChordVariation } from "@/data/chords";
 type ChordDiagramProps = {
   symbol: string;
   variation: ChordVariation;
+  instrumentLabel?: string;
   variationLabel?: number | null;
   className?: string;
 };
 
-const STRING_COUNT = 6;
 const FRET_COUNT = 5;
 const WIDTH = 104;
 const HEIGHT = 126;
@@ -15,23 +15,27 @@ const GRID_LEFT = 18;
 const GRID_TOP = 34;
 const GRID_WIDTH = 52;
 const GRID_HEIGHT = 64;
-const STRING_GAP = GRID_WIDTH / (STRING_COUNT - 1);
 const FRET_GAP = GRID_HEIGHT / FRET_COUNT;
 const DOT_RADIUS = 4.8;
 
 export function ChordDiagram({
   symbol,
   variation,
+  instrumentLabel = "guitar",
   variationLabel = null,
   className,
 }: ChordDiagramProps) {
   const baseFret = variation.baseFret ?? 1;
+  const stringCount = variation.frets.length;
+  const stringGap = GRID_WIDTH / Math.max(1, stringCount - 1);
+  const getStringX = (stringNumber: number) =>
+    GRID_LEFT + (stringCount - stringNumber) * stringGap;
 
   return (
     <figure
       className={className}
       role="img"
-      aria-label={`${symbol} guitar chord diagram`}
+      aria-label={`${symbol} ${instrumentLabel} chord diagram`}
     >
       <svg
         aria-hidden="true"
@@ -53,8 +57,8 @@ export function ChordDiagram({
         </text>
 
         {variation.frets.map((fret, index) => {
-          const stringNumber = STRING_COUNT - index;
-          const x = stringX(stringNumber);
+          const stringNumber = stringCount - index;
+          const x = getStringX(stringNumber);
 
           if (fret === "x") {
             return (
@@ -83,8 +87,8 @@ export function ChordDiagram({
           </text>
         ) : null}
 
-        {Array.from({ length: STRING_COUNT }, (_, index) => {
-          const x = GRID_LEFT + index * STRING_GAP;
+        {Array.from({ length: stringCount }, (_, index) => {
+          const x = GRID_LEFT + index * stringGap;
 
           return (
             <line
@@ -119,8 +123,8 @@ export function ChordDiagram({
         })}
 
         {variation.barres?.map((barre) => {
-          const fromX = stringX(barre.fromString);
-          const toX = stringX(barre.toString);
+          const fromX = getStringX(barre.fromString);
+          const toX = getStringX(barre.toString);
           const y = fretY(barre.fret, baseFret);
 
           return (
@@ -141,7 +145,7 @@ export function ChordDiagram({
             return null;
           }
 
-          const stringNumber = STRING_COUNT - index;
+          const stringNumber = stringCount - index;
           const coveredByBarre = variation.barres?.some(
             (barre) =>
               barre.fret === fret &&
@@ -156,7 +160,7 @@ export function ChordDiagram({
           return (
             <circle
               key={`${variation.id}-dot-${stringNumber}`}
-              cx={stringX(stringNumber)}
+              cx={getStringX(stringNumber)}
               cy={fretY(fret, baseFret)}
               r={DOT_RADIUS}
               className="fill-[#222] dark:fill-[#f5f5f5]"
@@ -171,12 +175,12 @@ export function ChordDiagram({
             return null;
           }
 
-          const stringNumber = STRING_COUNT - index;
+          const stringNumber = stringCount - index;
 
           return (
             <text
               key={`${variation.id}-finger-${stringNumber}`}
-              x={stringX(stringNumber)}
+              x={getStringX(stringNumber)}
               y={GRID_TOP + GRID_HEIGHT + 16}
               textAnchor="middle"
               className="fill-[#222] text-[12px] font-medium dark:fill-[#f5f5f5]"
@@ -188,10 +192,6 @@ export function ChordDiagram({
       </svg>
     </figure>
   );
-}
-
-function stringX(stringNumber: number) {
-  return GRID_LEFT + (STRING_COUNT - stringNumber) * STRING_GAP;
 }
 
 function fretY(fret: number, baseFret: number) {

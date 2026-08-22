@@ -7,6 +7,8 @@ import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
 import {
   GUITAR_CHORDS,
   PIANO_CHORDS,
+  UKELELE_CHORDS,
+  normalizeChordSymbol,
   type ChordDefinition,
   type Instrument,
   type PianoChordDefinition,
@@ -14,7 +16,7 @@ import {
 
 const INSTRUMENTS: Array<{ id: Instrument; label: string }> = [
   { id: "guitar", label: "Guitar" },
-  { id: "ukelele", label: "Ukelele" },
+  { id: "ukulele", label: "Ukulele" },
   { id: "piano", label: "Piano" },
 ];
 
@@ -50,6 +52,22 @@ export function ChordChart() {
     }
 
     return PIANO_CHORDS.filter((chord) =>
+      chordMatchesQuery(chord, normalizedQuery),
+    );
+  }, [instrument, query]);
+
+  const ukuleleChords = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    if (instrument !== "ukulele") {
+      return [];
+    }
+
+    if (!normalizedQuery) {
+      return UKELELE_CHORDS;
+    }
+
+    return UKELELE_CHORDS.filter((chord) =>
       chordMatchesQuery(chord, normalizedQuery),
     );
   }, [instrument, query]);
@@ -129,14 +147,25 @@ export function ChordChart() {
         )
       ) : null}
 
-      {instrument === "ukelele" ? (
-        <div className="rounded-xl border border-dashed border-[#d9d9d9] bg-[#fafafa] px-6 py-14 text-center dark:border-[#3b3b40] dark:bg-[#18181b]">
-          <p className="text-[14px] font-bold">Ukelele chords are next</p>
-          <p className="mt-1 text-[13px] text-[#666] dark:text-[#b4b4bc]">
-            This chart is structured to add this instrument without changing the
-            chord data API.
-          </p>
-        </div>
+      {instrument === "ukulele" ? (
+        ukuleleChords.length ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8">
+            {ukuleleChords.map((chord) => (
+              <ChordCard
+                key={chord.symbol}
+                chord={chord}
+                instrumentLabel="ukulele"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-[#d9d9d9] bg-[#fafafa] px-6 py-14 text-center dark:border-[#3b3b40] dark:bg-[#18181b]">
+            <p className="text-[14px] font-bold">No ukulele chords found</p>
+            <p className="mt-1 text-[13px] text-[#666] dark:text-[#b4b4bc]">
+              Try another chord name or clear the search field.
+            </p>
+          </div>
+        )
       ) : null}
     </div>
   );
@@ -146,6 +175,12 @@ function chordMatchesQuery(
   chord: ChordDefinition | PianoChordDefinition,
   query: string,
 ) {
+  const queries = [
+    query,
+    normalizeChordSymbol(query)?.toLowerCase(),
+  ].filter((value, index, values): value is string =>
+    Boolean(value && values.indexOf(value) === index),
+  );
   const searchableValues = [
     chord.symbol,
     chord.root,
@@ -153,7 +188,9 @@ function chordMatchesQuery(
     ...(chord.aliases ?? []),
   ];
 
-  return searchableValues.some((value) => value.toLowerCase().includes(query));
+  return searchableValues.some((value) =>
+    queries.some((item) => value.toLowerCase().includes(item)),
+  );
 }
 
 function SearchIcon() {

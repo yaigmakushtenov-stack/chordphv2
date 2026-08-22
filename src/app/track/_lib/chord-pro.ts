@@ -1,3 +1,5 @@
+import { normalizeChordSymbol } from "@/data/chords";
+
 export type AccidentalPreference = "sharps" | "flats";
 
 const SHARP_NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -76,7 +78,8 @@ export function transposeChord(
   preference: AccidentalPreference,
 ): string | null {
   const parsedChord = splitVariationSuffix(chord);
-  const match = CHORD_PATTERN.exec(parsedChord.symbol);
+  const normalizedSymbol = normalizeChordSymbol(parsedChord.symbol);
+  const match = normalizedSymbol ? CHORD_PATTERN.exec(normalizedSymbol) : null;
 
   if (!match) {
     return null;

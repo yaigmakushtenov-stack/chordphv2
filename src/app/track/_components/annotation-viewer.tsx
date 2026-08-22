@@ -19,6 +19,8 @@ import {
 import {
   GUITAR_CHORDS,
   PIANO_CHORDS,
+  UKELELE_CHORDS,
+  normalizeChordSymbol,
   type ChordDefinition,
   type PianoChordDefinition,
 } from "@/data/chords";
@@ -100,7 +102,7 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
     variationIndex: number,
   ): void {
     setTrackPreference((currentPreference) => {
-      const chordPreference: [number?, number?] = [
+      const chordPreference: TrackPreference["c"][string] = [
         ...(currentPreference.c[chordReference.key] ?? []),
       ];
       chordPreference[getChordPreferenceField(instrument)] = variationIndex;
@@ -288,6 +290,9 @@ function ChordLine({
     const pianoReference = chordReference
       ? getPianoChordReference(chordReference)
       : null;
+    const ukuleleReference = chordReference
+      ? getUkuleleChordReference(chordReference)
+      : null;
 
     if (!chordReference) {
       return <strong key={index} className={isChord ? "mr-1 inline-block text-[13px] font-black text-[#ed1746]" : "mr-1 inline-block text-[12px] font-bold text-[#666] dark:text-[#b4b4bc]"}>{value}</strong>;
@@ -313,6 +318,24 @@ function ChordLine({
                 onVariationChange("piano", chordReference, variationIndex)
               }
               variationLabel={getPianoChordVariationLabel(pianoReference)}
+            />
+          ) : chordInstrument === "ukulele" && ukuleleReference ? (
+            <ChordCard
+              key={`${ukuleleReference.chord.symbol}-${ukuleleReference.variationIndex}`}
+              chord={ukuleleReference.chord}
+              compact
+              instrumentLabel="ukulele"
+              initialVariationIndex={ukuleleReference.variationIndex}
+              selectedVariationIndex={getSelectedVariationIndex(
+                "ukulele",
+                chordReference,
+                ukuleleReference.variationIndex,
+                trackPreference,
+              )}
+              onVariationIndexChange={(variationIndex) =>
+                onVariationChange("ukulele", chordReference, variationIndex)
+              }
+              variationLabel={getUkuleleChordVariationLabel(ukuleleReference)}
             />
           ) : (
             <ChordCard
@@ -342,6 +365,7 @@ function ChordLine({
             chordInstrument={chordInstrument}
             chordReference={chordReference}
             pianoReference={pianoReference}
+            ukuleleReference={ukuleleReference}
             trackPreference={trackPreference}
           />
         </button>
@@ -371,6 +395,10 @@ function TrackChordSection({
     () => chords.map(getPianoChordReference),
     [chords],
   );
+  const ukuleleChords = useMemo(
+    () => chords.map(getUkuleleChordReference),
+    [chords],
+  );
 
   return (
     <section className="border-t border-[#e6e6e6] py-5 dark:border-[#303034]">
@@ -396,10 +424,15 @@ function TrackChordSection({
           </button>
           <button
             type="button"
-            disabled
-            className="cursor-not-allowed pb-2 text-[#8a8a8a] opacity-55 dark:text-[#a1a1aa]"
+            aria-pressed={instrument === "ukulele"}
+            onClick={() => onInstrumentChange("ukulele")}
+            className={
+              instrument === "ukulele"
+                ? "border-b-2 border-[#111] pb-2 text-[#111] dark:border-white dark:text-white"
+                : "pb-2 text-[#8a8a8a] transition hover:text-[#111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#a1a1aa] dark:hover:text-white"
+            }
           >
-            Ukelele
+            Ukulele
           </button>
           <button
             type="button"
@@ -439,6 +472,30 @@ function TrackChordSection({
                 />
               </div>
             ))
+          : instrument === "ukulele"
+          ? ukuleleChords.map((chordReference, index) => (
+              <div
+                key={chordReference.key}
+                className="w-[108px] shrink-0 [&_article]:min-h-[156px] [&_article]:px-2 [&_article]:pt-2"
+              >
+                <ChordCard
+                  chord={chordReference.chord}
+                  instrumentLabel="ukulele"
+                  initialVariationIndex={chordReference.variationIndex}
+                  selectedVariationIndex={getSelectedVariationIndex(
+                    "ukulele",
+                    chords[index],
+                    chordReference.variationIndex,
+                    trackPreference,
+                  )}
+                  onVariationIndexChange={(variationIndex) =>
+                    onVariationChange("ukulele", chords[index], variationIndex)
+                  }
+                  variationLabel={getUkuleleChordVariationLabel(chordReference)}
+                  unframed
+                />
+              </div>
+            ))
           : pianoChords.map((chordReference, index) => (
               <div
                 key={chordReference.key}
@@ -470,11 +527,13 @@ function PreferredChordSymbolLabel({
   chordInstrument,
   chordReference,
   pianoReference,
+  ukuleleReference,
   trackPreference,
 }: {
   chordInstrument: TrackChordInstrument;
   chordReference: GuitarChordReference;
   pianoReference: PianoChordReference | null;
+  ukuleleReference: UkuleleChordReference | null;
   trackPreference: TrackPreference;
 }) {
   if (chordInstrument === "piano" && pianoReference) {
@@ -488,6 +547,34 @@ function PreferredChordSymbolLabel({
       pianoReference.chord.variations[selectedVariationIndex];
 
     return <>{selectedVariation?.symbol ?? chordReference.displaySymbol}</>;
+  }
+
+  if (chordInstrument === "ukulele" && ukuleleReference) {
+    const selectedVariationIndex = getSelectedVariationIndex(
+      "ukulele",
+      chordReference,
+      ukuleleReference.variationIndex,
+      trackPreference,
+    );
+    const selectedVariationNumber = selectedVariationIndex + 1;
+    const hasPreference =
+      getChordPreference(trackPreference, chordReference)?.[2] !== undefined;
+
+    if (
+      !APP_CONSTANTS.featureFlag.showChordVariationLabel ||
+      (!ukuleleReference.hasExplicitVariation && !hasPreference)
+    ) {
+      return <>{chordReference.displaySymbol}</>;
+    }
+
+    return (
+      <>
+        {chordReference.displaySymbol}
+        <sup className="ml-0.5 align-super text-[0.62em] leading-none">
+          {selectedVariationNumber}
+        </sup>
+      </>
+    );
   }
 
   const selectedVariationIndex = getSelectedVariationIndex(
@@ -537,11 +624,19 @@ type GuitarChordReference = {
   variationNumber: number | null;
 };
 
-type TrackChordInstrument = "guitar" | "piano";
+type TrackChordInstrument = "guitar" | "ukulele" | "piano";
 
 type PianoChordReference = {
   key: string;
   chord: PianoChordDefinition;
+  hasExplicitVariation: boolean;
+  variationIndex: number;
+  variationNumber: number | null;
+};
+
+type UkuleleChordReference = {
+  key: string;
+  chord: ChordDefinition;
   hasExplicitVariation: boolean;
   variationIndex: number;
   variationNumber: number | null;
@@ -565,9 +660,14 @@ function getUsedGuitarChords(source: string): GuitarChordReference[] {
 
 function getGuitarChordReference(value: string): GuitarChordReference | null {
   const parsedChord = splitVariationSuffix(value);
+  const normalizedSymbol = normalizeChordSymbol(parsedChord.symbol);
+
+  if (!normalizedSymbol) {
+    return null;
+  }
+
   const chord =
-    findGuitarChord(parsedChord.symbol) ??
-    createEmptyGuitarChord(parsedChord.symbol);
+    findGuitarChord(normalizedSymbol) ?? createEmptyGuitarChord(normalizedSymbol);
 
   if (!chord) {
     return null;
@@ -576,7 +676,7 @@ function getGuitarChordReference(value: string): GuitarChordReference | null {
   return {
     key: `${chord.symbol}-${parsedChord.variationNumber ?? 1}`,
     chord,
-    displaySymbol: parsedChord.symbol,
+    displaySymbol: chord.symbol,
     hasExplicitVariation: parsedChord.variationNumber !== null,
     variationIndex: parsedChord.variationNumber
       ? parsedChord.variationNumber - 1
@@ -586,11 +686,7 @@ function getGuitarChordReference(value: string): GuitarChordReference | null {
 }
 
 function findGuitarChord(symbol: string): ChordDefinition | null {
-  const candidates = [
-    symbol,
-    transposeChord(symbol, 0, "sharps"),
-    transposeChord(symbol, 0, "flats"),
-  ].filter((value): value is string => Boolean(value));
+  const candidates = getNormalizedChordCandidates(symbol);
 
   for (const candidate of candidates) {
     const chord = GUITAR_CHORDS.find((item) => item.symbol === candidate);
@@ -619,7 +715,30 @@ function getPianoChordReference(
   };
 }
 
+function getUkuleleChordReference(
+  guitarReference: GuitarChordReference,
+): UkuleleChordReference {
+  const chord =
+    findUkuleleChord(guitarReference.displaySymbol) ??
+    createEmptyUkuleleChord(guitarReference.displaySymbol);
+
+  return {
+    key: `${chord.symbol}-${guitarReference.variationNumber ?? 1}`,
+    chord,
+    hasExplicitVariation: guitarReference.hasExplicitVariation,
+    variationIndex: guitarReference.variationIndex,
+    variationNumber: guitarReference.variationNumber,
+  };
+}
+
 function getPianoChordVariationLabel(chordReference: PianoChordReference) {
+  return APP_CONSTANTS.featureFlag.showChordVariationLabel &&
+    chordReference.hasExplicitVariation
+    ? chordReference.variationNumber
+    : null;
+}
+
+function getUkuleleChordVariationLabel(chordReference: UkuleleChordReference) {
   return APP_CONSTANTS.featureFlag.showChordVariationLabel &&
     chordReference.hasExplicitVariation
     ? chordReference.variationNumber
@@ -646,21 +765,33 @@ function getChordPreference(
   return trackPreference.c[chordReference.key];
 }
 
-function getChordPreferenceField(
-  instrument: TrackChordInstrument,
-): 0 | 1 {
-  return instrument === "guitar" ? 0 : 1;
+function getChordPreferenceField(instrument: TrackChordInstrument): 0 | 1 | 2 {
+  if (instrument === "guitar") {
+    return 0;
+  }
+
+  return instrument === "piano" ? 1 : 2;
 }
 
 function findPianoChord(symbol: string): PianoChordDefinition | null {
-  const candidates = [
-    symbol,
-    transposeChord(symbol, 0, "sharps"),
-    transposeChord(symbol, 0, "flats"),
-  ].filter((value): value is string => Boolean(value));
+  const candidates = getNormalizedChordCandidates(symbol);
 
   for (const candidate of candidates) {
     const chord = PIANO_CHORDS.find((item) => item.symbol === candidate);
+
+    if (chord) {
+      return chord;
+    }
+  }
+
+  return null;
+}
+
+function findUkuleleChord(symbol: string): ChordDefinition | null {
+  const candidates = getNormalizedChordCandidates(symbol);
+
+  for (const candidate of candidates) {
+    const chord = UKELELE_CHORDS.find((item) => item.symbol === candidate);
 
     if (chord) {
       return chord;
@@ -691,6 +822,16 @@ function createEmptyGuitarChord(symbol: string): ChordDefinition | null {
   };
 }
 
+function getNormalizedChordCandidates(symbol: string): string[] {
+  return [
+    normalizeChordSymbol(symbol),
+    normalizeChordSymbol(transposeChord(symbol, 0, "sharps") ?? ""),
+    normalizeChordSymbol(transposeChord(symbol, 0, "flats") ?? ""),
+  ].filter((value, index, values): value is string =>
+    Boolean(value && values.indexOf(value) === index),
+  );
+}
+
 function createEmptyPianoChord(symbol: string): PianoChordDefinition {
   const parsedChord = parseChordSymbol(symbol);
 
@@ -704,6 +845,23 @@ function createEmptyPianoChord(symbol: string): PianoChordDefinition {
         symbol,
         label: "No chord data",
         notes: [],
+      },
+    ],
+  };
+}
+
+function createEmptyUkuleleChord(symbol: string): ChordDefinition {
+  const parsedChord = parseChordSymbol(symbol);
+
+  return {
+    symbol,
+    root: parsedChord?.root ?? symbol,
+    quality: parsedChord?.quality ?? "",
+    ...(parsedChord?.bass ? { bass: parsedChord.bass } : {}),
+    variations: [
+      {
+        id: `${symbol.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-empty`,
+        frets: [0, 0, 0, 0],
       },
     ],
   };

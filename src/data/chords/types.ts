@@ -1,4 +1,4 @@
-export type Instrument = "guitar" | "ukelele" | "piano";
+export type Instrument = "guitar" | "ukulele" | "piano";
 
 export type FretValue = number | "x";
 
