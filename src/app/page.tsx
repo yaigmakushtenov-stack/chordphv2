@@ -4,9 +4,9 @@ import { headers } from "next/headers";
 import { Dashboard } from "@/components/main/dashboard";
 import { DashboardHome } from "@/components/main/dashboard-home";
 import { AppShell } from "@/components/shared/app-shell";
-import type { MusicFileListItemData } from "@/app/music/actions";
 import { auth } from "@/lib/auth";
 import { listReadyMusicFiles, type MusicFileSearchResult } from "@/lib/music";
+import type { MusicFileListItemData } from "@/types/music";
 
 export const metadata: Metadata = {
   title: "ChordPH | Guitar chords, tabs, and lyrics",

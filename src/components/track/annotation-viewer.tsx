@@ -26,28 +26,8 @@ import {
   type PianoChordDefinition,
 } from "@/data/chords";
 import { APP_CONSTANTS } from "@/lib/app-constants";
+import type { AnnotationViewerData } from "@/types/track";
 import type { TrackPreference } from "@/types/track-preference";
-
-export type AnnotationViewerData = {
-  id: string;
-  title: string;
-  artistName: string;
-  key: string;
-  tuning: string;
-  capo: number | null;
-  tempo: number | null;
-  timeSignature: string;
-  tags: string[];
-  lyricsAndChords: string;
-  notes: string;
-  youtubeLink: string | null;
-  spotifyLink: string | null;
-  audio: { playbackUrl: string; originalFileName: string } | null;
-  updatedAt: string;
-  isOwner: boolean;
-  isAuthenticated: boolean;
-  publicityStatus: "PRIVATE" | "PENDING" | "REJECTED" | "APPROVED";
-};
 
 export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
   const router = useRouter();

@@ -9,29 +9,11 @@ import { auth } from "@/lib/auth";
 import {
   createTrackWithAnnotation,
   TrackAnnotationServiceError,
-  type TemporaryTrackArtist,
 } from "@/lib/music";
-
-export type CreateTrackAnnotationActionInput = {
-  musicFileId: string | null;
-  title: string;
-  artistName: string;
-  key: string;
-  capo: number | null;
-  tempo: number | null;
-  timeSignature: string;
-  tuning: string;
-  youtubeLink: string;
-  spotifyLink: string;
-  tags: string[];
-  additionalArtists: TemporaryTrackArtist[];
-  lyricsAndChords: string;
-  notes: string;
-};
-
-export type CreatedTrackAnnotationData = {
-  trackId: string;
-};
+import type {
+  CreatedTrackAnnotationData,
+  CreateTrackAnnotationActionInput,
+} from "@/types/track";
 
 export async function createTrackAnnotationAction(
   input: CreateTrackAnnotationActionInput,

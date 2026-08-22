@@ -10,33 +10,12 @@ import {
   saveTrackAnnotation,
   saveTrackDetails,
   TrackAnnotationServiceError,
-  type TemporaryTrackArtist,
 } from "@/lib/music";
-
-export type SaveTrackDetailsActionInput = {
-  trackId: string;
-  title: string;
-  artistName: string;
-  key: string;
-  capo: number | null;
-  tempo: number | null;
-  timeSignature: string;
-  tuning: string;
-  youtubeLink: string;
-  spotifyLink: string;
-  tags: string[];
-  additionalArtists: TemporaryTrackArtist[];
-};
-
-export type SaveTrackAnnotationActionInput = {
-  trackId: string;
-  lyricsAndChords: string;
-  notes: string;
-};
-
-export type SavedTrackData = {
-  updatedAt: string;
-};
+import type {
+  SavedTrackData,
+  SaveTrackAnnotationActionInput,
+  SaveTrackDetailsActionInput,
+} from "@/types/track";
 
 export async function saveTrackDetailsAction(
   input: SaveTrackDetailsActionInput,

@@ -5,9 +5,9 @@ import {
   useMusicPlayback,
 } from "@/lib/client/music-playback-store";
 
-export type PlaylistSort = "latest" | "alphabetical";
+type PlaylistSort = "latest" | "alphabetical";
 
-export type PlaylistItem = {
+type PlaylistItem = {
   id: string;
   title: string;
   artist: string | null;

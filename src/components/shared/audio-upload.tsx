@@ -5,11 +5,11 @@ import { useRef, useState } from "react";
 import {
   completeMusicUploadAction,
   prepareMusicUploadAction,
-  type MusicFileListItemData,
 } from "@/app/music/actions";
 import { MiniAudioPlayer } from "@/components/shared/mini-audio-player";
 import { showToast } from "@/components/shared/toast";
 import { upsertMusicLibraryFile } from "@/lib/client/music-library-store";
+import type { MusicFileListItemData } from "@/types/music";
 
 const SUPPORTED_AUDIO_TYPES = new Set([
   "audio/flac",

@@ -7,11 +7,8 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   saveTrackAnnotationAction,
   saveTrackDetailsAction,
-  type SaveTrackAnnotationActionInput,
-  type SaveTrackDetailsActionInput,
 } from "@/app/track/[trackId]/annotate/actions";
 import { createTrackAnnotationAction } from "@/app/track/new/annotate/actions";
-import type { MusicFileListItemData } from "@/app/music/actions";
 import { AudioUpload } from "@/components/shared/audio-upload";
 import { showToast } from "@/components/shared/toast";
 import {
@@ -28,30 +25,12 @@ import {
   transposeChordPro,
   type AccidentalPreference,
 } from "@/components/track/chord-pro";
-
-export type AnnotationEditorData = {
-  trackId: string | null;
-  title: string;
-  artistName: string;
-  key: string;
-  capo: number | null;
-  tempo: number | null;
-  timeSignature: string;
-  tuning: string;
-  youtubeLink: string;
-  spotifyLink: string;
-  tags: string[];
-  additionalArtists: SaveTrackDetailsActionInput["additionalArtists"];
-  lyricsAndChords: string;
-  notes: string;
-  audio: {
-    playbackUrl: string;
-    originalFileName: string;
-    durationSeconds: number | null;
-  } | null;
-  detailsUpdatedAt: string | null;
-  annotationUpdatedAt: string | null;
-};
+import type { MusicFileListItemData } from "@/types/music";
+import type {
+  AnnotationEditorData,
+  SaveTrackAnnotationActionInput,
+  SaveTrackDetailsActionInput,
+} from "@/types/track";
 
 type AnnotationEditorProps = {
   initialData: AnnotationEditorData;

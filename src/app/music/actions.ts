@@ -21,6 +21,7 @@ import {
   type MusicFileSort,
   type PrepareMusicUploadInput,
 } from "@/lib/music";
+import type { MusicFileListItemData } from "@/types/music";
 
 export type PrepareMusicUploadActionInput = {
   originalFileName: string;
@@ -58,21 +59,6 @@ export type MusicUploadFileData = {
   artist: string | null;
   album: string | null;
   status: MusicFileRecord["status"];
-};
-
-export type MusicFileListItemData = {
-  id: string;
-  title: string;
-  artist: string | null;
-  album: string | null;
-  originalFileName: string;
-  contentType: string;
-  sourceSizeBytes: number;
-  storedSizeBytes: number | null;
-  durationSeconds: number | null;
-  playbackUrl: string;
-  createdAt: string;
-  uploadedAt: string | null;
 };
 
 type PrepareMusicUploadActionData =

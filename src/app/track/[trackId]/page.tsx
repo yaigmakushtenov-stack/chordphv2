@@ -4,12 +4,10 @@ import { notFound } from "next/navigation";
 
 import { Dashboard } from "@/components/main/dashboard";
 import { AppShell } from "@/components/shared/app-shell";
-import {
-  AnnotationViewer,
-  type AnnotationViewerData,
-} from "@/components/track/annotation-viewer";
+import { AnnotationViewer } from "@/components/track/annotation-viewer";
 import { auth } from "@/lib/auth";
 import { getViewableAnnotationTrack, type AnnotationTrack } from "@/lib/music";
+import type { AnnotationViewerData } from "@/types/track";
 
 export const metadata: Metadata = {
   title: "Track Annotation | ChordPH",

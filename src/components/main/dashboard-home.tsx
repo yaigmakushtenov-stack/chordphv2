@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useMemo } from "react";
 
-import type { MusicFileListItemData } from "@/app/music/actions";
 import { useMusicLibraryFiles } from "@/lib/client/music-library-store";
 import {
   toggleMusicTrack,
   useMusicPlayback,
 } from "@/lib/client/music-playback-store";
+import type { MusicFileListItemData } from "@/types/music";
 
 const NEWEST_SONGS_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 

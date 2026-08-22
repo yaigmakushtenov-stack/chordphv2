@@ -3,10 +3,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { Dashboard } from "@/components/main/dashboard";
-import {
-  AnnotationEditor,
-  type AnnotationEditorData,
-} from "@/components/track/annotation-editor";
+import { AnnotationEditor } from "@/components/track/annotation-editor";
 import { AppShell } from "@/components/shared/app-shell";
 import { auth } from "@/lib/auth";
 import {
@@ -14,6 +11,7 @@ import {
   getTemporaryTrackArtists,
   type AnnotationTrack,
 } from "@/lib/music";
+import type { AnnotationEditorData } from "@/types/track";
 
 export const metadata: Metadata = {
   title: "Annotate Track | ChordPH",

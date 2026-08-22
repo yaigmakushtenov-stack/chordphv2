@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
-import type { MusicFileListItemData } from "@/app/music/actions";
+import type { MusicFileListItemData } from "@/types/music";
 
 type Listener = () => void;
 
