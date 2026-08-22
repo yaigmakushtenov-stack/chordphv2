@@ -6,6 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 
 import * as TrackActions from "@/actions/track-actions";
 import { ChordCard } from "@/components/shared/chords/chord-card";
+import { ChordFullscreenPerformanceLauncher } from "@/components/shared/chords/chord-fullscreen-performance";
 import { ChordPopover } from "@/app/track/_components/chord-popover";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
 import { showToast } from "@/components/shared/toast";
@@ -15,7 +16,7 @@ import {
   transposeChord,
   transposeChordPro,
   type AccidentalPreference,
-} from "@/app/track/_lib/chord-pro";
+} from "@/lib/chords/chord-pro";
 import {
   GUITAR_CHORDS,
   PIANO_CHORDS,
@@ -136,6 +137,17 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <ChordFullscreenPerformanceLauncher
+        chordInstrument={chordInstrument}
+        onVariationChange={handleVariationChange}
+        track={{
+          title: track.title,
+          artistName: track.artistName,
+          key: track.key,
+          lyricsAndChords: track.lyricsAndChords,
+        }}
+        trackPreference={trackPreference}
+      />
       <section className="min-w-0 rounded-2xl border border-[#e4e4e4] bg-white p-5 dark:border-[#303034] dark:bg-[#171719]">
         <div className="flex flex-col gap-4 border-b border-[#e6e6e6] pb-5 sm:flex-row sm:items-start sm:justify-between dark:border-[#303034]">
           <div className="min-w-0">

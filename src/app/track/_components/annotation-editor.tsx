@@ -25,7 +25,7 @@ import {
   transposeChord,
   transposeChordPro,
   type AccidentalPreference,
-} from "@/app/track/_lib/chord-pro";
+} from "@/lib/chords/chord-pro";
 import type { MusicFileListItemData } from "@/types/music";
 import type {
   AnnotationEditorData,

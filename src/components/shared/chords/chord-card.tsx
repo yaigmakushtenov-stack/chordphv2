@@ -13,6 +13,7 @@ type ChordCardProps = {
   selectedVariationIndex?: number;
   onVariationIndexChange?: (variationIndex: number) => void;
   variationLabel?: number | null;
+  viewOnly?: boolean;
   unframed?: boolean;
 };
 
@@ -24,6 +25,7 @@ export function ChordCard({
   selectedVariationIndex,
   onVariationIndexChange,
   variationLabel = null,
+  viewOnly = false,
   unframed = false,
 }: ChordCardProps) {
   const [variationIndex, setVariationIndex] = useState(() =>
@@ -98,41 +100,43 @@ export function ChordCard({
         </div>
       </div>
 
-      <div
-        className={`flex w-full items-center justify-center border-t border-[#eeeeee] text-[#8a8a8a] transition dark:border-[#29292c] dark:text-[#a1a1aa] ${
-          unframed
-            ? "mt-1 h-9 border-transparent opacity-100"
-            : compact
-            ? "mt-1 h-11 opacity-100"
-            : "mt-auto h-11 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
-        }`}
-      >
-        {hasVariations ? (
-          <>
-            <button
-              type="button"
-              onClick={showPreviousVariation}
-              aria-label={`Show previous ${chord.symbol} variation`}
-              className="flex size-9 items-center justify-center rounded-full transition hover:bg-[#f2f2f2] hover:text-[#222] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#242427] dark:hover:text-white"
-            >
-              <ChevronLeftIcon />
-            </button>
-            <span className="min-w-20 text-center text-[14px] font-medium">
-              {activeVariationIndex + 1}/{chord.variations.length}
-            </span>
-            <button
-              type="button"
-              onClick={showNextVariation}
-              aria-label={`Show next ${chord.symbol} variation`}
-              className="flex size-9 items-center justify-center rounded-full transition hover:bg-[#f2f2f2] hover:text-[#222] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#242427] dark:hover:text-white"
-            >
-              <ChevronRightIcon />
-            </button>
-          </>
-        ) : (
-          <span className="text-[13px] font-medium">1/1</span>
-        )}
-      </div>
+      {!viewOnly ? (
+        <div
+          className={`flex w-full items-center justify-center border-t border-[#eeeeee] text-[#8a8a8a] transition dark:border-[#29292c] dark:text-[#a1a1aa] ${
+            unframed
+              ? "mt-1 h-9 border-transparent opacity-100"
+              : compact
+                ? "mt-1 h-11 opacity-100"
+                : "mt-auto h-11 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
+          }`}
+        >
+          {hasVariations ? (
+            <>
+              <button
+                type="button"
+                onClick={showPreviousVariation}
+                aria-label={`Show previous ${chord.symbol} variation`}
+                className="flex size-9 items-center justify-center rounded-full transition hover:bg-[#f2f2f2] hover:text-[#222] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#242427] dark:hover:text-white"
+              >
+                <ChevronLeftIcon />
+              </button>
+              <span className="min-w-20 text-center text-[14px] font-medium">
+                {activeVariationIndex + 1}/{chord.variations.length}
+              </span>
+              <button
+                type="button"
+                onClick={showNextVariation}
+                aria-label={`Show next ${chord.symbol} variation`}
+                className="flex size-9 items-center justify-center rounded-full transition hover:bg-[#f2f2f2] hover:text-[#222] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#242427] dark:hover:text-white"
+              >
+                <ChevronRightIcon />
+              </button>
+            </>
+          ) : (
+            <span className="text-[13px] font-medium">1/1</span>
+          )}
+        </div>
+      ) : null}
     </article>
   );
 }
