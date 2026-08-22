@@ -33,7 +33,11 @@ type ChordSection = {
   title: string;
   lines: string[];
   chords: string[];
+  chordPreview: string;
 };
+
+const SECTION_ANCHOR_RATIO = 0.75;
+const SECTION_VISIBILITY_CUTOFF_RATIO = 0.25;
 
 export function ChordFullscreenPerformanceLauncher({
   chordInstrument = "guitar",
@@ -121,6 +125,8 @@ export function ChordFullscreenPerformanceView({
 
     const viewportTop = scroller.scrollTop;
     const viewportBottom = viewportTop + scroller.clientHeight;
+    const currentSectionCutoff =
+      viewportTop + scroller.clientHeight * SECTION_VISIBILITY_CUTOFF_RATIO;
     const nextVisibleSectionIds: string[] = [];
 
     for (const [index, section] of sections.entries()) {
@@ -138,7 +144,7 @@ export function ChordFullscreenPerformanceView({
       const sectionBottom =
         nextElement?.offsetTop ?? element.offsetTop + element.offsetHeight;
 
-      if (sectionBottom >= viewportTop && sectionTop <= viewportBottom) {
+      if (sectionBottom >= currentSectionCutoff && sectionTop <= viewportBottom) {
         nextVisibleSectionIds.push(section.id);
       }
     }
@@ -147,12 +153,27 @@ export function ChordFullscreenPerformanceView({
       nextVisibleSectionIds.push(sections[0].id);
     }
 
+    const cappedVisibleSectionIds = nextVisibleSectionIds.slice(0, 2);
+
     setVisibleSectionIds((currentIds) =>
-      areStringArraysEqual(currentIds, nextVisibleSectionIds)
+      areStringArraysEqual(currentIds, cappedVisibleSectionIds)
         ? currentIds
-        : nextVisibleSectionIds,
+        : cappedVisibleSectionIds,
     );
   }, [sections]);
+
+  useEffect(() => {
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, []);
 
   useEffect(() => {
     function handleFullscreenChange(): void {
@@ -245,7 +266,10 @@ export function ChordFullscreenPerformanceView({
     }
 
     scroller.scrollTo({
-      top: Math.max(0, sectionElement.offsetTop - scroller.clientHeight / 3),
+      top: Math.max(
+        0,
+        sectionElement.offsetTop - scroller.clientHeight * SECTION_ANCHOR_RATIO,
+      ),
       behavior: "auto",
     });
     lastFrameTimeRef.current = null;
@@ -256,7 +280,7 @@ export function ChordFullscreenPerformanceView({
 
   return (
     <div className="fixed inset-0 z-50 grid grid-cols-[minmax(320px,33.333vw)_minmax(0,1fr)] bg-white text-[#111] dark:bg-[#111113] dark:text-white">
-      <aside className="flex min-h-0 flex-col border-r border-[#dfdfe2] bg-[#f7f7f8] px-6 py-5 dark:border-[#2c2c31] dark:bg-[#18181b]">
+      <aside className="flex min-h-0 min-w-0 flex-col overflow-x-hidden border-r border-[#dfdfe2] bg-[#f7f7f8] px-6 py-5 dark:border-[#2c2c31] dark:bg-[#18181b]">
         <div className="min-w-0 border-b border-[#dedee3] pb-5 dark:border-[#303034]">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -311,8 +335,10 @@ export function ChordFullscreenPerformanceView({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto py-5">
-          <div className="grid gap-2">
+        <div
+          className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto py-5"
+        >
+          <div className="grid gap-1">
             {sections.map((section) => {
               const isVisible = visibleSectionIds.length
                 ? visibleSectionIds.includes(section.id)
@@ -324,24 +350,31 @@ export function ChordFullscreenPerformanceView({
                   aria-current={isVisible ? "true" : undefined}
                   className={
                     isVisible
-                      ? "rounded-lg border border-[#ed1746] bg-white p-3 text-left shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#202023]"
-                      : "rounded-lg border border-transparent p-3 text-left transition hover:border-[#d7d7db] hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:border-[#36363c] dark:hover:bg-[#202023]"
+                      ? "border-t border-[#e1e1e4] pt-2 text-left first:border-t-0 first:pt-0 dark:border-[#303034]"
+                      : "rounded-lg border-t border-[#e1e1e4] px-3 py-2 text-left transition first:border-t-0 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#303034] dark:hover:bg-[#202023]"
                   }
                 >
                   <button
                     type="button"
                     onClick={() => handleSectionSelect(section.id)}
-                    className="block w-full rounded-md text-left text-[13px] font-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+                    className="flex min-w-0 max-w-full items-baseline gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
                   >
-                    {section.title}
+                    <span className="shrink-0 text-[13px] font-black uppercase">
+                      {section.title}
+                    </span>
+                    {!isVisible && section.chordPreview ? (
+                      <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-[#71717a] dark:text-[#a1a1aa]">
+                        {section.chordPreview}
+                      </span>
+                    ) : null}
                   </button>
                   {isVisible ? (
-                    <div className="mt-3">
+                    <div className="mt-2">
                       <div
                         className={
                           chordInstrument === "piano"
-                            ? "grid grid-cols-2 gap-2"
-                            : "grid grid-cols-4 gap-2"
+                            ? "flex min-w-0 flex-wrap gap-2"
+                            : "flex min-w-0 flex-wrap gap-1"
                         }
                       >
                         {section.chords.length ? (
@@ -370,7 +403,7 @@ export function ChordFullscreenPerformanceView({
         <div
           ref={scrollerRef}
           onScroll={updateVisibleSections}
-          className="h-screen overflow-y-auto px-10 pb-[33vh] pt-[33vh]"
+          className="h-screen overflow-y-auto px-10 pb-[75vh] pt-[75vh]"
         >
           <div className="mx-auto max-w-[980px]">
             {sections.length ? (
@@ -384,12 +417,13 @@ export function ChordFullscreenPerformanceView({
                       sectionRefs.current.delete(section.id);
                     }
                   }}
-                  className="scroll-mt-8 py-5 first:pt-0"
+                  className="scroll-mt-8 pb-1.5 pt-8 first:pt-0"
                 >
-                  <h2 className="mb-5 text-[15px] font-black uppercase tracking-[0.16em] text-[#ed1746]">
-                    {section.title}
+                  <h2 className="mb-3 flex items-center gap-4 text-[13px] font-black uppercase tracking-[0.16em] text-[#ed1746]">
+                    <span>{section.title}</span>
+                    <span className="h-px flex-1 bg-[#e4e4e7] dark:bg-[#303034]" />
                   </h2>
-                  <div className="space-y-2 font-mono text-[24px] leading-[1.8]">
+                  <div className="space-y-0 font-mono text-[19px] leading-[1.18]">
                     {section.lines.length ? (
                       section.lines.map((line, index) => (
                         <ChordPerformanceLine
@@ -478,7 +512,7 @@ function SectionChordShapes({
       return (
         <div
           key={pianoReference.key}
-          className="[&_article]:w-full [&_article]:min-h-[136px] [&_article]:px-1 [&_article]:pt-1 [&_figure_svg]:max-w-[108px]"
+          className="min-w-0 flex-[0_0_fit-content] overflow-hidden [&_article]:min-h-0 [&_article]:w-fit [&_article]:px-0 [&_article]:pt-0 [&_figure]:mt-0 [&_figure_svg]:max-w-[96px]"
         >
           <PianoChordCard
             chord={pianoReference.chord}
@@ -507,7 +541,7 @@ function SectionChordShapes({
       return (
         <div
           key={ukuleleReference.key}
-          className="[&_article]:w-full [&_article]:min-h-[116px] [&_article]:px-0.5 [&_article]:pt-1 [&_figure_svg]:max-w-[54px]"
+          className="min-w-0 flex-[0_1_70px] overflow-hidden [&_article]:w-full [&_article]:min-h-0 [&_article]:px-0 [&_article]:pt-0 [&_figure]:mt-0 [&_figure_svg]:max-w-[48px]"
         >
           <ChordCard
             chord={ukuleleReference.chord}
@@ -534,7 +568,7 @@ function SectionChordShapes({
     return (
       <div
         key={chordReference.key}
-        className="[&_article]:w-full [&_article]:min-h-[116px] [&_article]:px-0.5 [&_article]:pt-1 [&_figure_svg]:max-w-[54px]"
+        className="min-w-0 flex-[0_1_70px] overflow-hidden [&_article]:w-full [&_article]:min-h-0 [&_article]:px-0 [&_article]:pt-0 [&_figure]:mt-0 [&_figure_svg]:max-w-[48px]"
       >
         <ChordCard
           chord={chordReference.chord}
@@ -562,7 +596,7 @@ function ChordPerformanceLine({ line }: { line: string }) {
   const parts = line.split(/(\[[^\]\r\n]+\])/g).filter(Boolean);
 
   return (
-    <p className="min-h-11 whitespace-pre-wrap">
+    <p className="whitespace-pre-wrap">
       {parts.map((part, index) => {
         if (!part.startsWith("[") || !part.endsWith("]")) {
           return <span key={index}>{part}</span>;
@@ -574,14 +608,14 @@ function ChordPerformanceLine({ line }: { line: string }) {
         return isChord ? (
           <span
             key={index}
-            className="mr-2 inline-block rounded-md bg-[#fff0f3] px-2 py-1 font-sans text-[18px] font-black leading-none text-[#ed1746] dark:bg-[#3a111d] dark:text-[#fb7185]"
+            className="mr-1.5 inline-block font-sans text-[14px] font-black leading-none text-[#111] dark:text-white"
           >
             {value}
           </span>
         ) : (
           <strong
             key={index}
-            className="mr-2 inline-block font-sans text-[18px] font-black text-[#555] dark:text-[#c4c4cc]"
+            className="mr-1.5 inline-block font-sans text-[14px] font-black text-[#555] dark:text-[#c4c4cc]"
           >
             {value}
           </strong>
@@ -601,6 +635,7 @@ function parseChordSections(source: string): ChordSection[] {
       title,
       lines: [],
       chords: [],
+      chordPreview: "",
     };
     sections.push(section);
     return section;
@@ -620,11 +655,15 @@ function parseChordSections(source: string): ChordSection[] {
 
     currentSection.lines.push(line);
 
-    for (const chord of getLineChords(line)) {
+    const lineChords = getLineChords(line);
+
+    for (const chord of lineChords) {
       if (!currentSection.chords.includes(chord)) {
         currentSection.chords.push(chord);
       }
     }
+
+    currentSection.chordPreview = currentSection.chords.join(" - ");
   }
 
   return sections.filter(

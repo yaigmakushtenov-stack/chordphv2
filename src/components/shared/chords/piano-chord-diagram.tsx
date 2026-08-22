@@ -79,7 +79,7 @@ export function PianoChordDiagram({
           x="117.5"
           y="18"
           textAnchor="middle"
-          className="fill-[#222] text-[18px] font-black dark:fill-[#f5f5f5]"
+          className="fill-[#222] text-[24px] font-black dark:fill-[#f5f5f5]"
         >
           {symbol}
           {variationLabel ? (

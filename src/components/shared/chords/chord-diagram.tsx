@@ -46,7 +46,7 @@ export function ChordDiagram({
           x={WIDTH / 2}
           y="16"
           textAnchor="middle"
-          className="fill-[#222] text-[18px] font-black dark:fill-[#f5f5f5]"
+          className="fill-[#222] text-[20px] font-black dark:fill-[#f5f5f5]"
         >
           {symbol}
           {variationLabel ? (
