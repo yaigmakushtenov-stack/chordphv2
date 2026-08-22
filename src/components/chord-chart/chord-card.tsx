@@ -10,6 +10,7 @@ type ChordCardProps = {
   compact?: boolean;
   initialVariationIndex?: number;
   variationLabel?: number | null;
+  unframed?: boolean;
 };
 
 export function ChordCard({
@@ -17,20 +18,26 @@ export function ChordCard({
   compact = false,
   initialVariationIndex = 0,
   variationLabel = null,
+  unframed = false,
 }: ChordCardProps) {
   const [variationIndex, setVariationIndex] = useState(() =>
     clampVariationIndex(initialVariationIndex, chord.variations.length),
+  );
+  const [slideDirection, setSlideDirection] = useState<"left" | "right" | null>(
+    null,
   );
   const variation = chord.variations[variationIndex] ?? chord.variations[0];
   const hasVariations = chord.variations.length > 1;
 
   function showPreviousVariation() {
+    setSlideDirection("right");
     setVariationIndex((currentIndex) =>
       currentIndex === 0 ? chord.variations.length - 1 : currentIndex - 1,
     );
   }
 
   function showNextVariation() {
+    setSlideDirection("left");
     setVariationIndex((currentIndex) =>
       currentIndex === chord.variations.length - 1 ? 0 : currentIndex + 1,
     );
@@ -38,22 +45,43 @@ export function ChordCard({
 
   return (
     <article
-      className={`group flex flex-col items-center border border-transparent bg-white text-[#222] transition focus-within:border-[#d8d8d8] hover:border-[#d8d8d8] dark:bg-[#121214] dark:text-[#f5f5f5] dark:focus-within:border-[#36363a] dark:hover:border-[#36363a] ${
-        compact
+      className={`group flex flex-col items-center text-[#222] transition dark:text-[#f5f5f5] ${
+        unframed
+          ? "bg-transparent"
+          : "border border-transparent bg-white focus-within:border-[#d8d8d8] hover:border-[#d8d8d8] dark:bg-[#121214] dark:focus-within:border-[#36363a] dark:hover:border-[#36363a]"
+      } ${
+        compact && !unframed
           ? "w-[176px] rounded-md shadow-[0_12px_35px_rgba(0,0,0,0.22)] [&_figure_svg]:max-w-[82px]"
+          : compact
+            ? "w-[176px] [&_figure_svg]:max-w-[82px]"
           : "min-h-[190px] rounded-xl px-4 pb-3 pt-4"
       }`}
     >
-      <ChordDiagram
-        symbol={chord.symbol}
-        variation={variation}
-        variationLabel={variationLabel}
-        className={compact ? "mt-2" : ""}
-      />
+      <div className="overflow-hidden">
+        <div
+          key={variation.id}
+          className={
+            slideDirection === "left"
+              ? "animate-[chord-slide-left_180ms_ease-out]"
+              : slideDirection === "right"
+                ? "animate-[chord-slide-right_180ms_ease-out]"
+                : ""
+          }
+        >
+          <ChordDiagram
+            symbol={chord.symbol}
+            variation={variation}
+            variationLabel={variationLabel}
+            className={compact ? "mt-2" : ""}
+          />
+        </div>
+      </div>
 
       <div
         className={`flex w-full items-center justify-center border-t border-[#eeeeee] text-[#8a8a8a] transition dark:border-[#29292c] dark:text-[#a1a1aa] ${
-          compact
+          unframed
+            ? "mt-1 h-9 border-transparent opacity-100"
+            : compact
             ? "mt-1 h-11 opacity-100"
             : "mt-auto h-11 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
         }`}

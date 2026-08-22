@@ -381,6 +381,7 @@ function TrackChordSection({
                   chord={chordReference.chord}
                   initialVariationIndex={chordReference.variationIndex}
                   variationLabel={getChordVariationLabel(chordReference)}
+                  unframed
                 />
               </div>
             ))
@@ -393,6 +394,7 @@ function TrackChordSection({
                   chord={chordReference.chord}
                   initialVariationIndex={chordReference.variationIndex}
                   variationLabel={getPianoChordVariationLabel(chordReference)}
+                  unframed
                 />
               </div>
             ))}
