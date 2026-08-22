@@ -59,9 +59,9 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
     useState<AccidentalPreference>("sharps");
   const [chordInstrument, setChordInstrument] =
     useState<TrackChordInstrument>("guitar");
-  const [selectedChordVariations, setSelectedChordVariations] = useState<
-    Record<string, number>
-  >({});
+  const [trackPreference, setTrackPreference] = useState<TrackPreference>({
+    chordPreferences: {},
+  });
   const source = useMemo(
     () => transposeChordPro(track.lyricsAndChords, transpose, accidentals),
     [track.lyricsAndChords, transpose, accidentals],
@@ -114,6 +114,23 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
       });
       router.refresh();
     });
+  }
+
+  function handleVariationChange(
+    instrument: TrackChordInstrument,
+    chordReference: GuitarChordReference,
+    variationIndex: number,
+  ): void {
+    setTrackPreference((currentPreference) => ({
+      ...currentPreference,
+      chordPreferences: {
+        ...currentPreference.chordPreferences,
+        [chordReference.key]: {
+          ...currentPreference.chordPreferences[chordReference.key],
+          [getChordPreferenceField(instrument)]: variationIndex,
+        },
+      },
+    }));
   }
 
   async function handleCopyLink(): Promise<void> {
@@ -207,14 +224,8 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
             chords={usedChords}
             instrument={chordInstrument}
             onInstrumentChange={setChordInstrument}
-            selectedChordVariations={selectedChordVariations}
-            onVariationChange={(instrument, chordReference, variationIndex) =>
-              setSelectedChordVariations((currentSelections) => ({
-                ...currentSelections,
-                [getSelectionKey(instrument, chordReference.key)]:
-                  variationIndex,
-              }))
-            }
+            trackPreference={trackPreference}
+            onVariationChange={handleVariationChange}
           />
         ) : null}
 
@@ -225,14 +236,8 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
                 key={index}
                 line={line}
                 chordInstrument={chordInstrument}
-                selectedChordVariations={selectedChordVariations}
-                onVariationChange={(instrument, chordReference, variationIndex) =>
-                  setSelectedChordVariations((currentSelections) => ({
-                    ...currentSelections,
-                    [getSelectionKey(instrument, chordReference.key)]:
-                      variationIndex,
-                  }))
-                }
+                trackPreference={trackPreference}
+                onVariationChange={handleVariationChange}
               />
             ))}
           </div>
@@ -275,12 +280,12 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
 function ChordLine({
   line,
   chordInstrument,
-  selectedChordVariations,
+  trackPreference,
   onVariationChange,
 }: {
   line: string;
   chordInstrument: TrackChordInstrument;
-  selectedChordVariations: Record<string, number>;
+  trackPreference: TrackPreference;
   onVariationChange: (
     instrument: TrackChordInstrument,
     chordReference: GuitarChordReference,
@@ -320,7 +325,7 @@ function ChordLine({
                 "piano",
                 chordReference,
                 pianoReference.variationIndex,
-                selectedChordVariations,
+                trackPreference,
               )}
               onVariationIndexChange={(variationIndex) =>
                 onVariationChange("piano", chordReference, variationIndex)
@@ -337,7 +342,7 @@ function ChordLine({
                 "guitar",
                 chordReference,
                 chordReference.variationIndex,
-                selectedChordVariations,
+                trackPreference,
               )}
               onVariationIndexChange={(variationIndex) =>
                 onVariationChange("guitar", chordReference, variationIndex)
@@ -351,7 +356,12 @@ function ChordLine({
           type="button"
           className="mr-1 inline-block rounded bg-[#e7e7e9] px-1.5 py-0.5 text-[13px] font-black leading-none text-[#111] transition hover:bg-[#ffdce4] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#343438] dark:text-white dark:hover:bg-[#4a1c28]"
         >
-          <ChordSymbolLabel chordReference={chordReference} />
+          <PreferredChordSymbolLabel
+            chordInstrument={chordInstrument}
+            chordReference={chordReference}
+            pianoReference={pianoReference}
+            trackPreference={trackPreference}
+          />
         </button>
       </ChordPopover>
     );
@@ -362,13 +372,13 @@ function TrackChordSection({
   chords,
   instrument,
   onInstrumentChange,
-  selectedChordVariations,
+  trackPreference,
   onVariationChange,
 }: {
   chords: GuitarChordReference[];
   instrument: TrackChordInstrument;
   onInstrumentChange: (instrument: TrackChordInstrument) => void;
-  selectedChordVariations: Record<string, number>;
+  trackPreference: TrackPreference;
   onVariationChange: (
     instrument: TrackChordInstrument,
     chordReference: GuitarChordReference,
@@ -437,7 +447,7 @@ function TrackChordSection({
                     "guitar",
                     chordReference,
                     chordReference.variationIndex,
-                    selectedChordVariations,
+                    trackPreference,
                   )}
                   onVariationIndexChange={(variationIndex) =>
                     onVariationChange("guitar", chordReference, variationIndex)
@@ -459,7 +469,7 @@ function TrackChordSection({
                     "piano",
                     chords[index],
                     chordReference.variationIndex,
-                    selectedChordVariations,
+                    trackPreference,
                   )}
                   onVariationIndexChange={(variationIndex) =>
                     onVariationChange("piano", chords[index], variationIndex)
@@ -474,15 +484,44 @@ function TrackChordSection({
   );
 }
 
-function ChordSymbolLabel({
+function PreferredChordSymbolLabel({
+  chordInstrument,
   chordReference,
+  pianoReference,
+  trackPreference,
 }: {
+  chordInstrument: TrackChordInstrument;
   chordReference: GuitarChordReference;
+  pianoReference: PianoChordReference | null;
+  trackPreference: TrackPreference;
 }) {
+  if (chordInstrument === "piano" && pianoReference) {
+    const selectedVariationIndex = getSelectedVariationIndex(
+      "piano",
+      chordReference,
+      pianoReference.variationIndex,
+      trackPreference,
+    );
+    const selectedVariation =
+      pianoReference.chord.variations[selectedVariationIndex];
+
+    return <>{selectedVariation?.symbol ?? chordReference.displaySymbol}</>;
+  }
+
+  const selectedVariationIndex = getSelectedVariationIndex(
+    "guitar",
+    chordReference,
+    chordReference.variationIndex,
+    trackPreference,
+  );
+  const selectedVariationNumber = selectedVariationIndex + 1;
+  const hasPreference =
+    getChordPreference(trackPreference, chordReference)?.guitarVariationIndex !==
+    undefined;
+
   if (
     !APP_CONSTANTS.featureFlag.showChordVariationLabel ||
-    !chordReference.hasExplicitVariation ||
-    !chordReference.variationNumber
+    (!chordReference.hasExplicitVariation && !hasPreference)
   ) {
     return <>{chordReference.displaySymbol}</>;
   }
@@ -491,7 +530,7 @@ function ChordSymbolLabel({
     <>
       {chordReference.displaySymbol}
       <sup className="ml-0.5 align-super text-[0.62em] leading-none">
-        {chordReference.variationNumber}
+        {selectedVariationNumber}
       </sup>
     </>
   );
@@ -525,6 +564,15 @@ type PianoChordReference = {
   hasExplicitVariation: boolean;
   variationIndex: number;
   variationNumber: number | null;
+};
+
+type TrackChordPreference = {
+  guitarVariationIndex?: number;
+  pianoVariationIndex?: number;
+};
+
+type TrackPreference = {
+  chordPreferences: Record<string, TrackChordPreference>;
 };
 
 function getUsedGuitarChords(source: string): GuitarChordReference[] {
@@ -610,19 +658,28 @@ function getSelectedVariationIndex(
   instrument: TrackChordInstrument,
   chordReference: GuitarChordReference,
   fallbackVariationIndex: number,
-  selectedChordVariations: Record<string, number>,
+  trackPreference: TrackPreference,
 ) {
   return (
-    selectedChordVariations[getSelectionKey(instrument, chordReference.key)] ??
-    fallbackVariationIndex
+    getChordPreference(trackPreference, chordReference)?.[
+      getChordPreferenceField(instrument)
+    ] ?? fallbackVariationIndex
   );
 }
 
-function getSelectionKey(
-  instrument: TrackChordInstrument,
-  chordReferenceKey: string,
+function getChordPreference(
+  trackPreference: TrackPreference,
+  chordReference: GuitarChordReference,
 ) {
-  return `${instrument}:${chordReferenceKey}`;
+  return trackPreference.chordPreferences[chordReference.key];
+}
+
+function getChordPreferenceField(
+  instrument: TrackChordInstrument,
+): keyof TrackChordPreference {
+  return instrument === "guitar"
+    ? "guitarVariationIndex"
+    : "pianoVariationIndex";
 }
 
 function findPianoChord(symbol: string): PianoChordDefinition | null {
