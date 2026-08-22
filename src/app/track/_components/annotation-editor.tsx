@@ -6,6 +6,11 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 
 import * as TrackActions from "@/actions/track-actions";
 import { AudioUpload } from "@/app/track/_components/audio/audio-upload";
+import {
+  ChordLine,
+  TrackChordSection,
+  getUsedGuitarChords,
+} from "@/app/track/_components/annotation-viewer";
 import { showToast } from "@/components/shared/toast";
 import {
   MUSICAL_KEYS,
@@ -27,6 +32,7 @@ import type {
   SaveTrackAnnotationActionInput,
   SaveTrackDetailsActionInput,
 } from "@/types/track";
+import type { TrackPreference } from "@/types/track-preference";
 
 type AnnotationEditorProps = {
   initialData: AnnotationEditorData;
@@ -93,6 +99,11 @@ export function AnnotationEditor({
   const [transposeBy, setTransposeBy] = useState(0);
   const [accidentals, setAccidentals] =
     useState<AccidentalPreference>("sharps");
+  const [chordInstrument, setChordInstrument] =
+    useState<Parameters<typeof TrackChordSection>[0]["instrument"]>("guitar");
+  const [trackPreference, setTrackPreference] = useState<TrackPreference>({
+    c: {},
+  });
   const [isDetailsPending, startDetailsTransition] = useTransition();
   const [isAnnotationPending, startAnnotationTransition] = useTransition();
   const [isDraftReady, setIsDraftReady] = useState(!isCreateMode);
@@ -110,6 +121,7 @@ export function AnnotationEditor({
     () => formatPlainChordLines(annotation.lyricsAndChords),
     [annotation.lyricsAndChords],
   );
+  const previewChords = useMemo(() => getUsedGuitarChords(preview), [preview]);
   const displayedKey = details.key
     ? transposeChord(details.key, transposeBy, accidentals)
     : null;
@@ -187,6 +199,36 @@ export function AnnotationEditor({
   ) {
     setAnnotation((current) => ({ ...current, [field]: value }));
   }
+
+  const handleVariationChange: Parameters<
+    typeof TrackChordSection
+  >[0]["onVariationChange"] = (
+    instrument,
+    chordReference,
+    variationIndex,
+  ) => {
+    setTrackPreference((currentPreference) => {
+      const chordPreference: TrackPreference["c"][string] = [
+        ...(currentPreference.c[chordReference.key] ?? []),
+      ];
+
+      if (instrument === "guitar") {
+        chordPreference[0] = variationIndex;
+      } else if (instrument === "piano") {
+        chordPreference[1] = variationIndex;
+      } else {
+        chordPreference[2] = variationIndex;
+      }
+
+      return {
+        ...currentPreference,
+        c: {
+          ...currentPreference.c,
+          [chordReference.key]: chordPreference,
+        },
+      };
+    });
+  };
 
   function saveDetails() {
     const trackId = initialData.trackId;
@@ -493,7 +535,14 @@ export function AnnotationEditor({
               onValueChange={setTransposeBy}
               onAccidentalsChange={setAccidentals}
             />
-            <ChordPreview source={preview} />
+            <ChordPreview
+              source={preview}
+              chords={previewChords}
+              chordInstrument={chordInstrument}
+              onInstrumentChange={setChordInstrument}
+              trackPreference={trackPreference}
+              onVariationChange={handleVariationChange}
+            />
           </section>
           {!isCreateMode ? (
             <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]">
@@ -1371,7 +1420,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function ChordPreview({ source }: { source: string }) {
+function ChordPreview({
+  source,
+  chords,
+  chordInstrument,
+  onInstrumentChange,
+  trackPreference,
+  onVariationChange,
+}: {
+  source: string;
+  chords: ReturnType<typeof getUsedGuitarChords>;
+  chordInstrument: Parameters<typeof TrackChordSection>[0]["instrument"];
+  onInstrumentChange: Parameters<
+    typeof TrackChordSection
+  >[0]["onInstrumentChange"];
+  trackPreference: TrackPreference;
+  onVariationChange: Parameters<typeof TrackChordSection>[0]["onVariationChange"];
+}) {
   if (!source.trim()) {
     return (
       <div className="mt-5 rounded-xl border border-dashed border-[#d9d9d9] px-4 py-14 text-center text-[13px] text-[#777] dark:border-[#3a3a3f] dark:text-[#a1a1aa]">
@@ -1382,51 +1447,28 @@ function ChordPreview({ source }: { source: string }) {
 
   return (
     <div className="mt-5 max-h-[60vh] overflow-auto rounded-xl bg-[#fafafa] p-4 text-[14px] leading-7 dark:bg-[#202023]">
-      {source.split("\n").map((line, index) => (
-        <PreviewLine key={index} line={line} />
-      ))}
-    </div>
-  );
-}
-
-function PreviewLine({ line }: { line: string }) {
-  const sectionMatch = /^\s*\[([^\]\r\n]+)\]\s*$/.exec(line);
-
-  if (sectionMatch && !transposeChord(sectionMatch[1].trim(), 0, "sharps")) {
-    return (
-      <div className="mb-3 mt-6 first:mt-0">
-        <span className="inline-flex rounded-full bg-[#e9e9eb] px-3 py-1 text-[11px] font-black uppercase tracking-[0.08em] text-[#4f4f55] dark:bg-[#343438] dark:text-[#d4d4d8]">
-          {sectionMatch[1].trim()}
-        </span>
-      </div>
-    );
-  }
-
-  const parts = line.split(/(\[[^\]\r\n]+\])/g).filter(Boolean);
-
-  return (
-    <div className="min-h-7 whitespace-pre-wrap">
-      {parts.map((part, index) => {
-        if (!part.startsWith("[") || !part.endsWith("]")) {
-          return <span key={index}>{part}</span>;
-        }
-
-        const value = part.slice(1, -1).trim();
-        const isChord = Boolean(transposeChord(value, 0, "sharps"));
-
-        return (
-          <strong
+      {chords.length ? (
+        <TrackChordSection
+          chords={chords}
+          instrument={chordInstrument}
+          showVariationLabels={false}
+          onInstrumentChange={onInstrumentChange}
+          trackPreference={trackPreference}
+          onVariationChange={onVariationChange}
+        />
+      ) : null}
+      <div className={chords.length ? "pt-4" : ""}>
+        {source.split("\n").map((line, index) => (
+          <ChordLine
             key={index}
-            className={
-              isChord
-                ? "mr-1 inline-block text-[12px] font-black text-[#ed1746]"
-                : "mr-1 inline-block text-[12px] font-bold text-[#666] dark:text-[#b4b4bc]"
-            }
-          >
-            {value}
-          </strong>
-        );
-      })}
+            line={line}
+            chordInstrument={chordInstrument}
+            showVariationLabels={false}
+            trackPreference={trackPreference}
+            onVariationChange={onVariationChange}
+          />
+        ))}
+      </div>
     </div>
   );
 }
