@@ -38,7 +38,7 @@ export function ChordCard({
     <article
       className={`group flex flex-col items-center border border-transparent bg-white text-[#222] transition focus-within:border-[#d8d8d8] hover:border-[#d8d8d8] dark:bg-[#121214] dark:text-[#f5f5f5] dark:focus-within:border-[#36363a] dark:hover:border-[#36363a] ${
         compact
-          ? "w-[224px] rounded-md shadow-[0_10px_30px_rgba(0,0,0,0.18)]"
+          ? "w-[176px] rounded-md shadow-[0_12px_35px_rgba(0,0,0,0.22)] [&_figure_svg]:max-w-[82px]"
           : "min-h-[190px] rounded-xl px-4 pb-3 pt-4"
       }`}
     >
@@ -51,7 +51,7 @@ export function ChordCard({
       <div
         className={`flex w-full items-center justify-center border-t border-[#eeeeee] text-[#8a8a8a] transition dark:border-[#29292c] dark:text-[#a1a1aa] ${
           compact
-            ? "mt-1 h-14 opacity-100"
+            ? "mt-1 h-11 opacity-100"
             : "mt-auto h-11 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
         }`}
       >
