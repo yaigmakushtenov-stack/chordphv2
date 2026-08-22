@@ -26,6 +26,7 @@ import {
   type PianoChordDefinition,
 } from "@/data/chords";
 import { APP_CONSTANTS } from "@/lib/app-constants";
+import type { TrackPreference } from "@/types/track-preference";
 
 export type AnnotationViewerData = {
   id: string;
@@ -60,7 +61,7 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
   const [chordInstrument, setChordInstrument] =
     useState<TrackChordInstrument>("guitar");
   const [trackPreference, setTrackPreference] = useState<TrackPreference>({
-    chordPreferences: {},
+    c: {},
   });
   const source = useMemo(
     () => transposeChordPro(track.lyricsAndChords, transpose, accidentals),
@@ -121,16 +122,20 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
     chordReference: GuitarChordReference,
     variationIndex: number,
   ): void {
-    setTrackPreference((currentPreference) => ({
-      ...currentPreference,
-      chordPreferences: {
-        ...currentPreference.chordPreferences,
-        [chordReference.key]: {
-          ...currentPreference.chordPreferences[chordReference.key],
-          [getChordPreferenceField(instrument)]: variationIndex,
+    setTrackPreference((currentPreference) => {
+      const chordPreference: [number?, number?] = [
+        ...(currentPreference.c[chordReference.key] ?? []),
+      ];
+      chordPreference[getChordPreferenceField(instrument)] = variationIndex;
+
+      return {
+        ...currentPreference,
+        c: {
+          ...currentPreference.c,
+          [chordReference.key]: chordPreference,
         },
-      },
-    }));
+      };
+    });
   }
 
   async function handleCopyLink(): Promise<void> {
@@ -516,8 +521,7 @@ function PreferredChordSymbolLabel({
   );
   const selectedVariationNumber = selectedVariationIndex + 1;
   const hasPreference =
-    getChordPreference(trackPreference, chordReference)?.guitarVariationIndex !==
-    undefined;
+    getChordPreference(trackPreference, chordReference)?.[0] !== undefined;
 
   if (
     !APP_CONSTANTS.featureFlag.showChordVariationLabel ||
@@ -564,15 +568,6 @@ type PianoChordReference = {
   hasExplicitVariation: boolean;
   variationIndex: number;
   variationNumber: number | null;
-};
-
-type TrackChordPreference = {
-  guitarVariationIndex?: number;
-  pianoVariationIndex?: number;
-};
-
-type TrackPreference = {
-  chordPreferences: Record<string, TrackChordPreference>;
 };
 
 function getUsedGuitarChords(source: string): GuitarChordReference[] {
@@ -671,15 +666,13 @@ function getChordPreference(
   trackPreference: TrackPreference,
   chordReference: GuitarChordReference,
 ) {
-  return trackPreference.chordPreferences[chordReference.key];
+  return trackPreference.c[chordReference.key];
 }
 
 function getChordPreferenceField(
   instrument: TrackChordInstrument,
-): keyof TrackChordPreference {
-  return instrument === "guitar"
-    ? "guitarVariationIndex"
-    : "pianoVariationIndex";
+): 0 | 1 {
+  return instrument === "guitar" ? 0 : 1;
 }
 
 function findPianoChord(symbol: string): PianoChordDefinition | null {
