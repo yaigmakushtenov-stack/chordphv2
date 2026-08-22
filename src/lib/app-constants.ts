@@ -1,5 +1,5 @@
 export const APP_CONSTANTS = {
   featureFlag: {
-    showChordVariationLabel: true,
+    showChordVariationLabel: false,
   },
 } as const;

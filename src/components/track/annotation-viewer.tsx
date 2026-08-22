@@ -450,7 +450,7 @@ function TrackChordSection({
           : pianoChords.map((chordReference, index) => (
               <div
                 key={chordReference.key}
-                className="w-[132px] shrink-0 [&_article]:min-h-[150px] [&_article]:px-2 [&_article]:pt-2"
+                className="w-[154px] shrink-0 [&_article]:min-h-[164px] [&_article]:px-2 [&_article]:pt-2"
               >
                 <PianoChordCard
                   chord={chordReference.chord}

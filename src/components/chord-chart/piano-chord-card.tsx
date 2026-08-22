@@ -69,9 +69,9 @@ export function PianoChordCard({
           : "border border-transparent bg-white focus-within:border-[#d8d8d8] hover:border-[#d8d8d8] dark:bg-[#121214] dark:focus-within:border-[#36363a] dark:hover:border-[#36363a]"
       } ${
         compact && !unframed
-          ? "w-[156px] rounded-md shadow-[0_12px_35px_rgba(0,0,0,0.22)] [&_figure_svg]:max-w-[110px]"
+          ? "w-[176px] rounded-md shadow-[0_12px_35px_rgba(0,0,0,0.22)] [&_figure_svg]:max-w-[132px]"
           : compact
-            ? "w-[156px] [&_figure_svg]:max-w-[110px]"
+            ? "w-[176px] [&_figure_svg]:max-w-[132px]"
           : "min-h-[190px] rounded-xl px-4 pb-3 pt-4"
       }`}
     >

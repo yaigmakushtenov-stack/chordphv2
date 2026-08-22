@@ -24,16 +24,16 @@ const WHITE_KEYS = [
   { note: "B", position: 23 },
 ] as const;
 const BLACK_KEYS = [
-  { note: "C#", position: 1, left: 9, markerX: 12.5 },
-  { note: "Eb", position: 3, left: 21, markerX: 24.5 },
-  { note: "F#", position: 6, left: 45, markerX: 48.5 },
-  { note: "Ab", position: 8, left: 57, markerX: 60.5 },
-  { note: "Bb", position: 10, left: 69, markerX: 72.5 },
-  { note: "C#", position: 13, left: 93, markerX: 96.5 },
-  { note: "Eb", position: 15, left: 105, markerX: 108.5 },
-  { note: "F#", position: 18, left: 129, markerX: 132.5 },
-  { note: "Ab", position: 20, left: 141, markerX: 144.5 },
-  { note: "Bb", position: 22, left: 153, markerX: 156.5 },
+  { note: "C#", position: 1, left: 11, markerX: 15.5 },
+  { note: "Eb", position: 3, left: 26.5, markerX: 31 },
+  { note: "F#", position: 6, left: 57.5, markerX: 62 },
+  { note: "Ab", position: 8, left: 73, markerX: 77.5 },
+  { note: "Bb", position: 10, left: 88.5, markerX: 93 },
+  { note: "C#", position: 13, left: 119.5, markerX: 124 },
+  { note: "Eb", position: 15, left: 135, markerX: 139.5 },
+  { note: "F#", position: 18, left: 166, markerX: 170.5 },
+  { note: "Ab", position: 20, left: 181.5, markerX: 186 },
+  { note: "Bb", position: 22, left: 197, markerX: 201.5 },
 ] as const;
 
 const NOTE_POSITION: Record<string, number> = {
@@ -51,10 +51,10 @@ const NOTE_POSITION: Record<string, number> = {
   B: 11,
 };
 
-const WHITE_KEY_WIDTH = 12;
-const WHITE_KEY_HEIGHT = 44;
-const BLACK_KEY_WIDTH = 7;
-const BLACK_KEY_HEIGHT = 29;
+const WHITE_KEY_WIDTH = 15.5;
+const WHITE_KEY_HEIGHT = 61;
+const BLACK_KEY_WIDTH = 9;
+const BLACK_KEY_HEIGHT = 41;
 
 export function PianoChordDiagram({
   symbol,
@@ -72,11 +72,11 @@ export function PianoChordDiagram({
     >
       <svg
         aria-hidden="true"
-        viewBox="0 0 186 94"
-        className="h-auto w-full max-w-[186px] overflow-visible"
+        viewBox="0 0 235 101"
+        className="h-auto w-full max-w-[235px] overflow-visible"
       >
         <text
-          x="93"
+          x="117.5"
           y="18"
           textAnchor="middle"
           className="fill-[#222] text-[18px] font-black dark:fill-[#f5f5f5]"
@@ -116,8 +116,8 @@ export function PianoChordDiagram({
               <circle
                 key={`${key.note}-${key.position}-marker`}
                 cx={index * WHITE_KEY_WIDTH + WHITE_KEY_WIDTH / 2}
-                cy={WHITE_KEY_HEIGHT - 7}
-                r="2.6"
+                cy={WHITE_KEY_HEIGHT - 10}
+                r="3.7"
                 className="fill-[#222] dark:fill-[#111]"
               />
             ) : null,
@@ -127,21 +127,13 @@ export function PianoChordDiagram({
               <circle
                 key={`${key.note}-${key.position}-marker`}
                 cx={key.markerX}
-                cy={BLACK_KEY_HEIGHT - 7}
-                r="3.2"
+                cy={BLACK_KEY_HEIGHT - 10}
+                r="5.5"
                 className="fill-white stroke-[#222] stroke-[1.4] dark:fill-[#f5f5f5] dark:stroke-[#111]"
               />
             ) : null,
           )}
         </g>
-        <text
-          x="93"
-          y="88"
-          textAnchor="middle"
-          className="fill-[#666] text-[10px] font-bold dark:fill-[#b4b4bc]"
-        >
-          {variation.notes.join(" ")}
-        </text>
       </svg>
     </figure>
   );
