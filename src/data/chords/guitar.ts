@@ -118,6 +118,30 @@ const QUALITY_TEMPLATES: QualityTemplate[] = [
     ],
   },
   {
+    quality: "5",
+    aliases: ["power", "power chord", "no3"],
+    variations: [
+      {
+        id: "e5-shape",
+        sourceRoot: "F",
+        frets: [1, 3, 3, "x", "x", "x"],
+        fingers: [1, 3, 4, null, null, null],
+      },
+      {
+        id: "a5-shape",
+        sourceRoot: "Bb",
+        frets: ["x", 1, 3, 3, "x", "x"],
+        fingers: [null, 1, 3, 4, null, null],
+      },
+      {
+        id: "d5-shape",
+        sourceRoot: "E",
+        frets: ["x", "x", 2, 4, 5, "x"],
+        fingers: [null, null, 1, 3, 4, null],
+      },
+    ],
+  },
+  {
     quality: "7",
     aliases: ["dominant7", "dom7"],
     variations: [

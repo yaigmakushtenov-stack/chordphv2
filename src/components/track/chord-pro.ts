@@ -75,7 +75,8 @@ export function transposeChord(
   semitones: number,
   preference: AccidentalPreference,
 ): string | null {
-  const match = CHORD_PATTERN.exec(chord);
+  const parsedChord = splitVariationSuffix(chord);
+  const match = CHORD_PATTERN.exec(parsedChord.symbol);
 
   if (!match) {
     return null;
@@ -89,7 +90,7 @@ export function transposeChord(
   }
 
   if (!bassRoot) {
-    return `${transposedRoot}${quality}`;
+    return `${transposedRoot}${quality}${parsedChord.variationSuffix}`;
   }
 
   const transposedBass = transposeNote(
@@ -98,7 +99,31 @@ export function transposeChord(
     preference,
   );
 
-  return transposedBass ? `${transposedRoot}${quality}/${transposedBass}` : null;
+  return transposedBass
+    ? `${transposedRoot}${quality}/${transposedBass}${parsedChord.variationSuffix}`
+    : null;
+}
+
+export function splitVariationSuffix(chord: string): {
+  symbol: string;
+  variationNumber: number | null;
+  variationSuffix: string;
+} {
+  const match = /^(.*)\/([1-9]\d*)$/.exec(chord.trim());
+
+  if (!match) {
+    return {
+      symbol: chord,
+      variationNumber: null,
+      variationSuffix: "",
+    };
+  }
+
+  return {
+    symbol: match[1],
+    variationNumber: Number(match[2]),
+    variationSuffix: `/${match[2]}`,
+  };
 }
 
 function isPlainChordLine(line: string): boolean {

@@ -8,10 +8,17 @@ import type { ChordDefinition } from "@/data/chords";
 type ChordCardProps = {
   chord: ChordDefinition;
   compact?: boolean;
+  initialVariationIndex?: number;
 };
 
-export function ChordCard({ chord, compact = false }: ChordCardProps) {
-  const [variationIndex, setVariationIndex] = useState(0);
+export function ChordCard({
+  chord,
+  compact = false,
+  initialVariationIndex = 0,
+}: ChordCardProps) {
+  const [variationIndex, setVariationIndex] = useState(() =>
+    clampVariationIndex(initialVariationIndex, chord.variations.length),
+  );
   const variation = chord.variations[variationIndex] ?? chord.variations[0];
   const hasVariations = chord.variations.length > 1;
 
@@ -76,6 +83,14 @@ export function ChordCard({ chord, compact = false }: ChordCardProps) {
       </div>
     </article>
   );
+}
+
+function clampVariationIndex(index: number, variationCount: number) {
+  if (!Number.isInteger(index) || variationCount <= 0) {
+    return 0;
+  }
+
+  return Math.min(Math.max(index, 0), variationCount - 1);
 }
 
 function ChevronLeftIcon() {

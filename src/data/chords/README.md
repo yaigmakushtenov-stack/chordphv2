@@ -50,6 +50,7 @@ Current generated qualities:
 
 - Major
 - Minor
+- Power chords
 - Dominant 7
 - Major 7
 - Minor 7

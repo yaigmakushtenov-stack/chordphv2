@@ -8,13 +8,17 @@ import {
   copyPublicAnnotationAction,
   submitAnnotationForReviewAction,
 } from "@/app/track/[trackId]/actions";
+import { ChordCard } from "@/components/chord-chart/chord-card";
+import { ChordPopover } from "@/components/chord-chart/chord-popover";
 import { showToast } from "@/components/shared/toast";
 
 import {
+  splitVariationSuffix,
   transposeChord,
   transposeChordPro,
   type AccidentalPreference,
 } from "@/components/track/chord-pro";
+import { GUITAR_CHORDS, type ChordDefinition } from "@/data/chords";
 
 export type AnnotationViewerData = {
   id: string;
@@ -50,6 +54,7 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
     () => transposeChordPro(track.lyricsAndChords, transpose, accidentals),
     [track.lyricsAndChords, transpose, accidentals],
   );
+  const usedChords = useMemo(() => getUsedGuitarChords(source), [source]);
   const displayKey =
     transposeChord(track.key, transpose, accidentals) ?? track.key;
 
@@ -185,6 +190,8 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
           </select>
         </div>
 
+        {usedChords.length ? <TrackChordSection chords={usedChords} /> : null}
+
         {source.trim() ? (
           <div className="rounded-xl bg-[#fafafa] p-4 text-[15px] leading-8 dark:bg-[#202023] sm:p-6">
             {source.split("\n").map((line, index) => <ChordLine key={index} line={line} />)}
@@ -236,10 +243,143 @@ function ChordLine({ line }: { line: string }) {
     if (!part.startsWith("[") || !part.endsWith("]")) return <span key={index}>{part}</span>;
     const value = part.slice(1, -1).trim();
     const isChord = Boolean(transposeChord(value, 0, "sharps"));
-    return <strong key={index} className={isChord ? "mr-1 inline-block text-[13px] font-black text-[#ed1746]" : "mr-1 inline-block text-[12px] font-bold text-[#666] dark:text-[#b4b4bc]"}>{value}</strong>;
+    const chordReference = isChord ? getGuitarChordReference(value) : null;
+
+    if (!chordReference) {
+      return <strong key={index} className={isChord ? "mr-1 inline-block text-[13px] font-black text-[#ed1746]" : "mr-1 inline-block text-[12px] font-bold text-[#666] dark:text-[#b4b4bc]"}>{value}</strong>;
+    }
+
+    return (
+      <ChordPopover
+        key={index}
+        chord={chordReference.chord}
+        initialVariationIndex={chordReference.variationIndex}
+      >
+        <button
+          type="button"
+          className="mr-1 inline-block rounded bg-[#e7e7e9] px-1.5 py-0.5 text-[13px] font-black leading-none text-[#111] transition hover:bg-[#ffdce4] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#343438] dark:text-white dark:hover:bg-[#4a1c28]"
+        >
+          {chordReference.displaySymbol}
+        </button>
+      </ChordPopover>
+    );
   })}</div>;
+}
+
+function TrackChordSection({
+  chords,
+}: {
+  chords: GuitarChordReference[];
+}) {
+  return (
+    <section className="border-t border-[#e6e6e6] py-5 dark:border-[#303034]">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h3 className="text-[20px] font-black uppercase tracking-[0.02em]">
+          Chords
+        </h3>
+        <div
+          className="flex gap-5 overflow-x-auto text-[13px] font-black uppercase"
+          aria-label="Chord instrument"
+        >
+          <button
+            type="button"
+            aria-pressed="true"
+            className="border-b-2 border-[#111] pb-2 text-[#111] dark:border-white dark:text-white"
+          >
+            Guitar
+          </button>
+          <button
+            type="button"
+            disabled
+            className="cursor-not-allowed pb-2 text-[#8a8a8a] opacity-55 dark:text-[#a1a1aa]"
+          >
+            Ukelele
+          </button>
+          <button
+            type="button"
+            disabled
+            className="cursor-not-allowed pb-2 text-[#8a8a8a] opacity-55 dark:text-[#a1a1aa]"
+          >
+            Piano
+          </button>
+        </div>
+      </div>
+      <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
+        {chords.map((chordReference) => (
+          <div
+            key={chordReference.key}
+            className="w-[118px] shrink-0 [&_article]:min-h-[168px] [&_article]:px-2 [&_article]:pt-2"
+          >
+            <ChordCard
+              chord={chordReference.chord}
+              initialVariationIndex={chordReference.variationIndex}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
   return <div className="flex items-center justify-between gap-4"><dt className="text-[#717171] dark:text-[#a1a1aa]">{label}</dt><dd className="text-right font-bold">{value}</dd></div>;
+}
+
+type GuitarChordReference = {
+  key: string;
+  chord: ChordDefinition;
+  displaySymbol: string;
+  variationIndex: number;
+};
+
+function getUsedGuitarChords(source: string): GuitarChordReference[] {
+  const references = new Map<string, GuitarChordReference>();
+
+  for (const match of source.matchAll(/\[([^\]\r\n]+)\]/g)) {
+    const reference = getGuitarChordReference(match[1].trim());
+
+    if (!reference || references.has(reference.displaySymbol)) {
+      continue;
+    }
+
+    references.set(reference.displaySymbol, reference);
+  }
+
+  return Array.from(references.values());
+}
+
+function getGuitarChordReference(value: string): GuitarChordReference | null {
+  const parsedChord = splitVariationSuffix(value);
+  const chord = findGuitarChord(parsedChord.symbol);
+
+  if (!chord) {
+    return null;
+  }
+
+  return {
+    key: `${chord.symbol}-${parsedChord.variationNumber ?? 1}`,
+    chord,
+    displaySymbol: parsedChord.symbol,
+    variationIndex: parsedChord.variationNumber
+      ? parsedChord.variationNumber - 1
+      : 0,
+  };
+}
+
+function findGuitarChord(symbol: string): ChordDefinition | null {
+  const candidates = [
+    symbol,
+    transposeChord(symbol, 0, "sharps"),
+    transposeChord(symbol, 0, "flats"),
+  ].filter((value): value is string => Boolean(value));
+
+  for (const candidate of candidates) {
+    const chord = GUITAR_CHORDS.find((item) => item.symbol === candidate);
+
+    if (chord) {
+      return chord;
+    }
+  }
+
+  return null;
 }
