@@ -69,7 +69,7 @@ export function ChordCard({
               <ChevronLeftIcon />
             </button>
             <span className="min-w-20 text-center text-[14px] font-medium">
-              {variationIndex + 1} of {chord.variations.length}
+              {variationIndex + 1}/{chord.variations.length}
             </span>
             <button
               type="button"
@@ -81,7 +81,7 @@ export function ChordCard({
             </button>
           </>
         ) : (
-          <span className="text-[13px] font-medium">1 of 1</span>
+          <span className="text-[13px] font-medium">1/1</span>
         )}
       </div>
     </article>

@@ -79,12 +79,12 @@ Piano chord variations are stored as note names instead of fret positions:
   variations: [
     {
       id: "c-root",
-      label: "Root position",
+      label: "Root",
       notes: ["C", "E", "G"],
     },
     {
       id: "c-inversion-1",
-      label: "1st inversion",
+      label: "Inversion #1",
       notes: ["E", "G", "C"],
     },
   ],

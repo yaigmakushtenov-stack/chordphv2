@@ -40,7 +40,7 @@ export function PianoChordCard({
     <article
       className={`group flex flex-col items-center border border-transparent bg-white text-[#222] transition focus-within:border-[#d8d8d8] hover:border-[#d8d8d8] dark:bg-[#121214] dark:text-[#f5f5f5] dark:focus-within:border-[#36363a] dark:hover:border-[#36363a] ${
         compact
-          ? "w-[196px] rounded-md shadow-[0_12px_35px_rgba(0,0,0,0.22)] [&_figure_svg]:max-w-[138px]"
+          ? "w-[156px] rounded-md shadow-[0_12px_35px_rgba(0,0,0,0.22)] [&_figure_svg]:max-w-[110px]"
           : "min-h-[190px] rounded-xl px-4 pb-3 pt-4"
       }`}
     >
@@ -68,8 +68,8 @@ export function PianoChordCard({
             >
               <ChevronLeftIcon />
             </button>
-            <span className="min-w-20 text-center text-[14px] font-medium">
-              {variationIndex + 1} of {chord.variations.length}
+            <span className="min-w-24 text-center text-[12px] font-medium">
+              {variation.label}
             </span>
             <button
               type="button"
@@ -81,7 +81,7 @@ export function PianoChordCard({
             </button>
           </>
         ) : (
-          <span className="text-[13px] font-medium">1 of 1</span>
+          <span className="text-[12px] font-medium">{variation.label}</span>
         )}
       </div>
     </article>

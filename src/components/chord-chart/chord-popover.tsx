@@ -9,20 +9,13 @@ import {
   type ReactNode,
 } from "react";
 
-import { ChordCard } from "@/components/chord-chart/chord-card";
-import type { ChordDefinition } from "@/data/chords";
-
 type ChordPopoverProps = {
-  chord: ChordDefinition;
-  initialVariationIndex?: number;
-  variationLabel?: number | null;
+  content: ReactNode;
   children: ReactNode;
 };
 
 export function ChordPopover({
-  chord,
-  initialVariationIndex = 0,
-  variationLabel = null,
+  content,
   children,
 }: ChordPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -108,13 +101,7 @@ export function ChordPopover({
           onMouseLeave={scheduleClose}
           className="absolute bottom-full left-1/2 z-[80] block -translate-x-1/2 pb-3"
         >
-          <ChordCard
-            key={`${chord.symbol}-${initialVariationIndex}`}
-            chord={chord}
-            compact
-            initialVariationIndex={initialVariationIndex}
-            variationLabel={variationLabel}
-          />
+          {content}
         </span>
       ) : null}
     </span>

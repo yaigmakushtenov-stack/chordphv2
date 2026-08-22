@@ -109,29 +109,13 @@ function createPianoChord(
 function createInversions(symbol: string, notes: NoteName[]) {
   return notes.map((_, index) => ({
     id: `${slugify(symbol)}-${index === 0 ? "root" : `inversion-${index}`}`,
-    label: index === 0 ? "Root position" : `${ordinal(index)} inversion`,
+    label: index === 0 ? "Root" : `Inversion #${index}`,
     notes: [...notes.slice(index), ...notes.slice(0, index)],
   }));
 }
 
 function noteFromSemitone(semitone: number): NoteName {
   return NOTE_NAMES[((semitone % 12) + 12) % 12];
-}
-
-function ordinal(value: number) {
-  if (value === 1) {
-    return "1st";
-  }
-
-  if (value === 2) {
-    return "2nd";
-  }
-
-  if (value === 3) {
-    return "3rd";
-  }
-
-  return `${value}th`;
 }
 
 function slugify(value: string) {

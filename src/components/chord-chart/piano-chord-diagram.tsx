@@ -9,17 +9,17 @@ type PianoChordDiagramProps = {
 
 const WHITE_KEYS = ["C", "D", "E", "F", "G", "A", "B"] as const;
 const BLACK_KEYS = [
-  { note: "C#", left: 15, markerX: 21 },
-  { note: "Eb", left: 35, markerX: 41 },
-  { note: "F#", left: 75, markerX: 81 },
-  { note: "Ab", left: 95, markerX: 101 },
-  { note: "Bb", left: 115, markerX: 121 },
+  { note: "C#", left: 11, markerX: 15 },
+  { note: "Eb", left: 25, markerX: 29 },
+  { note: "F#", left: 53, markerX: 57 },
+  { note: "Ab", left: 67, markerX: 71 },
+  { note: "Bb", left: 81, markerX: 85 },
 ] as const;
 
-const WHITE_KEY_WIDTH = 20;
-const WHITE_KEY_HEIGHT = 54;
-const BLACK_KEY_WIDTH = 12;
-const BLACK_KEY_HEIGHT = 33;
+const WHITE_KEY_WIDTH = 14;
+const WHITE_KEY_HEIGHT = 44;
+const BLACK_KEY_WIDTH = 8;
+const BLACK_KEY_HEIGHT = 29;
 
 export function PianoChordDiagram({
   symbol,
@@ -37,11 +37,11 @@ export function PianoChordDiagram({
     >
       <svg
         aria-hidden="true"
-        viewBox="0 0 160 104"
-        className="h-auto w-full max-w-[160px] overflow-visible"
+        viewBox="0 0 116 94"
+        className="h-auto w-full max-w-[116px] overflow-visible"
       >
         <text
-          x="80"
+          x="58"
           y="18"
           textAnchor="middle"
           className="fill-[#222] text-[18px] font-black dark:fill-[#f5f5f5]"
@@ -53,7 +53,7 @@ export function PianoChordDiagram({
             </tspan>
           ) : null}
         </text>
-        <g transform="translate(10 32)">
+        <g transform="translate(9 32)">
           {WHITE_KEYS.map((note, index) => (
             <rect
               key={note}
@@ -81,8 +81,8 @@ export function PianoChordDiagram({
               <circle
                 key={`${note}-marker`}
                 cx={index * WHITE_KEY_WIDTH + WHITE_KEY_WIDTH / 2}
-                cy={WHITE_KEY_HEIGHT - 9}
-                r="3.2"
+                cy={WHITE_KEY_HEIGHT - 7}
+                r="2.6"
                 className="fill-[#222] dark:fill-[#111]"
               />
             ) : null,
@@ -92,16 +92,16 @@ export function PianoChordDiagram({
               <circle
                 key={`${key.note}-marker`}
                 cx={key.markerX}
-                cy={BLACK_KEY_HEIGHT - 9}
-                r="4.2"
+                cy={BLACK_KEY_HEIGHT - 7}
+                r="3.2"
                 className="fill-white stroke-[#222] stroke-[1.4] dark:fill-[#f5f5f5] dark:stroke-[#111]"
               />
             ) : null,
           )}
         </g>
         <text
-          x="80"
-          y="101"
+          x="58"
+          y="88"
           textAnchor="middle"
           className="fill-[#666] text-[10px] font-bold dark:fill-[#b4b4bc]"
         >
