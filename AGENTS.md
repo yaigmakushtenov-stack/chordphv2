@@ -17,6 +17,8 @@ For a `Role: Vibe` session, warn before modifying any of these paths:
 - `prisma/**` and `prisma.config.ts`
 - `src/generated/**`
 - `src/app/api/**`
+- `src/actions/**`
+- `src/services/**`
 - `src/app/layout.tsx`
 - `src/app/login/**`
 - `src/lib/prisma.ts`
@@ -59,12 +61,31 @@ Pay special attention to:
 ## Repository Map
 
 - `src/app` contains App Router pages, layouts, and Route Handlers.
+- `src/actions` contains flat, domain-specific Server Action modules.
 - `src/components` contains UI components and application providers.
 - `src/lib` contains authentication, Prisma, storage, and realtime integrations.
+- `src/services` contains flat, domain-specific server-only service modules.
+- `src/types` contains shared application types used across multiple folders. Keep component props and local helper types colocated with their implementation.
 - `prisma/schema.prisma` is the database schema.
 - `src/generated/prisma` is generated code. Never edit it manually; regenerate it from the schema.
 - `public` contains static assets.
 - When repository documentation conflicts with installed packages, the schema, or active source code, verify the current implementation and report the stale documentation instead of following it blindly.
+
+## Actions and Services
+
+- Use a flat `src/actions` and `src/services` layout. Prefer domain-specific files such as `src/actions/track-actions.ts`, `src/actions/music-actions.ts`, `src/services/track-service.ts`, and `src/services/music-service.ts`.
+- Export actions as domain namespaces so frontend call sites make the server boundary explicit, for example `TrackActions.createNew(...)`, `TrackActions.saveDetails(...)`, or `MusicActions.prepareUpload(...)`.
+- Every file in `src/actions` must use the `"use server"` directive and expose Server Actions for UI-initiated application workflows.
+- Actions are boundary and orchestration code. They may verify the Better Auth session, validate client input, compose multiple services or third-party clients, translate known failures to user-safe responses, and return action results.
+- Actions must return `ActionResult<T>` from `src/lib/actions` for expected outcomes. Use `actionSuccess` and `actionFailure`; return `{ ok: true, data }` on success and `{ ok: false, error }` on expected failure. Use `null` as success data when there is no payload.
+- Keep action return payloads serializable and minimal. Do not return raw Prisma records, provider responses, secrets, storage object keys, presigned URLs beyond the intended upload response, stack traces, or internal error messages.
+- Services do the heavy lifting: database reads and writes, storage/realtime/provider operations, reusable domain rules, and cross-action business logic.
+- Every service module must be server-only. Add `import "server-only";` at the top of service files that touch the database, secrets, privileged provider clients, or server-only integrations.
+- Services should not return `ActionResult<T>`. Return domain data for success and throw typed service errors for expected domain failures that actions can translate.
+- Services must remain domain specific. Prefer `TrackService`, `MusicService`, `GroupService`, `StorageService`, and `RealtimeService` style modules over catch-all utility services.
+- Service functions that access user-owned or group-owned data must accept the verified acting user or membership context from the action and enforce ownership or role scope in the database query. Do not rely on frontend visibility or page-level checks.
+- Route Handlers under `src/app/api/**` are public HTTP boundaries and may call services directly. Do not route external webhooks or protocol endpoints through Server Actions.
+- During migration, avoid big-bang moves. Refactor one domain at a time, preserve exported behavior, update imports mechanically, and run the relevant verification commands.
 
 ## Groups Domain
 
