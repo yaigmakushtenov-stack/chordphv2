@@ -31,6 +31,7 @@ export type ChordFullscreenTrack = {
 
 type ChordSection = {
   id: string;
+  number: number;
   title: string;
   lines: string[];
   chords: string[];
@@ -426,8 +427,14 @@ export function ChordFullscreenPerformanceView({
                     onClick={() => handleSectionSelect(section.id)}
                     className="flex min-w-0 max-w-full items-baseline gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
                   >
-                    <span className="shrink-0 text-[13px] font-black uppercase">
-                      {section.title}
+                    <span className="flex shrink-0 items-center gap-2">
+                      <SectionNumberBadge
+                        isDarkMode={isDarkMode}
+                        number={section.number}
+                      />
+                      <span className="text-[13px] font-black uppercase">
+                        {section.title}
+                      </span>
                     </span>
                     {!isVisible && section.chordPreview ? (
                       <span
@@ -542,7 +549,13 @@ export function ChordFullscreenPerformanceView({
                       isDarkMode ? "text-[#8a8d92]" : "text-[#ed1746]"
                     }`}
                   >
-                    <span>{section.title}</span>
+                    <span className="flex items-center gap-2">
+                      <SectionNumberBadge
+                        isDarkMode={isDarkMode}
+                        number={section.number}
+                      />
+                      <span>{section.title}</span>
+                    </span>
                     <span
                       className={`h-px flex-1 ${
                         isDarkMode ? "bg-[#2b2d30]" : "bg-[#e4e4e7]"
@@ -784,6 +797,26 @@ function ChordPerformanceLine({
   );
 }
 
+function SectionNumberBadge({
+  isDarkMode,
+  number,
+}: {
+  isDarkMode: boolean;
+  number: number;
+}) {
+  return (
+    <span
+      className={`inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-black tabular-nums ${
+        isDarkMode
+          ? "bg-[#2b2d30] text-[#f3f0e8]"
+          : "bg-[#f0f0f1] text-[#111]"
+      }`}
+    >
+      {number}
+    </span>
+  );
+}
+
 function parseChordSections(source: string): ChordSection[] {
   const sections: ChordSection[] = [];
   let currentSection: ChordSection | null = null;
@@ -791,6 +824,7 @@ function parseChordSections(source: string): ChordSection[] {
   function startSection(title: string): ChordSection {
     const section = {
       id: createSectionId(title, sections.length),
+      number: sections.length + 1,
       title,
       lines: [],
       chords: [],
