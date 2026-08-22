@@ -27,3 +27,17 @@ export type ChordDefinition = {
   aliases?: string[];
   variations: ChordVariation[];
 };
+
+export type PianoChordVariation = {
+  id: string;
+  label: string;
+  notes: string[];
+};
+
+export type PianoChordDefinition = {
+  symbol: string;
+  root: string;
+  quality: string;
+  aliases?: string[];
+  variations: PianoChordVariation[];
+};

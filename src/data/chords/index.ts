@@ -1,4 +1,5 @@
 export { GUITAR_CHORDS } from "./guitar";
+export { PIANO_CHORDS } from "./piano";
 export type {
   Barre,
   ChordDefinition,
@@ -6,4 +7,6 @@ export type {
   FingerValue,
   FretValue,
   Instrument,
+  PianoChordDefinition,
+  PianoChordVariation,
 } from "./types";

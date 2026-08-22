@@ -66,3 +66,29 @@ Current generated qualities:
 - Augmented
 
 Movable templates should not contain open strings. If a useful open-position shape exists, add it to the curated open variations for that exact chord symbol instead of relying on transposition.
+
+## Piano Format
+
+Piano chord variations are stored as note names instead of fret positions:
+
+```ts
+{
+  symbol: "C",
+  root: "C",
+  quality: "",
+  variations: [
+    {
+      id: "c-root",
+      label: "Root position",
+      notes: ["C", "E", "G"],
+    },
+    {
+      id: "c-inversion-1",
+      label: "1st inversion",
+      notes: ["E", "G", "C"],
+    },
+  ],
+}
+```
+
+The piano library uses the same 12 roots and common qualities as the guitar library. Variations are generated as root position plus inversions for the notes in each chord formula.

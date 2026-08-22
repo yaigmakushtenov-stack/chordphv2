@@ -3,7 +3,14 @@
 import { useMemo, useState } from "react";
 
 import { ChordCard } from "@/components/chord-chart/chord-card";
-import { GUITAR_CHORDS, type Instrument } from "@/data/chords";
+import { PianoChordCard } from "@/components/chord-chart/piano-chord-card";
+import {
+  GUITAR_CHORDS,
+  PIANO_CHORDS,
+  type ChordDefinition,
+  type Instrument,
+  type PianoChordDefinition,
+} from "@/data/chords";
 
 const INSTRUMENTS: Array<{ id: Instrument; label: string }> = [
   { id: "guitar", label: "Guitar" },
@@ -15,7 +22,7 @@ export function ChordChart() {
   const [instrument, setInstrument] = useState<Instrument>("guitar");
   const [query, setQuery] = useState("");
 
-  const chords = useMemo(() => {
+  const guitarChords = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
     if (instrument !== "guitar") {
@@ -26,19 +33,25 @@ export function ChordChart() {
       return GUITAR_CHORDS;
     }
 
-    return GUITAR_CHORDS.filter((chord) => {
-      const searchableValues = [
-        chord.symbol,
-        chord.root,
-        chord.quality,
-        chord.bass,
-        ...(chord.aliases ?? []),
-      ].filter((value): value is string => Boolean(value));
+    return GUITAR_CHORDS.filter((chord) =>
+      chordMatchesQuery(chord, normalizedQuery),
+    );
+  }, [instrument, query]);
 
-      return searchableValues.some((value) =>
-        value.toLowerCase().includes(normalizedQuery),
-      );
-    });
+  const pianoChords = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    if (instrument !== "piano") {
+      return [];
+    }
+
+    if (!normalizedQuery) {
+      return PIANO_CHORDS;
+    }
+
+    return PIANO_CHORDS.filter((chord) =>
+      chordMatchesQuery(chord, normalizedQuery),
+    );
   }, [instrument, query]);
 
   return (
@@ -83,9 +96,9 @@ export function ChordChart() {
       </div>
 
       {instrument === "guitar" ? (
-        chords.length ? (
+        guitarChords.length ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8">
-            {chords.map((chord) => (
+            {guitarChords.map((chord) => (
               <ChordCard key={chord.symbol} chord={chord} />
             ))}
           </div>
@@ -97,19 +110,50 @@ export function ChordChart() {
             </p>
           </div>
         )
-      ) : (
+      ) : null}
+
+      {instrument === "piano" ? (
+        pianoChords.length ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+            {pianoChords.map((chord) => (
+              <PianoChordCard key={chord.symbol} chord={chord} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-[#d9d9d9] bg-[#fafafa] px-6 py-14 text-center dark:border-[#3b3b40] dark:bg-[#18181b]">
+            <p className="text-[14px] font-bold">No piano chords found</p>
+            <p className="mt-1 text-[13px] text-[#666] dark:text-[#b4b4bc]">
+              Try another chord name or clear the search field.
+            </p>
+          </div>
+        )
+      ) : null}
+
+      {instrument === "ukelele" ? (
         <div className="rounded-xl border border-dashed border-[#d9d9d9] bg-[#fafafa] px-6 py-14 text-center dark:border-[#3b3b40] dark:bg-[#18181b]">
-          <p className="text-[14px] font-bold">
-            {instrument === "ukelele" ? "Ukelele" : "Piano"} chords are next
-          </p>
+          <p className="text-[14px] font-bold">Ukelele chords are next</p>
           <p className="mt-1 text-[13px] text-[#666] dark:text-[#b4b4bc]">
             This chart is structured to add this instrument without changing the
-            diagram API.
+            chord data API.
           </p>
         </div>
-      )}
+      ) : null}
     </div>
   );
+}
+
+function chordMatchesQuery(
+  chord: ChordDefinition | PianoChordDefinition,
+  query: string,
+) {
+  const searchableValues = [
+    chord.symbol,
+    chord.root,
+    chord.quality,
+    ...(chord.aliases ?? []),
+  ];
+
+  return searchableValues.some((value) => value.toLowerCase().includes(query));
 }
 
 function SearchIcon() {

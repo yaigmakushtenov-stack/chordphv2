@@ -10,6 +10,7 @@ import {
 } from "@/app/track/[trackId]/actions";
 import { ChordCard } from "@/components/chord-chart/chord-card";
 import { ChordPopover } from "@/components/chord-chart/chord-popover";
+import { PianoChordCard } from "@/components/chord-chart/piano-chord-card";
 import { showToast } from "@/components/shared/toast";
 
 import {
@@ -18,7 +19,12 @@ import {
   transposeChordPro,
   type AccidentalPreference,
 } from "@/components/track/chord-pro";
-import { GUITAR_CHORDS, type ChordDefinition } from "@/data/chords";
+import {
+  GUITAR_CHORDS,
+  PIANO_CHORDS,
+  type ChordDefinition,
+  type PianoChordDefinition,
+} from "@/data/chords";
 import { APP_CONSTANTS } from "@/lib/app-constants";
 
 export type AnnotationViewerData = {
@@ -273,6 +279,9 @@ function TrackChordSection({
 }: {
   chords: GuitarChordReference[];
 }) {
+  const [instrument, setInstrument] = useState<"guitar" | "piano">("guitar");
+  const pianoChords = useMemo(() => getUsedPianoChords(chords), [chords]);
+
   return (
     <section className="border-t border-[#e6e6e6] py-5 dark:border-[#303034]">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -285,8 +294,13 @@ function TrackChordSection({
         >
           <button
             type="button"
-            aria-pressed="true"
-            className="border-b-2 border-[#111] pb-2 text-[#111] dark:border-white dark:text-white"
+            aria-pressed={instrument === "guitar"}
+            onClick={() => setInstrument("guitar")}
+            className={
+              instrument === "guitar"
+                ? "border-b-2 border-[#111] pb-2 text-[#111] dark:border-white dark:text-white"
+                : "pb-2 text-[#8a8a8a] transition hover:text-[#111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#a1a1aa] dark:hover:text-white"
+            }
           >
             Guitar
           </button>
@@ -299,26 +313,44 @@ function TrackChordSection({
           </button>
           <button
             type="button"
-            disabled
-            className="cursor-not-allowed pb-2 text-[#8a8a8a] opacity-55 dark:text-[#a1a1aa]"
+            aria-pressed={instrument === "piano"}
+            onClick={() => setInstrument("piano")}
+            className={
+              instrument === "piano"
+                ? "border-b-2 border-[#111] pb-2 text-[#111] dark:border-white dark:text-white"
+                : "pb-2 text-[#8a8a8a] transition hover:text-[#111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#a1a1aa] dark:hover:text-white"
+            }
           >
             Piano
           </button>
         </div>
       </div>
       <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
-        {chords.map((chordReference) => (
-          <div
-            key={chordReference.key}
-            className="w-[118px] shrink-0 [&_article]:min-h-[168px] [&_article]:px-2 [&_article]:pt-2"
-          >
-            <ChordCard
-              chord={chordReference.chord}
-              initialVariationIndex={chordReference.variationIndex}
-              variationLabel={getChordVariationLabel(chordReference)}
-            />
-          </div>
-        ))}
+        {instrument === "guitar"
+          ? chords.map((chordReference) => (
+              <div
+                key={chordReference.key}
+                className="w-[118px] shrink-0 [&_article]:min-h-[168px] [&_article]:px-2 [&_article]:pt-2"
+              >
+                <ChordCard
+                  chord={chordReference.chord}
+                  initialVariationIndex={chordReference.variationIndex}
+                  variationLabel={getChordVariationLabel(chordReference)}
+                />
+              </div>
+            ))
+          : pianoChords.map((chordReference) => (
+              <div
+                key={chordReference.key}
+                className="w-[168px] shrink-0 [&_article]:min-h-[168px] [&_article]:px-2 [&_article]:pt-2"
+              >
+                <PianoChordCard
+                  chord={chordReference.chord}
+                  initialVariationIndex={chordReference.variationIndex}
+                  variationLabel={getPianoChordVariationLabel(chordReference)}
+                />
+              </div>
+            ))}
       </div>
     </section>
   );
@@ -362,6 +394,14 @@ type GuitarChordReference = {
   key: string;
   chord: ChordDefinition;
   displaySymbol: string;
+  hasExplicitVariation: boolean;
+  variationIndex: number;
+  variationNumber: number | null;
+};
+
+type PianoChordReference = {
+  key: string;
+  chord: PianoChordDefinition;
   hasExplicitVariation: boolean;
   variationIndex: number;
   variationNumber: number | null;
@@ -412,6 +452,51 @@ function findGuitarChord(symbol: string): ChordDefinition | null {
 
   for (const candidate of candidates) {
     const chord = GUITAR_CHORDS.find((item) => item.symbol === candidate);
+
+    if (chord) {
+      return chord;
+    }
+  }
+
+  return null;
+}
+
+function getUsedPianoChords(
+  guitarReferences: GuitarChordReference[],
+): PianoChordReference[] {
+  return guitarReferences.flatMap((reference) => {
+    const chord = findPianoChord(reference.displaySymbol);
+
+    if (!chord) {
+      return [];
+    }
+
+    return {
+      key: `${chord.symbol}-${reference.variationNumber ?? 1}`,
+      chord,
+      hasExplicitVariation: reference.hasExplicitVariation,
+      variationIndex: reference.variationIndex,
+      variationNumber: reference.variationNumber,
+    };
+  });
+}
+
+function getPianoChordVariationLabel(chordReference: PianoChordReference) {
+  return APP_CONSTANTS.featureFlag.showChordVariationLabel &&
+    chordReference.hasExplicitVariation
+    ? chordReference.variationNumber
+    : null;
+}
+
+function findPianoChord(symbol: string): PianoChordDefinition | null {
+  const candidates = [
+    symbol,
+    transposeChord(symbol, 0, "sharps"),
+    transposeChord(symbol, 0, "flats"),
+  ].filter((value): value is string => Boolean(value));
+
+  for (const candidate of candidates) {
+    const chord = PIANO_CHORDS.find((item) => item.symbol === candidate);
 
     if (chord) {
       return chord;
