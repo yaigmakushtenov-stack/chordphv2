@@ -103,6 +103,7 @@ export function ChordFullscreenPerformanceView({
 }) {
   const [transpose, setTranspose] = useState(0);
   const accidentals: AccidentalPreference = "sharps";
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [scrollSpeed, setScrollSpeed] = useState(0);
   const [visibleSectionIds, setVisibleSectionIds] = useState<string[]>([]);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -279,13 +280,31 @@ export function ChordFullscreenPerformanceView({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid grid-cols-[minmax(320px,33.333vw)_minmax(0,1fr)] bg-white text-[#111] dark:bg-[#111113] dark:text-white">
-      <aside className="flex min-h-0 min-w-0 flex-col overflow-x-hidden border-r border-[#dfdfe2] bg-[#f7f7f8] px-6 py-5 dark:border-[#2c2c31] dark:bg-[#18181b]">
-        <div className="min-w-0 border-b border-[#dedee3] pb-5 dark:border-[#303034]">
+    <div
+      className={`fixed inset-0 z-50 grid grid-cols-[minmax(320px,33.333vw)_minmax(0,1fr)] ${
+        isDarkMode ? "dark bg-[#171819] text-white" : "bg-white text-[#111]"
+      }`}
+    >
+      <aside
+        className={`flex min-h-0 min-w-0 flex-col overflow-x-hidden border-r px-6 py-5 ${
+          isDarkMode
+            ? "border-[#2c2c31] bg-[#18181b]"
+            : "border-[#dfdfe2] bg-[#f7f7f8]"
+        }`}
+      >
+        <div
+          className={`min-w-0 border-b pb-5 ${
+            isDarkMode ? "border-[#303034]" : "border-[#dedee3]"
+          }`}
+        >
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <h1 className="truncate text-2xl font-black">{track.title}</h1>
-              <p className="mt-1 truncate text-[14px] font-bold text-[#666] dark:text-[#b4b4bc]">
+              <p
+                className={`mt-1 truncate text-[14px] font-bold ${
+                  isDarkMode ? "text-[#b4b4bc]" : "text-[#666]"
+                }`}
+              >
                 {track.artistName}
               </p>
             </div>
@@ -293,14 +312,28 @@ export function ChordFullscreenPerformanceView({
               type="button"
               aria-label="Close fullscreen chord performance view"
               onClick={handleClose}
-              className="flex size-10 shrink-0 items-center justify-center rounded-full border border-[#d6d6d9] bg-white text-[#111] transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#38383d] dark:bg-[#222226] dark:text-white"
+              className={`flex size-10 shrink-0 items-center justify-center rounded-full border transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+                isDarkMode
+                  ? "border-[#38383d] bg-[#222226] text-white"
+                  : "border-[#d6d6d9] bg-white text-[#111]"
+              }`}
             >
               <CloseIcon />
             </button>
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-2">
-            <div className="inline-flex h-9 items-center overflow-hidden rounded-full border border-[#d4d4d8] bg-white dark:border-[#3a3a3f] dark:bg-[#202023]">
-              <span className="border-r border-[#d4d4d8] px-3 text-[11px] font-black dark:border-[#3a3a3f]">
+            <div
+              className={`inline-flex h-9 items-center overflow-hidden rounded-full border ${
+                isDarkMode
+                  ? "border-[#3a3a3f] bg-[#202023]"
+                  : "border-[#d4d4d8] bg-white"
+              }`}
+            >
+              <span
+                className={`border-r px-3 text-[11px] font-black ${
+                  isDarkMode ? "border-[#3a3a3f]" : "border-[#d4d4d8]"
+                }`}
+              >
                 Transpose
               </span>
               <button
@@ -308,7 +341,9 @@ export function ChordFullscreenPerformanceView({
                 disabled={transpose <= -12}
                 aria-label="Transpose down one semitone"
                 onClick={() => setTranspose((value) => Math.max(-12, value - 1))}
-                className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#f0f0f1] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#2a2a2f]"
+                className={`flex h-full w-9 items-center justify-center text-[16px] font-bold transition disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] ${
+                  isDarkMode ? "hover:bg-[#2a2a2f]" : "hover:bg-[#f0f0f1]"
+                }`}
               >
                 -
               </button>
@@ -320,7 +355,9 @@ export function ChordFullscreenPerformanceView({
                 disabled={transpose >= 12}
                 aria-label="Transpose up one semitone"
                 onClick={() => setTranspose((value) => Math.min(12, value + 1))}
-                className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#f0f0f1] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#2a2a2f]"
+                className={`flex h-full w-9 items-center justify-center text-[16px] font-bold transition disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] ${
+                  isDarkMode ? "hover:bg-[#2a2a2f]" : "hover:bg-[#f0f0f1]"
+                }`}
               >
                 +
               </button>
@@ -328,7 +365,11 @@ export function ChordFullscreenPerformanceView({
             <button
               type="button"
               onClick={() => setTranspose(0)}
-              className="h-9 rounded-full border border-[#d4d4d8] bg-white px-3 text-[11px] font-bold transition hover:bg-[#f0f0f1] focus-visible:outline-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] dark:bg-[#202023] dark:hover:bg-[#2a2a2f]"
+              className={`h-9 rounded-full border px-3 text-[11px] font-bold transition focus-visible:outline-2 focus-visible:outline-[#ed1746] ${
+                isDarkMode
+                  ? "border-[#3a3a3f] bg-[#202023] hover:bg-[#2a2a2f]"
+                  : "border-[#d4d4d8] bg-white hover:bg-[#f0f0f1]"
+              }`}
             >
               Reset
             </button>
@@ -350,8 +391,14 @@ export function ChordFullscreenPerformanceView({
                   aria-current={isVisible ? "true" : undefined}
                   className={
                     isVisible
-                      ? "border-t border-[#e1e1e4] pt-2 text-left first:border-t-0 first:pt-0 dark:border-[#303034]"
-                      : "rounded-lg border-t border-[#e1e1e4] px-3 py-2 text-left transition first:border-t-0 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#303034] dark:hover:bg-[#202023]"
+                      ? `border-t pt-2 text-left first:border-t-0 first:pt-0 ${
+                          isDarkMode ? "border-[#303034]" : "border-[#e1e1e4]"
+                        }`
+                      : `rounded-lg border-t px-3 py-2 text-left transition first:border-t-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+                          isDarkMode
+                            ? "border-[#303034] hover:bg-[#202023]"
+                            : "border-[#e1e1e4] hover:bg-white"
+                        }`
                   }
                 >
                   <button
@@ -363,7 +410,11 @@ export function ChordFullscreenPerformanceView({
                       {section.title}
                     </span>
                     {!isVisible && section.chordPreview ? (
-                      <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-[#71717a] dark:text-[#a1a1aa]">
+                      <span
+                        className={`min-w-0 flex-1 truncate text-[11px] font-bold ${
+                          isDarkMode ? "text-[#a1a1aa]" : "text-[#71717a]"
+                        }`}
+                      >
                         {section.chordPreview}
                       </span>
                     ) : null}
@@ -385,7 +436,11 @@ export function ChordFullscreenPerformanceView({
                             trackPreference={trackPreference}
                           />
                         ) : (
-                          <span className="text-[12px] font-bold text-[#71717a] dark:text-[#a1a1aa]">
+                          <span
+                            className={`text-[12px] font-bold ${
+                              isDarkMode ? "text-[#a1a1aa]" : "text-[#71717a]"
+                            }`}
+                          >
                             No chords in this section
                           </span>
                         )}
@@ -399,7 +454,25 @@ export function ChordFullscreenPerformanceView({
         </div>
       </aside>
 
-      <main className="relative min-h-0 bg-white dark:bg-[#111113]">
+      <main
+        className={`relative min-h-0 ${
+          isDarkMode
+            ? "bg-[#171819] text-[#6f7175]"
+            : "bg-white text-[#111]"
+        }`}
+      >
+        <button
+          type="button"
+          aria-label={isDarkMode ? "Use light play mode" : "Use dark play mode"}
+          onClick={() => setIsDarkMode((value) => !value)}
+          className={`absolute right-5 top-5 z-10 flex size-11 items-center justify-center rounded-full border shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+            isDarkMode
+              ? "border-[#34363a] bg-[#202124] text-[#f3f0e8] hover:bg-[#282a2d]"
+              : "border-[#dedee3] bg-white text-[#111] hover:bg-[#f3f3f4]"
+          }`}
+        >
+          {isDarkMode ? <SunIcon /> : <MoonIcon />}
+        </button>
         <div
           ref={scrollerRef}
           onScroll={updateVisibleSections}
@@ -419,20 +492,33 @@ export function ChordFullscreenPerformanceView({
                   }}
                   className="scroll-mt-8 pb-1.5 pt-8 first:pt-0"
                 >
-                  <h2 className="mb-3 flex items-center gap-4 text-[13px] font-black uppercase tracking-[0.16em] text-[#ed1746]">
+                  <h2
+                    className={`mb-3 flex items-center gap-4 text-[13px] font-black uppercase tracking-[0.16em] ${
+                      isDarkMode ? "text-[#8a8d92]" : "text-[#ed1746]"
+                    }`}
+                  >
                     <span>{section.title}</span>
-                    <span className="h-px flex-1 bg-[#e4e4e7] dark:bg-[#303034]" />
+                    <span
+                      className={`h-px flex-1 ${
+                        isDarkMode ? "bg-[#2b2d30]" : "bg-[#e4e4e7]"
+                      }`}
+                    />
                   </h2>
                   <div className="space-y-0 font-mono text-[19px] leading-[1.18]">
                     {section.lines.length ? (
                       section.lines.map((line, index) => (
                         <ChordPerformanceLine
                           key={`${section.id}-${index}`}
+                          isDarkMode={isDarkMode}
                           line={line}
                         />
                       ))
                     ) : (
-                      <p className="text-[18px] font-bold text-[#71717a] dark:text-[#a1a1aa]">
+                      <p
+                        className={`text-[18px] font-bold ${
+                          isDarkMode ? "text-[#6f7175]" : "text-[#71717a]"
+                        }`}
+                      >
                         No lyrics in this section
                       </p>
                     )}
@@ -440,23 +526,41 @@ export function ChordFullscreenPerformanceView({
                 </section>
               ))
             ) : (
-              <div className="rounded-xl border border-dashed border-[#d9d9d9] px-5 py-16 text-center dark:border-[#3a3a3f]">
+              <div
+                className={`rounded-xl border border-dashed px-5 py-16 text-center ${
+                  isDarkMode ? "border-[#34363a]" : "border-[#d9d9d9]"
+                }`}
+              >
                 <h2 className="text-[16px] font-bold">No lyrics or chords yet</h2>
               </div>
             )}
           </div>
         </div>
-        <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full border border-[#dedee3] bg-white/95 px-4 py-3 shadow-[0_16px_45px_rgba(0,0,0,0.16)] backdrop-blur dark:border-[#34343a] dark:bg-[#1c1c20]/95">
+        <div
+          className={`absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full border px-4 py-3 shadow-[0_16px_45px_rgba(0,0,0,0.16)] backdrop-blur ${
+            isDarkMode
+              ? "border-[#34343a] bg-[#1c1c20]/95"
+              : "border-[#dedee3] bg-white/95"
+          }`}
+        >
           <button
             type="button"
             aria-label="Decrease auto-scroll speed"
             onClick={() => setScrollSpeed((speed) => Math.max(0, speed - 1))}
-            className="flex size-10 items-center justify-center rounded-full bg-[#eeeeef] text-xl font-black text-[#111] transition hover:bg-[#e2e2e4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#303036] dark:text-white dark:hover:bg-[#3a3a40]"
+            className={`flex size-10 items-center justify-center rounded-full text-xl font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+              isDarkMode
+                ? "bg-[#303036] text-white hover:bg-[#3a3a40]"
+                : "bg-[#eeeeef] text-[#111] hover:bg-[#e2e2e4]"
+            }`}
           >
             -
           </button>
           <div className="min-w-28 text-center">
-            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#71717a] dark:text-[#a1a1aa]">
+            <p
+              className={`text-[10px] font-black uppercase tracking-[0.12em] ${
+                isDarkMode ? "text-[#a1a1aa]" : "text-[#71717a]"
+              }`}
+            >
               Auto Scroll
             </p>
             <p className="text-[14px] font-black tabular-nums">
@@ -592,7 +696,13 @@ function SectionChordShapes({
   });
 }
 
-function ChordPerformanceLine({ line }: { line: string }) {
+function ChordPerformanceLine({
+  isDarkMode,
+  line,
+}: {
+  isDarkMode: boolean;
+  line: string;
+}) {
   const parts = line.split(/(\[[^\]\r\n]+\])/g).filter(Boolean);
 
   return (
@@ -608,14 +718,18 @@ function ChordPerformanceLine({ line }: { line: string }) {
         return isChord ? (
           <span
             key={index}
-            className="mr-1.5 inline-block font-sans text-[14px] font-black leading-none text-[#111] dark:text-white"
+            className={`mr-1.5 inline-block font-sans text-[14px] font-black leading-none ${
+              isDarkMode ? "text-[#f3f0e8]" : "text-[#111]"
+            }`}
           >
             {value}
           </span>
         ) : (
           <strong
             key={index}
-            className="mr-1.5 inline-block font-sans text-[14px] font-black text-[#555] dark:text-[#c4c4cc]"
+            className={`mr-1.5 inline-block font-sans text-[14px] font-black ${
+              isDarkMode ? "text-[#9a9da3]" : "text-[#555]"
+            }`}
           >
             {value}
           </strong>
@@ -989,6 +1103,48 @@ function CloseIcon() {
     >
       <path d="m18 6-12 12" />
       <path d="m6 6 12 12" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      <path d="M20.99 12.45A8.99 8.99 0 0 1 11.55 3a7 7 0 1 0 9.44 9.45Z" />
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2" />
+      <path d="M12 20v2" />
+      <path d="m4.93 4.93 1.41 1.41" />
+      <path d="m17.66 17.66 1.41 1.41" />
+      <path d="M2 12h2" />
+      <path d="M20 12h2" />
+      <path d="m6.34 17.66-1.41 1.41" />
+      <path d="m19.07 4.93-1.41 1.41" />
     </svg>
   );
 }
