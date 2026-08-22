@@ -37,3 +37,31 @@ Example:
 ```
 
 Do not put display concerns in these files. Pixel sizes, colors, hover behavior, labels, and layout belong in components.
+
+## Guitar Coverage
+
+The guitar library combines:
+
+- Curated open-position chords for common beginner shapes.
+- Curated slash chords for common song-sheet inversions.
+- Movable templates for common chord qualities across all 12 roots.
+
+Current generated qualities:
+
+- Major
+- Minor
+- Dominant 7
+- Major 7
+- Minor 7
+- Sus2
+- Sus4
+- Major 6
+- Minor 6
+- Dominant 9
+- Minor 9
+- Add9
+- Diminished
+- Diminished 7
+- Augmented
+
+Movable templates should not contain open strings. If a useful open-position shape exists, add it to the curated open variations for that exact chord symbol instead of relying on transposition.

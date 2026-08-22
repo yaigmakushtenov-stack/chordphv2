@@ -1,6 +1,6 @@
 "use client";
 
-import { useTheme } from "next-themes";
+import { useAppTheme } from "@/components/providers/theme-provider";
 
 function SunIcon() {
   return (
@@ -20,11 +20,10 @@ function MoonIcon() {
 }
 
 export function ThemeToggle({ className = "" }: { className?: string }) {
-  const { setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useAppTheme();
 
   function toggleTheme() {
-    const isDark = document.documentElement.classList.contains("dark");
-    setTheme(isDark ? "light" : "dark");
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
   }
 
   return (

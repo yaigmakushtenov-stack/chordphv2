@@ -28,14 +28,14 @@ export function ChordDiagram({
   return (
     <figure
       className={className}
+      role="img"
       aria-label={`${symbol} guitar chord diagram`}
     >
       <svg
-        role="img"
+        aria-hidden="true"
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="h-auto w-full max-w-[96px] overflow-visible"
       >
-        <title>{symbol} guitar chord diagram</title>
         <text
           x={WIDTH / 2}
           y="16"
