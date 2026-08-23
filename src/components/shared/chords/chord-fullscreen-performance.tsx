@@ -108,7 +108,7 @@ type VoiceGuideToast = {
 
 const SECTION_ANCHOR_RATIO = 0.75;
 const SECTION_VISIBILITY_CUTOFF_RATIO = 0.25;
-const VOICE_GUIDE_HIGHLIGHT_CLASS = "text-cyan-300";
+const VOICE_GUIDE_HIGHLIGHT_CLASS = "text-stone-300";
 const VOICE_GUIDE_SCROLL_ANCHOR_RATIO = 0.25;
 const VOICE_GUIDE_SCROLL_DURATION_MS = 1400;
 const VOICE_GUIDE_BRIDGE_SCROLL_PIXELS_PER_SECOND = 22;
@@ -1006,7 +1006,7 @@ export function ChordFullscreenPerformanceView({
   return (
     <div
       className={`fixed inset-0 z-50 flex ${
-        isDarkMode ? "dark bg-[#171819] text-white" : "bg-white text-[#111]"
+        isDarkMode ? "dark bg-[#171819] text-white" : "bg-[#f6f1e8] text-[#171412]"
       }`}
     >
       <BrowserSpeechTextListener
@@ -1022,7 +1022,7 @@ export function ChordFullscreenPerformanceView({
         } ${
           isDarkMode
             ? "border-[#2c2c31] bg-[#18181b]"
-            : "border-[#dfdfe2] bg-[#f7f7f8]"
+            : "border-[#ded6c9] bg-[#eee7dc]"
         }`}
       >
         <button
@@ -1071,7 +1071,7 @@ export function ChordFullscreenPerformanceView({
               className={`inline-flex h-9 items-center overflow-hidden rounded-full border ${
                 isDarkMode
                   ? "border-[#3a3a3f] bg-[#202023]"
-                  : "border-[#d4d4d8] bg-white"
+                  : "border-[#d8cfc0] bg-[#fbf7ef]"
               }`}
             >
               <span
@@ -1087,7 +1087,7 @@ export function ChordFullscreenPerformanceView({
                 aria-label="Transpose down one semitone"
                 onClick={() => setTranspose((value) => Math.max(-12, value - 1))}
                 className={`flex h-full w-9 items-center justify-center text-[16px] font-bold transition disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] ${
-                  isDarkMode ? "hover:bg-[#2a2a2f]" : "hover:bg-[#f0f0f1]"
+                  isDarkMode ? "hover:bg-[#2a2a2f]" : "hover:bg-[#f2eadf]"
                 }`}
               >
                 -
@@ -1101,7 +1101,7 @@ export function ChordFullscreenPerformanceView({
                 aria-label="Transpose up one semitone"
                 onClick={() => setTranspose((value) => Math.min(12, value + 1))}
                 className={`flex h-full w-9 items-center justify-center text-[16px] font-bold transition disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] ${
-                  isDarkMode ? "hover:bg-[#2a2a2f]" : "hover:bg-[#f0f0f1]"
+                  isDarkMode ? "hover:bg-[#2a2a2f]" : "hover:bg-[#f2eadf]"
                 }`}
               >
                 +
@@ -1113,7 +1113,7 @@ export function ChordFullscreenPerformanceView({
               className={`h-9 rounded-full border px-3 text-[11px] font-bold transition focus-visible:outline-2 focus-visible:outline-[#ed1746] ${
                 isDarkMode
                   ? "border-[#3a3a3f] bg-[#202023] hover:bg-[#2a2a2f]"
-                  : "border-[#d4d4d8] bg-white hover:bg-[#f0f0f1]"
+                  : "border-[#d8cfc0] bg-[#fbf7ef] hover:bg-[#f2eadf]"
               }`}
             >
               Reset
@@ -1142,7 +1142,7 @@ export function ChordFullscreenPerformanceView({
                       : `rounded-lg border-t px-3 py-2 text-left transition first:border-t-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
                           isDarkMode
                             ? "border-[#303034] hover:bg-[#202023]"
-                            : "border-[#e1e1e4] hover:bg-white"
+                            : "border-[#ded6c9] hover:bg-[#fbf7ef]"
                         }`
                   }
                 >
@@ -1210,7 +1210,7 @@ export function ChordFullscreenPerformanceView({
         className={`relative min-h-0 flex-1 ${
           isDarkMode
             ? "bg-[#171819] text-[#6f7175]"
-            : "bg-white text-[#111]"
+            : "bg-[#f6f1e8] text-[#171412]"
         }`}
       >
         {voiceGuideToast || isVoiceGuideEnabled ? (
@@ -1226,7 +1226,7 @@ export function ChordFullscreenPerformanceView({
           className={`absolute right-5 top-5 z-10 flex items-center gap-1 rounded-full border p-1 shadow-sm backdrop-blur ${
             isDarkMode
               ? "border-[#34363a] bg-[#202124]/95 text-[#f3f0e8]"
-              : "border-[#dedee3] bg-white/95 text-[#111]"
+              : "border-[#d8cfc0] bg-[#fbf7ef]/95 text-[#171412]"
           }`}
         >
           <ToolbarButton
@@ -1369,7 +1369,7 @@ export function ChordFullscreenPerformanceView({
           className={`absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full border px-4 py-3 shadow-[0_16px_45px_rgba(0,0,0,0.16)] backdrop-blur ${
             isDarkMode
               ? "border-[#34343a] bg-[#1c1c20]/95"
-              : "border-[#dedee3] bg-white/95"
+              : "border-[#d8cfc0] bg-[#fbf7ef]/95"
           }`}
         >
           <button
@@ -1626,9 +1626,9 @@ function VoiceGuideDebugPanel({
     <div
       ref={panelRef}
       className={`absolute z-10 max-w-[min(440px,calc(100%-40px))] rounded-lg border text-left shadow-sm backdrop-blur ${
-        isDarkMode
-          ? "border-[#34363a] bg-[#202124]/95 text-[#f3f0e8]"
-          : "border-[#dedee3] bg-white/95 text-[#111]"
+            isDarkMode
+              ? "border-[#34363a] bg-[#202124]/95 text-[#f3f0e8]"
+              : "border-[#d8cfc0] bg-[#fbf7ef]/95 text-[#171412]"
       }`}
       style={{
         left: panelPosition.x,
@@ -1664,7 +1664,7 @@ function VoiceGuideDebugPanel({
             className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
               isDarkMode
                 ? "bg-[#2b2d30] text-[#d4d4d8]"
-                : "bg-[#f0f0f1] text-[#52525b]"
+                : "bg-[#efe6d8] text-[#6b6258]"
             }`}
           >
             {speechStatus}
@@ -1680,7 +1680,7 @@ function VoiceGuideDebugPanel({
             className={`flex size-7 items-center justify-center rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
               isDarkMode
                 ? "text-[#f3f0e8] hover:bg-[#2b2d30]"
-                : "text-[#111] hover:bg-[#f3f3f4]"
+                : "text-[#171412] hover:bg-[#f2eadf]"
             }`}
           >
             {isMinimized ? <ExpandIcon /> : <MinusIcon />}
@@ -1691,7 +1691,7 @@ function VoiceGuideDebugPanel({
         <div className="px-4 pb-3">
       <div
         className={`mt-2 h-1 overflow-hidden rounded-full ${
-          isDarkMode ? "bg-[#34363a]" : "bg-[#e4e4e7]"
+          isDarkMode ? "bg-[#34363a]" : "bg-[#e6dccf]"
         }`}
       >
         <div
@@ -1815,7 +1815,7 @@ function VoiceDebugStat({
       className={`min-w-0 rounded-md border px-2 py-1.5 ${
         isDarkMode
           ? "border-[#34363a] bg-[#18181b]"
-          : "border-[#e4e4e7] bg-[#fafafa]"
+          : "border-[#e3d9cb] bg-[#f8f2e8]"
       }`}
     >
       <p
@@ -2003,7 +2003,7 @@ function SectionNumberBadge({
       } ${
         isDarkMode
           ? "bg-[#2b2d30] text-[#f3f0e8]"
-          : "bg-[#f0f0f1] text-[#111]"
+          : "bg-[#efe6d8] text-[#171412]"
       }`}
     >
       {number}
@@ -2962,7 +2962,7 @@ function ToolbarButton({
           ? "bg-[#ed1746] text-white hover:bg-[#d90f3b]"
           : isDarkMode
           ? "text-[#f3f0e8] hover:bg-[#2b2d30]"
-          : "text-[#111] hover:bg-[#f3f3f4]"
+          : "text-[#171412] hover:bg-[#f2eadf]"
       }`}
     >
       {children}
