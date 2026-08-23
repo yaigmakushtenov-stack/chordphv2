@@ -112,7 +112,7 @@ const VOICE_GUIDE_HIGHLIGHT_CLASS = "text-cyan-300";
 const VOICE_GUIDE_SCROLL_ANCHOR_RATIO = 0.25;
 const VOICE_GUIDE_SCROLL_DURATION_MS = 1400;
 const VOICE_GUIDE_BRIDGE_SCROLL_PIXELS_PER_SECOND = 22;
-const VOICE_GUIDE_FORWARD_LYRIC_WINDOW = 6;
+const VOICE_GUIDE_FORWARD_LYRIC_WINDOW = 32;
 const VOICE_GUIDE_LINE_COMPLETE_RATIO = 0.82;
 const VOICE_GUIDE_DEFAULT_WORDS_PER_SECOND = 2;
 const VOICE_GUIDE_MAX_TRACKED_WORDS_PER_SECOND = 3.2;
@@ -2168,6 +2168,7 @@ function findBestVoiceLyricMatch({
   const transcriptPhrases = getVoiceWordPhrases(transcriptWords);
 
   const minimumScore = transcriptWords.length === 1 ? 2.25 : isFinal ? 3.5 : 5;
+  const candidateMatches: VoiceLyricMatch[] = [];
 
   if (
     currentLineIndex !== null &&
@@ -2189,7 +2190,10 @@ function findBestVoiceLyricMatch({
       currentLineMatch &&
       currentLineMatch.progressRatio >= currentLineProgressRatio
     ) {
-      return currentLineMatch;
+      candidateMatches.push({
+        ...currentLineMatch,
+        score: currentLineMatch.score + 3,
+      });
     }
   }
 
@@ -2205,23 +2209,27 @@ function findBestVoiceLyricMatch({
   });
 
   if (primaryMatch) {
-    return primaryMatch;
+    candidateMatches.push(primaryMatch);
   }
 
-  if (currentLineIndex === null) {
-    return null;
+  if (currentLineIndex !== null) {
+    const fallbackMatch = findBestVoiceLyricMatchInRange({
+      minimumScore,
+      searchEnd: fallbackSearchEnd,
+      searchStart: fallbackSearchStart,
+      lines,
+      transcriptPhrases,
+      timing,
+      usefulTranscriptWords,
+      visibleSectionIds,
+    });
+
+    if (fallbackMatch) {
+      candidateMatches.push(fallbackMatch);
+    }
   }
 
-  return findBestVoiceLyricMatchInRange({
-    minimumScore,
-    searchEnd: fallbackSearchEnd,
-    searchStart: fallbackSearchStart,
-    lines,
-    transcriptPhrases,
-    timing,
-    usefulTranscriptWords,
-    visibleSectionIds,
-  });
+  return getBestVoiceLyricMatch(candidateMatches, minimumScore);
 }
 
 function getVisibleLyricSearchRange({
@@ -2245,6 +2253,25 @@ function getVisibleLyricSearchRange({
     end: visibleLyricLines[visibleLyricLines.length - 1].globalIndex,
     start: visibleLyricLines[0].globalIndex,
   };
+}
+
+function getBestVoiceLyricMatch(
+  matches: VoiceLyricMatch[],
+  minimumScore: number,
+): VoiceLyricMatch | null {
+  let bestMatch: VoiceLyricMatch | null = null;
+
+  for (const match of matches) {
+    if (match.score < minimumScore) {
+      continue;
+    }
+
+    if (!bestMatch || match.score > bestMatch.score) {
+      bestMatch = match;
+    }
+  }
+
+  return bestMatch;
 }
 
 function getForwardLyricSearchEnd({
@@ -2309,13 +2336,9 @@ function getVoiceVelocityPenalty({
 
 function isVoiceVelocityPlausible({
   absoluteWordIndex,
-  line,
-  searchStart,
   timing,
 }: {
   absoluteWordIndex: number;
-  line: ChordSectionLine;
-  searchStart: number;
   timing: VoiceMatchTiming;
 }): boolean {
   if (
@@ -2331,11 +2354,7 @@ function isVoiceVelocityPlausible({
     elapsedSeconds * timing.estimatedWordsPerSecond + VOICE_GUIDE_WORD_JUMP_GRACE;
   const actualWordDelta = absoluteWordIndex - timing.lastMatchedAbsoluteWordIndex;
 
-  if (actualWordDelta > allowedWordDelta) {
-    return false;
-  }
-
-  return line.globalIndex - searchStart <= 3;
+  return actualWordDelta <= allowedWordDelta;
 }
 
 function updateEstimatedVoiceWordsPerSecond({
@@ -2537,8 +2556,6 @@ function findBestVoiceLyricMatchInRange({
     if (
       !isVoiceVelocityPlausible({
         absoluteWordIndex,
-        line,
-        searchStart,
         timing,
       })
     ) {
