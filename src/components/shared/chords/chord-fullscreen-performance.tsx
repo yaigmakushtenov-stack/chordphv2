@@ -1,8 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent, ReactNode } from "react";
 
+import {
+  BrowserSpeechTextListener,
+  type BrowserSpeechDiagnostic,
+  type BrowserSpeechStatus,
+  type BrowserSpeechTranscript,
+} from "@/components/shared/browser-speech-text-listener";
 import { ChordCard } from "@/components/shared/chords/chord-card";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
 import {
@@ -33,13 +39,80 @@ type ChordSection = {
   id: string;
   number: number;
   title: string;
-  lines: string[];
+  lines: ChordSectionLine[];
   chords: string[];
   chordPreview: string;
 };
 
+type ChordSectionLine = {
+  id: string;
+  globalIndex: number;
+  sectionId: string;
+  raw: string;
+  lyricText: string;
+  normalizedLyric: string;
+};
+
+type VoiceTranscriptChunk = {
+  at: number;
+  isFinal: boolean;
+  text: string;
+};
+
+type VoiceTranscriptBatch = {
+  isFinal: boolean;
+  text: string;
+};
+
+type VoiceProcessingResult = {
+  lineNumber: number | null;
+  matchedText: string | null;
+  score: number | null;
+  status: "matched" | "no-match";
+  transcript: string;
+};
+
+type VoiceGuideDebugState = {
+  activeBatch: string | null;
+  captureChunkCount: number;
+  captureStatus: "idle" | "capturing" | "queued";
+  lastCaptured: string | null;
+  lastHeard: string | null;
+  lastRecognizerDetail: string | null;
+  lastRecognizerEvent: string | null;
+  recognizerEvents: string[];
+  recognizerRestartCount: number;
+  lastResult: VoiceProcessingResult | null;
+  pendingBatch: string | null;
+  queueStatus: "idle" | "processing" | "pending";
+};
+
+type VoiceGuideToast = {
+  detail: string | null;
+  title: string;
+};
+
 const SECTION_ANCHOR_RATIO = 0.75;
 const SECTION_VISIBILITY_CUTOFF_RATIO = 0.25;
+const VOICE_GUIDE_HIGHLIGHT_CLASS = "text-cyan-300";
+const VOICE_GUIDE_SCROLL_ANCHOR_RATIO = 0.25;
+const VOICE_GUIDE_PAUSE_MS = 850;
+const VOICE_GUIDE_FINAL_PROCESS_MS = 150;
+const VOICE_GUIDE_MAX_PHRASE_MS = 3500;
+const EMPTY_VOICE_GUIDE_DEBUG_STATE: VoiceGuideDebugState = {
+  activeBatch: null,
+  captureChunkCount: 0,
+  captureStatus: "idle",
+  lastCaptured: null,
+  lastHeard: null,
+  lastRecognizerDetail: null,
+  lastRecognizerEvent: null,
+  recognizerEvents: [],
+  recognizerRestartCount: 0,
+  lastResult: null,
+  pendingBatch: null,
+  queueStatus: "idle",
+};
 
 export function ChordFullscreenPerformanceLauncher({
   chordInstrument = "guitar",
@@ -107,18 +180,80 @@ export function ChordFullscreenPerformanceView({
   const accidentals: AccidentalPreference = "sharps";
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isHelperPanelOpen, setIsHelperPanelOpen] = useState(true);
+  const [isVoiceGuideEnabled, setIsVoiceGuideEnabled] = useState(false);
+  const [speechStatus, setSpeechStatus] =
+    useState<BrowserSpeechStatus>("idle");
+  const [voiceAudioLevel, setVoiceAudioLevel] = useState(0);
+  const [matchedLineIndex, setMatchedLineIndex] = useState<number | null>(null);
+  const [voiceGuideToast, setVoiceGuideToast] =
+    useState<VoiceGuideToast | null>(null);
+  const [voiceGuideDebug, setVoiceGuideDebug] =
+    useState<VoiceGuideDebugState>(EMPTY_VOICE_GUIDE_DEBUG_STATE);
   const [scrollSpeed, setScrollSpeed] = useState(0);
   const [visibleSectionIds, setVisibleSectionIds] = useState<string[]>([]);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
+  const lineRefs = useRef(new Map<number, HTMLParagraphElement>());
+  const lyricLinesRef = useRef<ChordSectionLine[]>([]);
+  const matchedLineIndexRef = useRef<number | null>(null);
+  const visibleSectionIdsRef = useRef<string[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
+  const lastVoiceScrollTimeRef = useRef(0);
+  const voiceFinalProcessTimeoutRef = useRef<number | null>(null);
+  const voiceMaxPhraseTimeoutRef = useRef<number | null>(null);
+  const voicePauseTimeoutRef = useRef<number | null>(null);
+  const voiceQueueProcessTimeoutRef = useRef<number | null>(null);
+  const voiceToastTimeoutRef = useRef<number | null>(null);
+  const isVoiceBatchProcessingRef = useRef(false);
+  const pendingVoiceBatchRef = useRef<VoiceTranscriptBatch | null>(null);
+  const voiceTranscriptBufferRef = useRef<VoiceTranscriptChunk[]>([]);
 
   const source = useMemo(
     () => transposeChordPro(track.lyricsAndChords, transpose, accidentals),
     [track.lyricsAndChords, transpose, accidentals],
   );
   const sections = useMemo(() => parseChordSections(source), [source]);
+  const lyricLines = useMemo(
+    () =>
+      sections
+        .flatMap((section) => section.lines)
+        .filter((line) => line.normalizedLyric),
+    [sections],
+  );
+
+  useEffect(() => {
+    lyricLinesRef.current = lyricLines;
+  }, [lyricLines]);
+
+  useEffect(() => {
+    matchedLineIndexRef.current = matchedLineIndex;
+  }, [matchedLineIndex]);
+
+  useEffect(() => {
+    visibleSectionIdsRef.current = visibleSectionIds;
+  }, [visibleSectionIds]);
+
+  useEffect(
+    () => () => {
+      if (voiceToastTimeoutRef.current !== null) {
+        window.clearTimeout(voiceToastTimeoutRef.current);
+      }
+      if (voiceFinalProcessTimeoutRef.current !== null) {
+        window.clearTimeout(voiceFinalProcessTimeoutRef.current);
+      }
+      if (voiceMaxPhraseTimeoutRef.current !== null) {
+        window.clearTimeout(voiceMaxPhraseTimeoutRef.current);
+      }
+      if (voicePauseTimeoutRef.current !== null) {
+        window.clearTimeout(voicePauseTimeoutRef.current);
+      }
+      if (voiceQueueProcessTimeoutRef.current !== null) {
+        window.clearTimeout(voiceQueueProcessTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   const updateVisibleSections = useCallback(() => {
     const scroller = scrollerRef.current;
@@ -219,7 +354,7 @@ export function ChordFullscreenPerformanceView({
   }, []);
 
   useEffect(() => {
-    if (scrollSpeed <= 0) {
+    if (scrollSpeed <= 0 || isVoiceGuideEnabled) {
       if (animationFrameRef.current !== null) {
         window.cancelAnimationFrame(animationFrameRef.current);
       }
@@ -251,7 +386,333 @@ export function ChordFullscreenPerformanceView({
       animationFrameRef.current = null;
       lastFrameTimeRef.current = null;
     };
-  }, [scrollSpeed, updateVisibleSections]);
+  }, [isVoiceGuideEnabled, scrollSpeed, updateVisibleSections]);
+
+  const scrollLineToCenter = useCallback((lineIndex: number) => {
+    const scroller = scrollerRef.current;
+    const lineElement = lineRefs.current.get(lineIndex);
+
+    if (!scroller || !lineElement) {
+      return;
+    }
+
+    const targetTop = Math.max(
+      0,
+      lineElement.offsetTop - scroller.clientHeight * VOICE_GUIDE_SCROLL_ANCHOR_RATIO,
+    );
+
+    scroller.scrollTo({
+      top: targetTop,
+      behavior: "smooth",
+    });
+    lastVoiceScrollTimeRef.current = Date.now();
+  }, []);
+
+  const showVoiceGuideToast = useCallback(
+    (toast: VoiceGuideToast, timeoutMs = 2500) => {
+      if (voiceToastTimeoutRef.current !== null) {
+        window.clearTimeout(voiceToastTimeoutRef.current);
+        voiceToastTimeoutRef.current = null;
+      }
+
+      setVoiceGuideToast(toast);
+
+      if (timeoutMs > 0) {
+        voiceToastTimeoutRef.current = window.setTimeout(() => {
+          setVoiceGuideToast(null);
+          voiceToastTimeoutRef.current = null;
+        }, timeoutMs);
+      }
+    },
+    [],
+  );
+
+  const handleSpeechStatusChange = useCallback(
+    (status: BrowserSpeechStatus) => {
+      setSpeechStatus(status);
+
+      if (status === "listening") {
+        showVoiceGuideToast(
+          {
+            title: "Listening",
+            detail: "Voice guide is waiting for lyrics.",
+          },
+          0,
+        );
+      }
+
+      if (status === "error") {
+        showVoiceGuideToast({
+          title: "Voice guide error",
+          detail: "Speech recognition could not continue. Check the Recognizer row.",
+        });
+      }
+
+      if (status === "retrying") {
+        showVoiceGuideToast(
+          {
+            title: "Retrying voice guide",
+            detail: "Speech recognition did not return text yet.",
+          },
+          0,
+        );
+      }
+
+      if (status === "unsupported") {
+        setVoiceGuideDebug(EMPTY_VOICE_GUIDE_DEBUG_STATE);
+        setIsVoiceGuideEnabled(false);
+        window.alert("Voice guide is not supported by this browser.");
+      }
+    },
+    [showVoiceGuideToast],
+  );
+
+  const handleSpeechDiagnostic = useCallback(
+    (diagnostic: BrowserSpeechDiagnostic) => {
+      const eventLabel = diagnostic.detail
+        ? `${diagnostic.event}: ${diagnostic.detail}`
+        : diagnostic.event;
+
+      setVoiceGuideDebug((debug) => ({
+        ...debug,
+        lastRecognizerDetail: diagnostic.detail,
+        lastRecognizerEvent: diagnostic.event,
+        recognizerEvents: [eventLabel, ...debug.recognizerEvents].slice(0, 6),
+        recognizerRestartCount: diagnostic.restartCount,
+      }));
+    },
+    [],
+  );
+
+  const processVoiceTranscriptBatch = useCallback(
+    ({ isFinal, text: batchText }: VoiceTranscriptBatch): VoiceProcessingResult => {
+      const match = findBestVoiceLyricMatch({
+        currentLineIndex: matchedLineIndexRef.current,
+        isFinal,
+        lines: lyricLinesRef.current,
+        transcript: batchText,
+        visibleSectionIds: visibleSectionIdsRef.current,
+      });
+
+      if (!match) {
+        showVoiceGuideToast({
+          title: "Processing phrase",
+          detail: `No confident lyric match for "${trimVoiceToastText(batchText)}"`,
+        });
+        return {
+          lineNumber: null,
+          matchedText: null,
+          score: null,
+          status: "no-match",
+          transcript: batchText,
+        };
+      }
+
+      setMatchedLineIndex(match.line.globalIndex);
+      scrollLineToCenter(match.line.globalIndex);
+      showVoiceGuideToast({
+        title: `Matched line ${match.line.globalIndex + 1}`,
+        detail: trimVoiceToastText(match.line.lyricText || batchText),
+      });
+      return {
+        lineNumber: match.line.globalIndex + 1,
+        matchedText: match.line.lyricText,
+        score: match.score,
+        status: "matched",
+        transcript: batchText,
+      };
+    },
+    [scrollLineToCenter, showVoiceGuideToast],
+  );
+
+  const runVoiceTranscriptQueue = useCallback(() => {
+    if (isVoiceBatchProcessingRef.current) {
+      return;
+    }
+
+    isVoiceBatchProcessingRef.current = true;
+
+    function processNextBatch(): void {
+      const batch = pendingVoiceBatchRef.current;
+
+      if (!batch) {
+        isVoiceBatchProcessingRef.current = false;
+        setVoiceGuideDebug((debug) => ({
+          ...debug,
+          activeBatch: null,
+          queueStatus: debug.pendingBatch ? "pending" : "idle",
+        }));
+        return;
+      }
+
+      pendingVoiceBatchRef.current = null;
+      setVoiceGuideDebug((debug) => ({
+        ...debug,
+        activeBatch: batch.text,
+        pendingBatch: null,
+        queueStatus: "processing",
+      }));
+      showVoiceGuideToast({
+        title: "Processing phrase",
+        detail: trimVoiceToastText(batch.text),
+      });
+
+      voiceQueueProcessTimeoutRef.current = window.setTimeout(() => {
+        voiceQueueProcessTimeoutRef.current = null;
+        const result = processVoiceTranscriptBatch(batch);
+        setVoiceGuideDebug((debug) => ({
+          ...debug,
+          activeBatch: null,
+          lastResult: result,
+          queueStatus: pendingVoiceBatchRef.current ? "pending" : "idle",
+        }));
+        processNextBatch();
+      }, 0);
+    }
+
+    processNextBatch();
+  }, [processVoiceTranscriptBatch, showVoiceGuideToast]);
+
+  const enqueueVoiceTranscriptBatch = useCallback(
+    (batch: VoiceTranscriptBatch) => {
+      pendingVoiceBatchRef.current = batch;
+      setVoiceGuideDebug((debug) => ({
+        ...debug,
+        pendingBatch: batch.text,
+        queueStatus: isVoiceBatchProcessingRef.current ? "pending" : "idle",
+      }));
+      runVoiceTranscriptQueue();
+    },
+    [runVoiceTranscriptQueue],
+  );
+
+  const clearVoicePhraseTimers = useCallback(() => {
+    if (voiceFinalProcessTimeoutRef.current !== null) {
+      window.clearTimeout(voiceFinalProcessTimeoutRef.current);
+      voiceFinalProcessTimeoutRef.current = null;
+    }
+
+    if (voicePauseTimeoutRef.current !== null) {
+      window.clearTimeout(voicePauseTimeoutRef.current);
+      voicePauseTimeoutRef.current = null;
+    }
+  }, []);
+
+  const processBufferedVoicePhrase = useCallback(
+    (reason: "final" | "max" | "pause") => {
+      const bufferedChunks = voiceTranscriptBufferRef.current;
+      const phraseText = getBufferedVoicePhrase(bufferedChunks);
+
+      clearVoicePhraseTimers();
+      voiceTranscriptBufferRef.current = [];
+
+      if (voiceMaxPhraseTimeoutRef.current !== null) {
+        window.clearTimeout(voiceMaxPhraseTimeoutRef.current);
+        voiceMaxPhraseTimeoutRef.current = null;
+      }
+
+      if (!phraseText) {
+        showVoiceGuideToast(
+          {
+            title: "Listening",
+            detail: "Waiting for the next lyric phrase.",
+          },
+          0,
+        );
+        return;
+      }
+
+      showVoiceGuideToast({
+        title: reason === "pause" ? "Pause detected" : "Queued phrase",
+        detail: trimVoiceToastText(phraseText),
+      });
+      setVoiceGuideDebug((debug) => ({
+        ...debug,
+        captureChunkCount: 0,
+        captureStatus: "queued",
+        lastCaptured: phraseText,
+      }));
+      enqueueVoiceTranscriptBatch({
+        isFinal:
+          reason === "final" || bufferedChunks.some((chunk) => chunk.isFinal),
+        text: phraseText,
+      });
+    },
+    [clearVoicePhraseTimers, enqueueVoiceTranscriptBatch, showVoiceGuideToast],
+  );
+
+  const handleSpeechTranscript = useCallback(
+    (transcript: BrowserSpeechTranscript) => {
+      const text = transcript.text.trim();
+
+      if (!text) {
+        return;
+      }
+
+      const now = Date.now();
+      const nextBufferedChunks = [
+        ...voiceTranscriptBufferRef.current,
+        {
+          at: now,
+          isFinal: transcript.isFinal,
+          text,
+        },
+      ];
+      voiceTranscriptBufferRef.current = nextBufferedChunks;
+      setVoiceGuideDebug((debug) => ({
+        ...debug,
+        captureChunkCount: nextBufferedChunks.length,
+        captureStatus: "capturing",
+        lastHeard: text,
+      }));
+      showVoiceGuideToast({
+        title: "Heard",
+        detail: trimVoiceToastText(text),
+      });
+
+      if (voicePauseTimeoutRef.current !== null) {
+        window.clearTimeout(voicePauseTimeoutRef.current);
+      }
+
+      voicePauseTimeoutRef.current = window.setTimeout(() => {
+        processBufferedVoicePhrase("pause");
+      }, VOICE_GUIDE_PAUSE_MS);
+
+      if (voiceMaxPhraseTimeoutRef.current === null) {
+        voiceMaxPhraseTimeoutRef.current = window.setTimeout(() => {
+          processBufferedVoicePhrase("max");
+        }, VOICE_GUIDE_MAX_PHRASE_MS);
+      }
+
+      if (transcript.isFinal) {
+        if (voiceFinalProcessTimeoutRef.current !== null) {
+          window.clearTimeout(voiceFinalProcessTimeoutRef.current);
+        }
+
+        voiceFinalProcessTimeoutRef.current = window.setTimeout(() => {
+          processBufferedVoicePhrase("final");
+        }, VOICE_GUIDE_FINAL_PROCESS_MS);
+      }
+    },
+    [processBufferedVoicePhrase, showVoiceGuideToast],
+  );
+
+  useEffect(() => {
+    if (!isVoiceGuideEnabled) {
+      voiceTranscriptBufferRef.current = [];
+      pendingVoiceBatchRef.current = null;
+      isVoiceBatchProcessingRef.current = false;
+      clearVoicePhraseTimers();
+      if (voiceMaxPhraseTimeoutRef.current !== null) {
+        window.clearTimeout(voiceMaxPhraseTimeoutRef.current);
+        voiceMaxPhraseTimeoutRef.current = null;
+      }
+      if (voiceQueueProcessTimeoutRef.current !== null) {
+        window.clearTimeout(voiceQueueProcessTimeoutRef.current);
+        voiceQueueProcessTimeoutRef.current = null;
+      }
+    }
+  }, [clearVoicePhraseTimers, isVoiceGuideEnabled]);
 
   function handleClose(): void {
     if (document.fullscreenElement) {
@@ -264,6 +725,7 @@ export function ChordFullscreenPerformanceView({
   function handleSectionSelect(sectionId: string): void {
     const scroller = scrollerRef.current;
     const sectionElement = sectionRefs.current.get(sectionId);
+    const selectedSection = sections.find((section) => section.id === sectionId);
 
     if (!scroller || !sectionElement) {
       return;
@@ -280,6 +742,42 @@ export function ChordFullscreenPerformanceView({
     setVisibleSectionIds((currentIds) =>
       currentIds.includes(sectionId) ? currentIds : [sectionId],
     );
+
+    const firstLyricLine = selectedSection?.lines.find(
+      (line) => line.normalizedLyric,
+    );
+
+    if (firstLyricLine) {
+      setMatchedLineIndex(firstLyricLine.globalIndex);
+    }
+  }
+
+  function handleVoiceGuideToggle(): void {
+    setIsVoiceGuideEnabled((enabled) => {
+      const nextEnabled = !enabled;
+
+      if (nextEnabled) {
+        setScrollSpeed(0);
+      } else {
+        setSpeechStatus("idle");
+        setVoiceGuideToast(null);
+        setVoiceGuideDebug(EMPTY_VOICE_GUIDE_DEBUG_STATE);
+        voiceTranscriptBufferRef.current = [];
+        pendingVoiceBatchRef.current = null;
+        isVoiceBatchProcessingRef.current = false;
+        clearVoicePhraseTimers();
+        if (voiceMaxPhraseTimeoutRef.current !== null) {
+          window.clearTimeout(voiceMaxPhraseTimeoutRef.current);
+          voiceMaxPhraseTimeoutRef.current = null;
+        }
+        if (voiceQueueProcessTimeoutRef.current !== null) {
+          window.clearTimeout(voiceQueueProcessTimeoutRef.current);
+          voiceQueueProcessTimeoutRef.current = null;
+        }
+      }
+
+      return nextEnabled;
+    });
   }
 
   function handlePlaceholderTool(toolName: string): void {
@@ -292,6 +790,13 @@ export function ChordFullscreenPerformanceView({
         isDarkMode ? "dark bg-[#171819] text-white" : "bg-white text-[#111]"
       }`}
     >
+      <BrowserSpeechTextListener
+        enabled={isVoiceGuideEnabled}
+        onAudioLevel={setVoiceAudioLevel}
+        onDiagnostic={handleSpeechDiagnostic}
+        onStatusChange={handleSpeechStatusChange}
+        onTranscript={handleSpeechTranscript}
+      />
       <aside
         className={`relative flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-r transition-[width] duration-300 ease-out ${
           isHelperPanelOpen ? "w-[33.333vw] min-w-[320px] px-6 py-5" : "w-5 px-0 py-0"
@@ -489,6 +994,15 @@ export function ChordFullscreenPerformanceView({
             : "bg-white text-[#111]"
         }`}
       >
+        {voiceGuideToast || isVoiceGuideEnabled ? (
+          <VoiceGuideDebugPanel
+            debug={voiceGuideDebug}
+            isDarkMode={isDarkMode}
+            speechStatus={speechStatus}
+            toast={voiceGuideToast}
+            voiceAudioLevel={voiceAudioLevel}
+          />
+        ) : null}
         <div
           className={`absolute right-5 top-5 z-10 flex items-center gap-1 rounded-full border p-1 shadow-sm backdrop-blur ${
             isDarkMode
@@ -509,6 +1023,18 @@ export function ChordFullscreenPerformanceView({
             onClick={() => handlePlaceholderTool("Quick tools")}
           >
             <SparkIcon />
+          </ToolbarButton>
+          <ToolbarButton
+            active={isVoiceGuideEnabled}
+            ariaLabel={
+              isVoiceGuideEnabled
+                ? `Turn off voice guide (${speechStatus})`
+                : "Turn on voice guide"
+            }
+            isDarkMode={isDarkMode}
+            onClick={handleVoiceGuideToggle}
+          >
+            <MicrophoneIcon />
           </ToolbarButton>
           <ToolbarButton
             ariaLabel={isDarkMode ? "Use light play mode" : "Use dark play mode"}
@@ -568,11 +1094,24 @@ export function ChordFullscreenPerformanceView({
                     />
                     <div className="space-y-0 font-mono text-[19px] leading-[1.18]">
                     {section.lines.length ? (
-                      section.lines.map((line, index) => (
+                      section.lines.map((line) => (
                         <ChordPerformanceLine
-                          key={`${section.id}-${index}`}
+                          key={line.id}
+                          ref={(element) => {
+                            if (element) {
+                              lineRefs.current.set(line.globalIndex, element);
+                            } else {
+                              lineRefs.current.delete(line.globalIndex);
+                            }
+                          }}
+                          isActive={matchedLineIndex === line.globalIndex}
+                          isPassed={
+                            matchedLineIndex !== null &&
+                            line.globalIndex < matchedLineIndex
+                          }
                           isDarkMode={isDarkMode}
-                          line={line}
+                          line={line.raw}
+                          passedHighlightClass={VOICE_GUIDE_HIGHLIGHT_CLASS}
                         />
                       ))
                     ) : (
@@ -759,20 +1298,365 @@ function SectionChordShapes({
   });
 }
 
-function ChordPerformanceLine({
+function VoiceGuideDebugPanel({
+  debug,
   isDarkMode,
-  line,
+  speechStatus,
+  toast,
+  voiceAudioLevel,
 }: {
+  debug: VoiceGuideDebugState;
   isDarkMode: boolean;
-  line: string;
+  speechStatus: BrowserSpeechStatus;
+  toast: VoiceGuideToast | null;
+  voiceAudioLevel: number;
 }) {
-  const parts = line.split(/(\[[^\]\r\n]+\])/g).filter(Boolean);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [panelPosition, setPanelPosition] = useState({ x: 20, y: 80 });
+  const isRecognizerError = speechStatus === "error";
+  const displayedAudioLevel = isRecognizerError ? 0 : voiceAudioLevel;
+  const recognizerDiagnosis = getVoiceRecognizerDiagnosis(debug, speechStatus);
+  const resultLabel =
+    debug.lastResult?.status === "matched"
+      ? `Matched line ${debug.lastResult.lineNumber ?? "-"}`
+      : debug.lastResult?.status === "no-match"
+        ? "No confident match"
+        : "No result yet";
+  const resultDetail =
+    debug.lastResult?.status === "matched"
+      ? debug.lastResult.matchedText
+      : debug.lastResult?.transcript;
+
+  function handlePanelPointerDown(event: PointerEvent<HTMLDivElement>): void {
+    const panel = panelRef.current;
+    const parent = panel?.offsetParent;
+
+    if (!panel || !(parent instanceof HTMLElement)) {
+      return;
+    }
+
+    const panelRect = panel.getBoundingClientRect();
+    dragOffsetRef.current = {
+      x: event.clientX - panelRect.left,
+      y: event.clientY - panelRect.top,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handlePanelPointerMove(event: PointerEvent<HTMLDivElement>): void {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+      return;
+    }
+
+    const panel = panelRef.current;
+    const parent = panel?.offsetParent;
+
+    if (!panel || !(parent instanceof HTMLElement)) {
+      return;
+    }
+
+    const parentRect = parent.getBoundingClientRect();
+    const maxX = Math.max(0, parentRect.width - panel.offsetWidth - 20);
+    const maxY = Math.max(0, parentRect.height - panel.offsetHeight - 20);
+    const nextX = event.clientX - parentRect.left - dragOffsetRef.current.x;
+    const nextY = event.clientY - parentRect.top - dragOffsetRef.current.y;
+
+    setPanelPosition({
+      x: Math.min(Math.max(20, nextX), maxX),
+      y: Math.min(Math.max(20, nextY), maxY),
+    });
+  }
 
   return (
-    <p className="whitespace-pre-wrap">
+    <div
+      ref={panelRef}
+      className={`absolute z-10 max-w-[min(440px,calc(100%-40px))] rounded-lg border text-left shadow-sm backdrop-blur ${
+        isDarkMode
+          ? "border-[#34363a] bg-[#202124]/95 text-[#f3f0e8]"
+          : "border-[#dedee3] bg-white/95 text-[#111]"
+      }`}
+      style={{
+        left: panelPosition.x,
+        top: panelPosition.y,
+        width: isMinimized ? "min(320px, calc(100% - 40px))" : "min(440px, calc(100% - 40px))",
+      }}
+    >
+      <div
+        className="flex cursor-grab touch-none select-none items-center justify-between gap-3 px-4 py-3 active:cursor-grabbing"
+        onPointerDown={handlePanelPointerDown}
+        onPointerMove={handlePanelPointerMove}
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className={`size-2.5 shrink-0 rounded-full ${
+              isRecognizerError
+                ? "bg-[#ed1746] shadow-[0_0_12px_rgba(237,23,70,0.7)]"
+                : displayedAudioLevel > 0.08
+                ? "bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,0.85)]"
+                : isDarkMode
+                  ? "bg-[#4b4d52]"
+                  : "bg-[#c6c6cc]"
+            }`}
+          />
+          <p className="truncate text-[11px] font-black uppercase tracking-[0.12em]">
+            {toast?.title ?? "Listening"}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span
+            className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
+              isDarkMode
+                ? "bg-[#2b2d30] text-[#d4d4d8]"
+                : "bg-[#f0f0f1] text-[#52525b]"
+            }`}
+          >
+            {speechStatus}
+          </span>
+          <button
+            type="button"
+            aria-label={isMinimized ? "Expand voice debug panel" : "Minimize voice debug panel"}
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsMinimized((value) => !value);
+            }}
+            className={`flex size-7 items-center justify-center rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+              isDarkMode
+                ? "text-[#f3f0e8] hover:bg-[#2b2d30]"
+                : "text-[#111] hover:bg-[#f3f3f4]"
+            }`}
+          >
+            {isMinimized ? <ExpandIcon /> : <MinusIcon />}
+          </button>
+        </div>
+      </div>
+      {isMinimized ? null : (
+        <div className="px-4 pb-3">
+      <div
+        className={`mt-2 h-1 overflow-hidden rounded-full ${
+          isDarkMode ? "bg-[#34363a]" : "bg-[#e4e4e7]"
+        }`}
+      >
+        <div
+          className="h-full rounded-full bg-cyan-300 transition-[width] duration-100"
+          style={{
+            width: `${Math.max(4, Math.round(displayedAudioLevel * 100))}%`,
+          }}
+        />
+      </div>
+      {toast?.detail ? (
+        <p
+          className={`mt-2 truncate text-[12px] font-bold ${
+            isDarkMode ? "text-[#a1a1aa]" : "text-[#71717a]"
+          }`}
+        >
+          {toast.detail}
+        </p>
+      ) : null}
+      {recognizerDiagnosis ? (
+        <p
+          className={`mt-2 rounded-md border px-3 py-2 text-[12px] font-bold leading-5 ${
+            isDarkMode
+              ? "border-[#7f1d1d] bg-[#2a1518] text-[#fecdd3]"
+              : "border-[#fecdd3] bg-[#fff1f2] text-[#9f1239]"
+          }`}
+        >
+          {recognizerDiagnosis}
+        </p>
+      ) : null}
+
+      <div className="mt-3 grid grid-cols-4 gap-2">
+        <VoiceDebugStat
+          isDarkMode={isDarkMode}
+          label="Capture"
+          value={`${debug.captureStatus} (${debug.captureChunkCount})`}
+        />
+        <VoiceDebugStat
+          isDarkMode={isDarkMode}
+          label="Queue"
+          value={debug.queueStatus}
+        />
+        <VoiceDebugStat
+          isDarkMode={isDarkMode}
+          label="Result"
+          value={resultLabel}
+        />
+        <VoiceDebugStat
+          isDarkMode={isDarkMode}
+          label="Engine"
+          value={`${debug.lastRecognizerEvent ?? "none"} (${debug.recognizerRestartCount})`}
+        />
+      </div>
+
+      <div className="mt-3 space-y-2">
+        <VoiceDebugText
+          isDarkMode={isDarkMode}
+          label="Recognizer"
+          value={
+            debug.lastRecognizerEvent
+              ? [
+                  debug.lastRecognizerEvent,
+                  debug.lastRecognizerDetail,
+                ].filter(Boolean).join(": ")
+              : null
+          }
+        />
+        <VoiceDebugText
+          isDarkMode={isDarkMode}
+          label="Events"
+          value={debug.recognizerEvents.join(" / ")}
+        />
+        <VoiceDebugText
+          isDarkMode={isDarkMode}
+          label="Heard"
+          value={debug.lastHeard}
+        />
+        <VoiceDebugText
+          isDarkMode={isDarkMode}
+          label="Captured"
+          value={debug.lastCaptured}
+        />
+        <VoiceDebugText
+          isDarkMode={isDarkMode}
+          label="Processing"
+          value={debug.activeBatch}
+        />
+        <VoiceDebugText
+          isDarkMode={isDarkMode}
+          label="Pending"
+          value={debug.pendingBatch}
+        />
+        <VoiceDebugText
+          isDarkMode={isDarkMode}
+          label={
+            debug.lastResult?.score === null || debug.lastResult?.score === undefined
+              ? "Last result"
+              : `Last result (${debug.lastResult.score.toFixed(1)})`
+          }
+          value={resultDetail}
+        />
+      </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VoiceDebugStat({
+  isDarkMode,
+  label,
+  value,
+}: {
+  isDarkMode: boolean;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div
+      className={`min-w-0 rounded-md border px-2 py-1.5 ${
+        isDarkMode
+          ? "border-[#34363a] bg-[#18181b]"
+          : "border-[#e4e4e7] bg-[#fafafa]"
+      }`}
+    >
+      <p
+        className={`text-[9px] font-black uppercase tracking-[0.08em] ${
+          isDarkMode ? "text-[#a1a1aa]" : "text-[#71717a]"
+        }`}
+      >
+        {label}
+      </p>
+      <p className="mt-0.5 truncate text-[11px] font-black">{value}</p>
+    </div>
+  );
+}
+
+function VoiceDebugText({
+  isDarkMode,
+  label,
+  value,
+}: {
+  isDarkMode: boolean;
+  label: string;
+  value: string | null | undefined;
+}) {
+  return (
+    <div className="grid grid-cols-[82px_minmax(0,1fr)] gap-2 text-[11px] leading-4">
+      <span
+        className={`font-black uppercase tracking-[0.08em] ${
+          isDarkMode ? "text-[#a1a1aa]" : "text-[#71717a]"
+        }`}
+      >
+        {label}
+      </span>
+      <span className="min-w-0 truncate font-mono font-bold">
+        {value ? trimVoiceToastText(value) : "-"}
+      </span>
+    </div>
+  );
+}
+
+function getVoiceRecognizerDiagnosis(
+  debug: VoiceGuideDebugState,
+  speechStatus: BrowserSpeechStatus,
+): string | null {
+  if (speechStatus !== "error") {
+    return null;
+  }
+
+  if (debug.lastRecognizerEvent !== "error") {
+    return "Speech recognition stopped before returning text.";
+  }
+
+  if (debug.lastRecognizerDetail === "network") {
+    return "The browser speech service is unreachable. Audio input is available, but no transcript can be captured until the Web Speech service connects.";
+  }
+
+  if (
+    debug.lastRecognizerDetail === "not-allowed" ||
+    debug.lastRecognizerDetail === "service-not-allowed"
+  ) {
+    return "Speech recognition is blocked by browser permission or browser speech-service settings.";
+  }
+
+  if (debug.lastRecognizerDetail === "audio-capture") {
+    return "The browser could not access a usable microphone for speech recognition.";
+  }
+
+  return debug.lastRecognizerDetail
+    ? `Speech recognition failed with "${debug.lastRecognizerDetail}".`
+    : "Speech recognition stopped before returning text.";
+}
+
+const ChordPerformanceLine = forwardRef<HTMLParagraphElement, {
+  isActive: boolean;
+  isDarkMode: boolean;
+  isPassed: boolean;
+  line: string;
+  passedHighlightClass: string;
+}>(function ChordPerformanceLine({
+  isActive,
+  isDarkMode,
+  isPassed,
+  line,
+  passedHighlightClass,
+}, ref) {
+  const parts = line.split(/(\[[^\]\r\n]+\])/g).filter(Boolean);
+  const lineClassName = isActive
+    ? "rounded-md bg-cyan-300/10 text-cyan-300 shadow-[0_0_0_1px_rgba(103,232,249,0.18)]"
+    : "whitespace-pre-wrap";
+  const highlightedTextClassName = isActive || isPassed ? passedHighlightClass : "";
+
+  return (
+    <p ref={ref} className={`whitespace-pre-wrap ${lineClassName}`}>
       {parts.map((part, index) => {
         if (!part.startsWith("[") || !part.endsWith("]")) {
-          return <span key={index}>{part}</span>;
+          return (
+            <span key={index} className={highlightedTextClassName}>
+              {part}
+            </span>
+          );
         }
 
         const value = part.slice(1, -1).trim();
@@ -782,7 +1666,11 @@ function ChordPerformanceLine({
           <span
             key={index}
             className={`mr-1.5 inline-block font-sans text-[14px] font-black leading-none ${
-              isDarkMode ? "text-[#f3f0e8]" : "text-[#111]"
+              isActive || isPassed
+                ? passedHighlightClass
+                : isDarkMode
+                  ? "text-[#f3f0e8]"
+                  : "text-[#111]"
             }`}
           >
             {value}
@@ -791,7 +1679,11 @@ function ChordPerformanceLine({
           <strong
             key={index}
             className={`mr-1.5 inline-block font-sans text-[14px] font-black ${
-              isDarkMode ? "text-[#9a9da3]" : "text-[#555]"
+              isActive || isPassed
+                ? passedHighlightClass
+                : isDarkMode
+                  ? "text-[#9a9da3]"
+                  : "text-[#555]"
             }`}
           >
             {value}
@@ -800,7 +1692,7 @@ function ChordPerformanceLine({
       })}
     </p>
   );
-}
+});
 
 function SectionNumberBadge({
   isDarkMode,
@@ -829,6 +1721,7 @@ function SectionNumberBadge({
 function parseChordSections(source: string): ChordSection[] {
   const sections: ChordSection[] = [];
   let currentSection: ChordSection | null = null;
+  let globalLineIndex = 0;
 
   function startSection(title: string): ChordSection {
     const section = {
@@ -855,7 +1748,15 @@ function parseChordSections(source: string): ChordSection[] {
       currentSection = startSection("Song");
     }
 
-    currentSection.lines.push(line);
+    currentSection.lines.push({
+      id: `${currentSection.id}-line-${currentSection.lines.length}`,
+      globalIndex: globalLineIndex,
+      sectionId: currentSection.id,
+      raw: line,
+      lyricText: getLineLyricText(line),
+      normalizedLyric: normalizeVoiceText(getLineLyricText(line)),
+    });
+    globalLineIndex += 1;
 
     const lineChords = getLineChords(line);
 
@@ -869,7 +1770,8 @@ function parseChordSections(source: string): ChordSection[] {
   }
 
   return sections.filter(
-    (section) => section.lines.some((line) => line.trim()) || section.chords.length,
+    (section) =>
+      section.lines.some((line) => line.raw.trim()) || section.chords.length,
   );
 }
 
@@ -896,6 +1798,207 @@ function getLineChords(line: string): string[] {
   }
 
   return chords;
+}
+
+function getLineLyricText(line: string): string {
+  return line
+    .replace(/\[([^\]\r\n]+)\]/g, (match, value: string) =>
+      transposeChord(value.trim(), 0, "sharps") ? " " : match,
+    )
+    .replace(/\[[^\]\r\n]+\]/g, " ")
+    .trim();
+}
+
+function findBestVoiceLyricMatch({
+  currentLineIndex,
+  isFinal,
+  lines,
+  transcript,
+  visibleSectionIds,
+}: {
+  currentLineIndex: number | null;
+  isFinal: boolean;
+  lines: ChordSectionLine[];
+  transcript: string;
+  visibleSectionIds: string[];
+}): { line: ChordSectionLine; score: number } | null {
+  const transcriptWords = normalizeVoiceText(transcript).split(" ").filter(Boolean);
+
+  if (transcriptWords.length === 0) {
+    return null;
+  }
+
+  const primarySearchStart =
+    currentLineIndex === null ? 0 : Math.min(lines.length - 1, currentLineIndex + 1);
+  const fallbackSearchStart = Math.max(0, currentLineIndex ?? 0);
+  const searchWindowSize = isFinal ? 24 : 14;
+  const usefulTranscriptWords = transcriptWords.filter((word) => word.length > 2);
+  const transcriptPhrases = getVoiceWordPhrases(transcriptWords);
+
+  const minimumScore = transcriptWords.length === 1 ? 2.25 : isFinal ? 3.5 : 5;
+  const primaryMatch = findBestVoiceLyricMatchInRange({
+    minimumScore,
+    searchEnd: primarySearchStart + searchWindowSize,
+    searchStart: primarySearchStart,
+    lines,
+    transcriptPhrases,
+    usefulTranscriptWords,
+    visibleSectionIds,
+  });
+
+  if (primaryMatch) {
+    return primaryMatch;
+  }
+
+  if (currentLineIndex === null) {
+    return null;
+  }
+
+  return findBestVoiceLyricMatchInRange({
+    minimumScore,
+    searchEnd: fallbackSearchStart + searchWindowSize,
+    searchStart: fallbackSearchStart,
+    lines,
+    transcriptPhrases,
+    usefulTranscriptWords,
+    visibleSectionIds,
+  });
+}
+
+function findBestVoiceLyricMatchInRange({
+  lines,
+  minimumScore,
+  searchEnd,
+  searchStart,
+  transcriptPhrases,
+  usefulTranscriptWords,
+  visibleSectionIds,
+}: {
+  lines: ChordSectionLine[];
+  minimumScore: number;
+  searchEnd: number;
+  searchStart: number;
+  transcriptPhrases: string[];
+  usefulTranscriptWords: string[];
+  visibleSectionIds: string[];
+}): { line: ChordSectionLine; score: number } | null {
+  let bestMatch: { line: ChordSectionLine; score: number } | null = null;
+
+  for (const line of lines) {
+    if (line.globalIndex < searchStart || line.globalIndex > searchEnd) {
+      continue;
+    }
+
+    const lineWords = line.normalizedLyric.split(" ").filter(Boolean);
+
+    if (!lineWords.length) {
+      continue;
+    }
+
+    let score = 0;
+    const lineText = ` ${line.normalizedLyric} `;
+
+    for (const phrase of transcriptPhrases) {
+      if (lineText.includes(` ${phrase} `)) {
+        score += phrase.split(" ").length >= 3 ? 8 : 5;
+      }
+    }
+
+    let matchedUsefulWordCount = 0;
+
+    for (const word of usefulTranscriptWords) {
+      if (lineWords.includes(word)) {
+        matchedUsefulWordCount += 1;
+        score += 1.5;
+      }
+    }
+
+    if (visibleSectionIds.includes(line.sectionId)) {
+      score += 2;
+    }
+
+    score -= Math.max(0, line.globalIndex - searchStart) * 0.25;
+
+    if (
+      matchedUsefulWordCount === 1 &&
+      usefulTranscriptWords.length === 1 &&
+      line.globalIndex - searchStart <= 8
+    ) {
+      score += 1.5;
+    }
+
+    if (!bestMatch || score > bestMatch.score) {
+      bestMatch = { line, score };
+    }
+  }
+
+  return bestMatch && bestMatch.score >= minimumScore ? bestMatch : null;
+}
+
+function getVoiceWordPhrases(words: string[]): string[] {
+  const phrases: string[] = [];
+  const phraseLengths = [4, 3, 2] as const;
+
+  for (const phraseLength of phraseLengths) {
+    for (let index = 0; index <= words.length - phraseLength; index += 1) {
+      const phrase = words.slice(index, index + phraseLength).join(" ");
+
+      if (!phrases.includes(phrase)) {
+        phrases.push(phrase);
+      }
+    }
+  }
+
+  return phrases;
+}
+
+function normalizeVoiceText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getBufferedVoicePhrase(chunks: VoiceTranscriptChunk[]): string {
+  const finalChunk = chunks.findLast((chunk) => chunk.isFinal);
+
+  if (finalChunk) {
+    return finalChunk.text.trim();
+  }
+
+  const phraseParts: string[] = [];
+
+  for (const chunk of chunks) {
+    const normalizedChunk = chunk.text.replace(/\s+/g, " ").trim();
+
+    if (!normalizedChunk) {
+      continue;
+    }
+
+    const previousPart = phraseParts[phraseParts.length - 1];
+
+    if (previousPart && normalizedChunk.startsWith(previousPart)) {
+      phraseParts[phraseParts.length - 1] = normalizedChunk;
+      continue;
+    }
+
+    if (previousPart && previousPart.startsWith(normalizedChunk)) {
+      continue;
+    }
+
+    phraseParts.push(normalizedChunk);
+  }
+
+  return phraseParts.join(" ").trim();
+}
+
+function trimVoiceToastText(value: string): string {
+  const normalizedValue = value.replace(/\s+/g, " ").trim();
+  return normalizedValue.length > 96
+    ? `${normalizedValue.slice(0, 93)}...`
+    : normalizedValue;
 }
 
 function createSectionId(title: string, index: number): string {
@@ -1178,11 +2281,13 @@ function PlayIcon() {
 }
 
 function ToolbarButton({
+  active = false,
   ariaLabel,
   children,
   isDarkMode,
   onClick,
 }: {
+  active?: boolean;
   ariaLabel: string;
   children: ReactNode;
   isDarkMode: boolean;
@@ -1192,9 +2297,12 @@ function ToolbarButton({
     <button
       type="button"
       aria-label={ariaLabel}
+      aria-pressed={active}
       onClick={onClick}
       className={`flex size-10 items-center justify-center rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
-        isDarkMode
+        active
+          ? "bg-[#ed1746] text-white hover:bg-[#d90f3b]"
+          : isDarkMode
           ? "text-[#f3f0e8] hover:bg-[#2b2d30]"
           : "text-[#111] hover:bg-[#f3f3f4]"
       }`}
@@ -1255,6 +2363,63 @@ function SparkIcon() {
       strokeWidth="2"
     >
       <path d="M13 2 9.7 9.7 2 13l7.7 3.3L13 24l3.3-7.7L24 13l-7.7-3.3L13 2Z" />
+    </svg>
+  );
+}
+
+function MicrophoneIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <path d="M12 19v3" />
+      <path d="M8 22h8" />
+    </svg>
+  );
+}
+
+function MinusIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      <path d="M5 12h14" />
+    </svg>
+  );
+}
+
+function ExpandIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+      <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+      <path d="M8 21H5a2 2 0 0 1-2-2v-3" />
+      <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
     </svg>
   );
 }
