@@ -97,6 +97,8 @@ const SECTION_VISIBILITY_CUTOFF_RATIO = 0.25;
 const VOICE_GUIDE_HIGHLIGHT_CLASS = "text-cyan-300";
 const VOICE_GUIDE_SCROLL_ANCHOR_RATIO = 0.25;
 const VOICE_GUIDE_SCROLL_DURATION_MS = 1400;
+const VOICE_GUIDE_BRIDGE_SCROLL_PIXELS_PER_SECOND = 22;
+const VOICE_GUIDE_FORWARD_LYRIC_WINDOW = 6;
 const VOICE_GUIDE_PAUSE_MS = 850;
 const VOICE_GUIDE_FINAL_PROCESS_MS = 150;
 const VOICE_GUIDE_MAX_PHRASE_MS = 3500;
@@ -200,6 +202,9 @@ export function ChordFullscreenPerformanceView({
   const visibleSectionIdsRef = useRef<string[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
+  const voiceBridgeScrollFrameRef = useRef<number | null>(null);
+  const voiceBridgeScrollTimeRef = useRef<number | null>(null);
+  const isVoiceProgrammaticScrollRef = useRef(false);
   const voiceScrollFrameRef = useRef<number | null>(null);
   const voiceFinalProcessTimeoutRef = useRef<number | null>(null);
   const voiceMaxPhraseTimeoutRef = useRef<number | null>(null);
@@ -255,6 +260,10 @@ export function ChordFullscreenPerformanceView({
       if (voiceScrollFrameRef.current !== null) {
         window.cancelAnimationFrame(voiceScrollFrameRef.current);
       }
+      if (voiceBridgeScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(voiceBridgeScrollFrameRef.current);
+      }
+      isVoiceProgrammaticScrollRef.current = false;
     },
     [],
   );
@@ -297,6 +306,7 @@ export function ChordFullscreenPerformanceView({
     }
 
     const cappedVisibleSectionIds = nextVisibleSectionIds.slice(0, 2);
+    visibleSectionIdsRef.current = cappedVisibleSectionIds;
 
     setVisibleSectionIds((currentIds) =>
       areStringArraysEqual(currentIds, cappedVisibleSectionIds)
@@ -304,6 +314,19 @@ export function ChordFullscreenPerformanceView({
         : cappedVisibleSectionIds,
     );
   }, [sections]);
+
+  const handleScrollerScroll = useCallback(() => {
+    updateVisibleSections();
+
+    if (!isVoiceGuideEnabled || isVoiceProgrammaticScrollRef.current) {
+      return;
+    }
+
+    if (matchedLineIndexRef.current !== null) {
+      matchedLineIndexRef.current = null;
+      setMatchedLineIndex(null);
+    }
+  }, [isVoiceGuideEnabled, updateVisibleSections]);
 
   useEffect(() => {
     const previousHtmlOverflow = document.documentElement.style.overflow;
@@ -392,6 +415,62 @@ export function ChordFullscreenPerformanceView({
     };
   }, [isVoiceGuideEnabled, scrollSpeed, updateVisibleSections]);
 
+  useEffect(() => {
+    const activeSectionId = visibleSectionIds[0];
+    const activeSectionIndex = sections.findIndex(
+      (section) => section.id === activeSectionId,
+    );
+    const shouldBridgeScroll =
+      isVoiceGuideEnabled &&
+      activeSectionIndex >= 0 &&
+      !sectionHasLyrics(sections[activeSectionIndex]) &&
+      sections
+        .slice(activeSectionIndex + 1)
+        .some((section) => sectionHasLyrics(section));
+
+    if (!shouldBridgeScroll) {
+      if (voiceBridgeScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(voiceBridgeScrollFrameRef.current);
+      }
+      voiceBridgeScrollFrameRef.current = null;
+      voiceBridgeScrollTimeRef.current = null;
+      if (voiceScrollFrameRef.current === null) {
+        isVoiceProgrammaticScrollRef.current = false;
+      }
+      return;
+    }
+
+    isVoiceProgrammaticScrollRef.current = true;
+
+    function step(timestamp: number): void {
+      const scroller = scrollerRef.current;
+
+      if (scroller) {
+        const lastTime = voiceBridgeScrollTimeRef.current ?? timestamp;
+        const elapsedSeconds = (timestamp - lastTime) / 1000;
+        scroller.scrollTop +=
+          elapsedSeconds * VOICE_GUIDE_BRIDGE_SCROLL_PIXELS_PER_SECOND;
+        voiceBridgeScrollTimeRef.current = timestamp;
+        updateVisibleSections();
+      }
+
+      voiceBridgeScrollFrameRef.current = window.requestAnimationFrame(step);
+    }
+
+    voiceBridgeScrollFrameRef.current = window.requestAnimationFrame(step);
+
+    return () => {
+      if (voiceBridgeScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(voiceBridgeScrollFrameRef.current);
+      }
+      voiceBridgeScrollFrameRef.current = null;
+      voiceBridgeScrollTimeRef.current = null;
+      if (voiceScrollFrameRef.current === null) {
+        isVoiceProgrammaticScrollRef.current = false;
+      }
+    };
+  }, [isVoiceGuideEnabled, sections, updateVisibleSections, visibleSectionIds]);
+
   const scrollLineToCenter = useCallback((lineIndex: number) => {
     const scroller = scrollerRef.current;
     const lineElement = lineRefs.current.get(lineIndex);
@@ -409,6 +488,12 @@ export function ChordFullscreenPerformanceView({
       window.cancelAnimationFrame(voiceScrollFrameRef.current);
       voiceScrollFrameRef.current = null;
     }
+    if (voiceBridgeScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(voiceBridgeScrollFrameRef.current);
+      voiceBridgeScrollFrameRef.current = null;
+      voiceBridgeScrollTimeRef.current = null;
+    }
+    isVoiceProgrammaticScrollRef.current = true;
 
     const activeScroller = scroller;
     const startTop = scroller.scrollTop;
@@ -426,6 +511,8 @@ export function ChordFullscreenPerformanceView({
         voiceScrollFrameRef.current = window.requestAnimationFrame(step);
       } else {
         voiceScrollFrameRef.current = null;
+        isVoiceProgrammaticScrollRef.current =
+          voiceBridgeScrollFrameRef.current !== null;
       }
     }
 
@@ -484,6 +571,8 @@ export function ChordFullscreenPerformanceView({
 
       if (status === "unsupported") {
         setVoiceGuideDebug(EMPTY_VOICE_GUIDE_DEBUG_STATE);
+        setMatchedLineIndex(null);
+        matchedLineIndexRef.current = null;
         setIsVoiceGuideEnabled(false);
         window.alert("Voice guide is not supported by this browser.");
       }
@@ -514,6 +603,7 @@ export function ChordFullscreenPerformanceView({
         currentLineIndex: matchedLineIndexRef.current,
         isFinal,
         lines: lyricLinesRef.current,
+        sections,
         transcript: batchText,
         visibleSectionIds: visibleSectionIdsRef.current,
       });
@@ -546,7 +636,7 @@ export function ChordFullscreenPerformanceView({
         transcript: batchText,
       };
     },
-    [scrollLineToCenter, showVoiceGuideToast],
+    [scrollLineToCenter, sections, showVoiceGuideToast],
   );
 
   const runVoiceTranscriptQueue = useCallback(() => {
@@ -785,6 +875,8 @@ export function ChordFullscreenPerformanceView({
       } else {
         setSpeechStatus("idle");
         setVoiceGuideToast(null);
+        setMatchedLineIndex(null);
+        matchedLineIndexRef.current = null;
         setVoiceGuideDebug(EMPTY_VOICE_GUIDE_DEBUG_STATE);
         voiceTranscriptBufferRef.current = [];
         pendingVoiceBatchRef.current = null;
@@ -1077,7 +1169,7 @@ export function ChordFullscreenPerformanceView({
         </div>
         <div
           ref={scrollerRef}
-          onScroll={updateVisibleSections}
+          onScroll={handleScrollerScroll}
           className="h-screen overflow-y-auto px-10 pb-[75vh] pt-[75vh]"
         >
           <div className="mx-auto max-w-[980px]">
@@ -1842,16 +1934,22 @@ function getLineLyricText(line: string): string {
     .trim();
 }
 
+function sectionHasLyrics(section: ChordSection): boolean {
+  return section.lines.some((line) => line.normalizedLyric);
+}
+
 function findBestVoiceLyricMatch({
   currentLineIndex,
   isFinal,
   lines,
+  sections,
   transcript,
   visibleSectionIds,
 }: {
   currentLineIndex: number | null;
   isFinal: boolean;
   lines: ChordSectionLine[];
+  sections: ChordSection[];
   transcript: string;
   visibleSectionIds: string[];
 }): { line: ChordSectionLine; score: number } | null {
@@ -1861,17 +1959,46 @@ function findBestVoiceLyricMatch({
     return null;
   }
 
+  const lyricBridgeRange = getLyricBridgeSearchRange({
+    currentLineIndex,
+    sections,
+    visibleSectionIds,
+  });
+  const visibleLyricRange =
+    currentLineIndex === null
+      ? getVisibleLyricSearchRange({
+          sections,
+          visibleSectionIds,
+        })
+      : null;
   const primarySearchStart =
-    currentLineIndex === null ? 0 : Math.min(lines.length - 1, currentLineIndex + 1);
+    lyricBridgeRange?.start ??
+    visibleLyricRange?.start ??
+    (currentLineIndex === null ? 0 : currentLineIndex + 1);
   const fallbackSearchStart = Math.max(0, currentLineIndex ?? 0);
-  const searchWindowSize = isFinal ? 24 : 14;
+  const primarySearchEnd =
+    lyricBridgeRange?.end ??
+    visibleLyricRange?.end ??
+    getForwardLyricSearchEnd({
+      lines,
+      searchStart: primarySearchStart,
+      windowSize: VOICE_GUIDE_FORWARD_LYRIC_WINDOW,
+    });
+  const fallbackSearchEnd =
+    currentLineIndex === null
+      ? fallbackSearchStart
+      : getForwardLyricSearchEnd({
+          lines,
+          searchStart: fallbackSearchStart,
+          windowSize: VOICE_GUIDE_FORWARD_LYRIC_WINDOW,
+        });
   const usefulTranscriptWords = transcriptWords.filter((word) => word.length > 2);
   const transcriptPhrases = getVoiceWordPhrases(transcriptWords);
 
   const minimumScore = transcriptWords.length === 1 ? 2.25 : isFinal ? 3.5 : 5;
   const primaryMatch = findBestVoiceLyricMatchInRange({
     minimumScore,
-    searchEnd: primarySearchStart + searchWindowSize,
+    searchEnd: primarySearchEnd,
     searchStart: primarySearchStart,
     lines,
     transcriptPhrases,
@@ -1889,13 +2016,118 @@ function findBestVoiceLyricMatch({
 
   return findBestVoiceLyricMatchInRange({
     minimumScore,
-    searchEnd: fallbackSearchStart + searchWindowSize,
+    searchEnd: fallbackSearchEnd,
     searchStart: fallbackSearchStart,
     lines,
     transcriptPhrases,
     usefulTranscriptWords,
     visibleSectionIds,
   });
+}
+
+function getVisibleLyricSearchRange({
+  sections,
+  visibleSectionIds,
+}: {
+  sections: ChordSection[];
+  visibleSectionIds: string[];
+}): { end: number; start: number } | null {
+  const visibleLyricLines = visibleSectionIds
+    .flatMap((sectionId) =>
+      sections.find((section) => section.id === sectionId)?.lines ?? [],
+    )
+    .filter((line) => line.normalizedLyric);
+
+  if (!visibleLyricLines.length) {
+    return null;
+  }
+
+  return {
+    end: visibleLyricLines[visibleLyricLines.length - 1].globalIndex,
+    start: visibleLyricLines[0].globalIndex,
+  };
+}
+
+function getForwardLyricSearchEnd({
+  lines,
+  searchStart,
+  windowSize,
+}: {
+  lines: ChordSectionLine[];
+  searchStart: number;
+  windowSize: number;
+}): number {
+  const forwardLines = lines.filter((line) => line.globalIndex >= searchStart);
+  const endLine = forwardLines[Math.max(0, windowSize - 1)] ?? forwardLines.at(-1);
+  return endLine?.globalIndex ?? searchStart;
+}
+
+function getLyricBridgeSearchRange({
+  currentLineIndex,
+  sections,
+  visibleSectionIds,
+}: {
+  currentLineIndex: number | null;
+  sections: ChordSection[];
+  visibleSectionIds: string[];
+}): { end: number; start: number } | null {
+  const visibleSectionIndex = sections.findIndex(
+    (section) => section.id === visibleSectionIds[0],
+  );
+
+  if (
+    visibleSectionIndex >= 0 &&
+    !sectionHasLyrics(sections[visibleSectionIndex])
+  ) {
+    return getNextLyricSectionRange(sections, visibleSectionIndex + 1);
+  }
+
+  if (currentLineIndex === null) {
+    return null;
+  }
+
+  const currentSectionIndex = sections.findIndex((section) =>
+    section.lines.some((line) => line.globalIndex === currentLineIndex),
+  );
+
+  if (currentSectionIndex < 0) {
+    return null;
+  }
+
+  const nextSectionIndex = currentSectionIndex + 1;
+
+  if (
+    nextSectionIndex < sections.length &&
+    !sectionHasLyrics(sections[nextSectionIndex])
+  ) {
+    return getNextLyricSectionRange(sections, nextSectionIndex + 1);
+  }
+
+  return null;
+}
+
+function getNextLyricSectionRange(
+  sections: ChordSection[],
+  startSectionIndex: number,
+): { end: number; start: number } | null {
+  for (
+    let sectionIndex = startSectionIndex;
+    sectionIndex < sections.length;
+    sectionIndex += 1
+  ) {
+    const lyricLines = sections[sectionIndex].lines.filter(
+      (line) => line.normalizedLyric,
+    );
+
+    if (lyricLines.length) {
+      return {
+        end: lyricLines[lyricLines.length - 1].globalIndex,
+        start: lyricLines[0].globalIndex,
+      };
+    }
+  }
+
+  return null;
 }
 
 function findBestVoiceLyricMatchInRange({
