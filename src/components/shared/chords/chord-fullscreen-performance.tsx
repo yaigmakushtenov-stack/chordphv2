@@ -96,6 +96,7 @@ const SECTION_ANCHOR_RATIO = 0.75;
 const SECTION_VISIBILITY_CUTOFF_RATIO = 0.25;
 const VOICE_GUIDE_HIGHLIGHT_CLASS = "text-cyan-300";
 const VOICE_GUIDE_SCROLL_ANCHOR_RATIO = 0.25;
+const VOICE_GUIDE_SCROLL_DURATION_MS = 1400;
 const VOICE_GUIDE_PAUSE_MS = 850;
 const VOICE_GUIDE_FINAL_PROCESS_MS = 150;
 const VOICE_GUIDE_MAX_PHRASE_MS = 3500;
@@ -199,7 +200,7 @@ export function ChordFullscreenPerformanceView({
   const visibleSectionIdsRef = useRef<string[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
-  const lastVoiceScrollTimeRef = useRef(0);
+  const voiceScrollFrameRef = useRef<number | null>(null);
   const voiceFinalProcessTimeoutRef = useRef<number | null>(null);
   const voiceMaxPhraseTimeoutRef = useRef<number | null>(null);
   const voicePauseTimeoutRef = useRef<number | null>(null);
@@ -250,6 +251,9 @@ export function ChordFullscreenPerformanceView({
       }
       if (voiceQueueProcessTimeoutRef.current !== null) {
         window.clearTimeout(voiceQueueProcessTimeoutRef.current);
+      }
+      if (voiceScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(voiceScrollFrameRef.current);
       }
     },
     [],
@@ -401,12 +405,32 @@ export function ChordFullscreenPerformanceView({
       lineElement.offsetTop - scroller.clientHeight * VOICE_GUIDE_SCROLL_ANCHOR_RATIO,
     );
 
-    scroller.scrollTo({
-      top: targetTop,
-      behavior: "smooth",
-    });
-    lastVoiceScrollTimeRef.current = Date.now();
-  }, []);
+    if (voiceScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(voiceScrollFrameRef.current);
+      voiceScrollFrameRef.current = null;
+    }
+
+    const activeScroller = scroller;
+    const startTop = scroller.scrollTop;
+    const distance = targetTop - startTop;
+    const startTime = performance.now();
+
+    function step(timestamp: number): void {
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(1, elapsed / VOICE_GUIDE_SCROLL_DURATION_MS);
+      const easedProgress = 1 - (1 - progress) ** 3;
+      activeScroller.scrollTop = startTop + distance * easedProgress;
+      updateVisibleSections();
+
+      if (progress < 1) {
+        voiceScrollFrameRef.current = window.requestAnimationFrame(step);
+      } else {
+        voiceScrollFrameRef.current = null;
+      }
+    }
+
+    voiceScrollFrameRef.current = window.requestAnimationFrame(step);
+  }, [updateVisibleSections]);
 
   const showVoiceGuideToast = useCallback(
     (toast: VoiceGuideToast, timeoutMs = 2500) => {
@@ -1369,6 +1393,12 @@ function VoiceGuideDebugPanel({
     });
   }
 
+  function handlePanelPointerUp(event: PointerEvent<HTMLDivElement>): void {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
   return (
     <div
       ref={panelRef}
@@ -1387,6 +1417,8 @@ function VoiceGuideDebugPanel({
         className="flex cursor-grab touch-none select-none items-center justify-between gap-3 px-4 py-3 active:cursor-grabbing"
         onPointerDown={handlePanelPointerDown}
         onPointerMove={handlePanelPointerMove}
+        onPointerCancel={handlePanelPointerUp}
+        onPointerUp={handlePanelPointerUp}
       >
         <div className="flex min-w-0 items-center gap-2">
           <span
@@ -1417,6 +1449,7 @@ function VoiceGuideDebugPanel({
           <button
             type="button"
             aria-label={isMinimized ? "Expand voice debug panel" : "Minimize voice debug panel"}
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
               setIsMinimized((value) => !value);
