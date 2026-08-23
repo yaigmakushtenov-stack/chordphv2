@@ -80,6 +80,12 @@ type VoiceLyricMatch = {
   score: number;
 };
 
+type VoiceMatchTiming = {
+  estimatedWordsPerSecond: number;
+  lastMatchedAt: number | null;
+  lastMatchedAbsoluteWordIndex: number | null;
+};
+
 type VoiceGuideDebugState = {
   activeBatch: string | null;
   captureChunkCount: number;
@@ -108,6 +114,9 @@ const VOICE_GUIDE_SCROLL_DURATION_MS = 1400;
 const VOICE_GUIDE_BRIDGE_SCROLL_PIXELS_PER_SECOND = 22;
 const VOICE_GUIDE_FORWARD_LYRIC_WINDOW = 6;
 const VOICE_GUIDE_LINE_COMPLETE_RATIO = 0.82;
+const VOICE_GUIDE_DEFAULT_WORDS_PER_SECOND = 2;
+const VOICE_GUIDE_MAX_TRACKED_WORDS_PER_SECOND = 3.2;
+const VOICE_GUIDE_WORD_JUMP_GRACE = 3;
 const VOICE_GUIDE_PAUSE_MS = 850;
 const VOICE_GUIDE_FINAL_PROCESS_MS = 150;
 const VOICE_GUIDE_MAX_PHRASE_MS = 3500;
@@ -213,6 +222,11 @@ export function ChordFullscreenPerformanceView({
   const matchedLineIndexRef = useRef<number | null>(null);
   const matchedLineProgressRef = useRef(0);
   const matchedLineWordEndIndexRef = useRef<number | null>(null);
+  const estimatedVoiceWordsPerSecondRef = useRef(
+    VOICE_GUIDE_DEFAULT_WORDS_PER_SECOND,
+  );
+  const lastVoiceMatchedAtRef = useRef<number | null>(null);
+  const lastVoiceMatchedAbsoluteWordIndexRef = useRef<number | null>(null);
   const visibleSectionIdsRef = useRef<string[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
@@ -319,7 +333,15 @@ export function ChordFullscreenPerformanceView({
       nextVisibleSectionIds.push(sections[0].id);
     }
 
-    const cappedVisibleSectionIds = nextVisibleSectionIds.slice(0, 2);
+    const firstVisibleSectionIds = nextVisibleSectionIds.slice(0, 2);
+    const shouldIncludeBridgeSection = firstVisibleSectionIds.some((sectionId) => {
+      const section = sections.find((candidate) => candidate.id === sectionId);
+      return section ? !sectionHasLyrics(section) : false;
+    });
+    const cappedVisibleSectionIds = nextVisibleSectionIds.slice(
+      0,
+      shouldIncludeBridgeSection ? 3 : 2,
+    );
     visibleSectionIdsRef.current = cappedVisibleSectionIds;
 
     setVisibleSectionIds((currentIds) =>
@@ -340,6 +362,10 @@ export function ChordFullscreenPerformanceView({
       matchedLineIndexRef.current = null;
       matchedLineProgressRef.current = 0;
       matchedLineWordEndIndexRef.current = null;
+      estimatedVoiceWordsPerSecondRef.current =
+        VOICE_GUIDE_DEFAULT_WORDS_PER_SECOND;
+      lastVoiceMatchedAtRef.current = null;
+      lastVoiceMatchedAbsoluteWordIndexRef.current = null;
       setMatchedLineIndex(null);
       setMatchedLineWordEndIndex(null);
     }
@@ -593,6 +619,10 @@ export function ChordFullscreenPerformanceView({
       matchedLineIndexRef.current = null;
       matchedLineProgressRef.current = 0;
       matchedLineWordEndIndexRef.current = null;
+      estimatedVoiceWordsPerSecondRef.current =
+        VOICE_GUIDE_DEFAULT_WORDS_PER_SECOND;
+      lastVoiceMatchedAtRef.current = null;
+      lastVoiceMatchedAbsoluteWordIndexRef.current = null;
       setIsVoiceGuideEnabled(false);
         window.alert("Voice guide is not supported by this browser.");
       }
@@ -625,6 +655,12 @@ export function ChordFullscreenPerformanceView({
         isFinal,
         lines: lyricLinesRef.current,
         sections,
+        timing: {
+          estimatedWordsPerSecond: estimatedVoiceWordsPerSecondRef.current,
+          lastMatchedAt: lastVoiceMatchedAtRef.current,
+          lastMatchedAbsoluteWordIndex:
+            lastVoiceMatchedAbsoluteWordIndexRef.current,
+        },
         transcript: batchText,
         visibleSectionIds: visibleSectionIdsRef.current,
       });
@@ -656,6 +692,22 @@ export function ChordFullscreenPerformanceView({
             )
           : match.matchedWordEndIndex;
       matchedLineIndexRef.current = match.line.globalIndex;
+      const now = Date.now();
+      const nextAbsoluteWordIndex =
+        getAbsoluteLyricWordIndex({
+          lines: lyricLinesRef.current,
+          line: match.line,
+          matchedWordEndIndex: matchedLineWordEndIndexRef.current ?? 0,
+        });
+      estimatedVoiceWordsPerSecondRef.current = updateEstimatedVoiceWordsPerSecond({
+        currentAbsoluteWordIndex: nextAbsoluteWordIndex,
+        currentMatchedAt: now,
+        currentWordsPerSecond: estimatedVoiceWordsPerSecondRef.current,
+        lastAbsoluteWordIndex: lastVoiceMatchedAbsoluteWordIndexRef.current,
+        lastMatchedAt: lastVoiceMatchedAtRef.current,
+      });
+      lastVoiceMatchedAtRef.current = now;
+      lastVoiceMatchedAbsoluteWordIndexRef.current = nextAbsoluteWordIndex;
       setMatchedLineIndex(match.line.globalIndex);
       setMatchedLineWordEndIndex(matchedLineWordEndIndexRef.current);
       scrollLineToCenter(match.line.globalIndex);
@@ -903,6 +955,10 @@ export function ChordFullscreenPerformanceView({
       matchedLineIndexRef.current = firstLyricLine.globalIndex;
       matchedLineProgressRef.current = 0;
       matchedLineWordEndIndexRef.current = null;
+      estimatedVoiceWordsPerSecondRef.current =
+        VOICE_GUIDE_DEFAULT_WORDS_PER_SECOND;
+      lastVoiceMatchedAtRef.current = null;
+      lastVoiceMatchedAbsoluteWordIndexRef.current = null;
     }
   }
 
@@ -920,6 +976,10 @@ export function ChordFullscreenPerformanceView({
         matchedLineIndexRef.current = null;
         matchedLineProgressRef.current = 0;
         matchedLineWordEndIndexRef.current = null;
+        estimatedVoiceWordsPerSecondRef.current =
+          VOICE_GUIDE_DEFAULT_WORDS_PER_SECOND;
+        lastVoiceMatchedAtRef.current = null;
+        lastVoiceMatchedAbsoluteWordIndexRef.current = null;
         setVoiceGuideDebug(EMPTY_VOICE_GUIDE_DEBUG_STATE);
         voiceTranscriptBufferRef.current = [];
         pendingVoiceBatchRef.current = null;
@@ -1482,7 +1542,7 @@ function VoiceGuideDebugPanel({
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const hasSetInitialPanelPositionRef = useRef(false);
   const [isMinimized, setIsMinimized] = useState(true);
-  const [panelPosition, setPanelPosition] = useState({ x: 20, y: 64 });
+  const [panelPosition, setPanelPosition] = useState({ x: 20, y: 94 });
   const isRecognizerError = speechStatus === "error";
   const displayedAudioLevel = isRecognizerError ? 0 : voiceAudioLevel;
   const recognizerDiagnosis = getVoiceRecognizerDiagnosis(debug, speechStatus);
@@ -1512,7 +1572,7 @@ function VoiceGuideDebugPanel({
     hasSetInitialPanelPositionRef.current = true;
     setPanelPosition({
       x: Math.max(20, parent.clientWidth - 340),
-      y: 64,
+      y: 94,
     });
   }, []);
 
@@ -2052,6 +2112,7 @@ function findBestVoiceLyricMatch({
   isFinal,
   lines,
   sections,
+  timing,
   transcript,
   visibleSectionIds,
 }: {
@@ -2060,6 +2121,7 @@ function findBestVoiceLyricMatch({
   isFinal: boolean;
   lines: ChordSectionLine[];
   sections: ChordSection[];
+  timing: VoiceMatchTiming;
   transcript: string;
   visibleSectionIds: string[];
 }): VoiceLyricMatch | null {
@@ -2118,6 +2180,7 @@ function findBestVoiceLyricMatch({
       searchStart: currentLineIndex,
       lines,
       transcriptPhrases,
+      timing,
       usefulTranscriptWords,
       visibleSectionIds,
     });
@@ -2136,6 +2199,7 @@ function findBestVoiceLyricMatch({
     searchStart: primarySearchStart,
     lines,
     transcriptPhrases,
+    timing,
     usefulTranscriptWords,
     visibleSectionIds,
   });
@@ -2154,6 +2218,7 @@ function findBestVoiceLyricMatch({
     searchStart: fallbackSearchStart,
     lines,
     transcriptPhrases,
+    timing,
     usefulTranscriptWords,
     visibleSectionIds,
   });
@@ -2194,6 +2259,128 @@ function getForwardLyricSearchEnd({
   const forwardLines = lines.filter((line) => line.globalIndex >= searchStart);
   const endLine = forwardLines[Math.max(0, windowSize - 1)] ?? forwardLines.at(-1);
   return endLine?.globalIndex ?? searchStart;
+}
+
+function getAbsoluteLyricWordIndex({
+  line,
+  lines,
+  matchedWordEndIndex,
+}: {
+  line: ChordSectionLine;
+  lines: ChordSectionLine[];
+  matchedWordEndIndex: number;
+}): number {
+  let absoluteWordIndex = 0;
+
+  for (const candidateLine of lines) {
+    if (candidateLine.globalIndex === line.globalIndex) {
+      return absoluteWordIndex + matchedWordEndIndex;
+    }
+
+    absoluteWordIndex += candidateLine.normalizedLyric.split(" ").filter(Boolean).length;
+  }
+
+  return absoluteWordIndex + matchedWordEndIndex;
+}
+
+function getVoiceVelocityPenalty({
+  absoluteWordIndex,
+  timing,
+}: {
+  absoluteWordIndex: number;
+  timing: VoiceMatchTiming;
+}): number {
+  if (
+    timing.lastMatchedAbsoluteWordIndex === null ||
+    timing.lastMatchedAt === null ||
+    absoluteWordIndex <= timing.lastMatchedAbsoluteWordIndex
+  ) {
+    return 0;
+  }
+
+  const elapsedSeconds = Math.max(0.25, (Date.now() - timing.lastMatchedAt) / 1000);
+  const allowedWordDelta =
+    elapsedSeconds * timing.estimatedWordsPerSecond + VOICE_GUIDE_WORD_JUMP_GRACE;
+  const actualWordDelta = absoluteWordIndex - timing.lastMatchedAbsoluteWordIndex;
+  const excessWordDelta = actualWordDelta - allowedWordDelta;
+
+  return excessWordDelta > 0 ? excessWordDelta * 1.5 : 0;
+}
+
+function isVoiceVelocityPlausible({
+  absoluteWordIndex,
+  line,
+  searchStart,
+  timing,
+}: {
+  absoluteWordIndex: number;
+  line: ChordSectionLine;
+  searchStart: number;
+  timing: VoiceMatchTiming;
+}): boolean {
+  if (
+    timing.lastMatchedAbsoluteWordIndex === null ||
+    timing.lastMatchedAt === null ||
+    absoluteWordIndex <= timing.lastMatchedAbsoluteWordIndex
+  ) {
+    return true;
+  }
+
+  const elapsedSeconds = Math.max(0.25, (Date.now() - timing.lastMatchedAt) / 1000);
+  const allowedWordDelta =
+    elapsedSeconds * timing.estimatedWordsPerSecond + VOICE_GUIDE_WORD_JUMP_GRACE;
+  const actualWordDelta = absoluteWordIndex - timing.lastMatchedAbsoluteWordIndex;
+
+  if (actualWordDelta > allowedWordDelta) {
+    return false;
+  }
+
+  return line.globalIndex - searchStart <= 3;
+}
+
+function updateEstimatedVoiceWordsPerSecond({
+  currentAbsoluteWordIndex,
+  currentMatchedAt,
+  currentWordsPerSecond,
+  lastAbsoluteWordIndex,
+  lastMatchedAt,
+}: {
+  currentAbsoluteWordIndex: number;
+  currentMatchedAt: number;
+  currentWordsPerSecond: number;
+  lastAbsoluteWordIndex: number | null;
+  lastMatchedAt: number | null;
+}): number {
+  if (
+    lastAbsoluteWordIndex === null ||
+    lastMatchedAt === null ||
+    currentAbsoluteWordIndex <= lastAbsoluteWordIndex
+  ) {
+    return currentWordsPerSecond;
+  }
+
+  const elapsedSeconds = (currentMatchedAt - lastMatchedAt) / 1000;
+
+  if (elapsedSeconds < 0.5) {
+    return currentWordsPerSecond;
+  }
+
+  const measuredWordsPerSecond =
+    (currentAbsoluteWordIndex - lastAbsoluteWordIndex) / elapsedSeconds;
+
+  if (
+    measuredWordsPerSecond <= 0 ||
+    measuredWordsPerSecond > VOICE_GUIDE_MAX_TRACKED_WORDS_PER_SECOND * 2
+  ) {
+    return currentWordsPerSecond;
+  }
+
+  const cappedMeasuredWordsPerSecond = Math.min(
+    VOICE_GUIDE_MAX_TRACKED_WORDS_PER_SECOND,
+    Math.max(0.8, measuredWordsPerSecond),
+  );
+
+  return currentWordsPerSecond * 0.7 + cappedMeasuredWordsPerSecond * 0.3;
 }
 
 function getLyricBridgeSearchRange({
@@ -2270,6 +2457,7 @@ function findBestVoiceLyricMatchInRange({
   searchEnd,
   searchStart,
   transcriptPhrases,
+  timing,
   usefulTranscriptWords,
   visibleSectionIds,
 }: {
@@ -2278,6 +2466,7 @@ function findBestVoiceLyricMatchInRange({
   searchEnd: number;
   searchStart: number;
   transcriptPhrases: string[];
+  timing: VoiceMatchTiming;
   usefulTranscriptWords: string[];
   visibleSectionIds: string[];
 }): VoiceLyricMatch | null {
@@ -2339,6 +2528,27 @@ function findBestVoiceLyricMatchInRange({
     }
 
     const progressRatio = (matchedWordEndIndex + 1) / lineWords.length;
+    const absoluteWordIndex = getAbsoluteLyricWordIndex({
+        lines,
+        line,
+        matchedWordEndIndex,
+      });
+
+    if (
+      !isVoiceVelocityPlausible({
+        absoluteWordIndex,
+        line,
+        searchStart,
+        timing,
+      })
+    ) {
+      continue;
+    }
+
+    score -= getVoiceVelocityPenalty({
+      absoluteWordIndex,
+      timing,
+    });
 
     if (!bestMatch || score > bestMatch.score) {
       bestMatch = { line, matchedWordEndIndex, progressRatio, score };
