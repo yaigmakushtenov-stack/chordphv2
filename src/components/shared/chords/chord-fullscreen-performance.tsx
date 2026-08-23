@@ -67,9 +67,17 @@ type VoiceTranscriptBatch = {
 type VoiceProcessingResult = {
   lineNumber: number | null;
   matchedText: string | null;
+  progressRatio: number | null;
   score: number | null;
   status: "matched" | "no-match";
   transcript: string;
+};
+
+type VoiceLyricMatch = {
+  line: ChordSectionLine;
+  matchedWordEndIndex: number;
+  progressRatio: number;
+  score: number;
 };
 
 type VoiceGuideDebugState = {
@@ -99,6 +107,7 @@ const VOICE_GUIDE_SCROLL_ANCHOR_RATIO = 0.25;
 const VOICE_GUIDE_SCROLL_DURATION_MS = 1400;
 const VOICE_GUIDE_BRIDGE_SCROLL_PIXELS_PER_SECOND = 22;
 const VOICE_GUIDE_FORWARD_LYRIC_WINDOW = 6;
+const VOICE_GUIDE_LINE_COMPLETE_RATIO = 0.82;
 const VOICE_GUIDE_PAUSE_MS = 850;
 const VOICE_GUIDE_FINAL_PROCESS_MS = 150;
 const VOICE_GUIDE_MAX_PHRASE_MS = 3500;
@@ -188,6 +197,9 @@ export function ChordFullscreenPerformanceView({
     useState<BrowserSpeechStatus>("idle");
   const [voiceAudioLevel, setVoiceAudioLevel] = useState(0);
   const [matchedLineIndex, setMatchedLineIndex] = useState<number | null>(null);
+  const [matchedLineWordEndIndex, setMatchedLineWordEndIndex] = useState<
+    number | null
+  >(null);
   const [voiceGuideToast, setVoiceGuideToast] =
     useState<VoiceGuideToast | null>(null);
   const [voiceGuideDebug, setVoiceGuideDebug] =
@@ -199,6 +211,8 @@ export function ChordFullscreenPerformanceView({
   const lineRefs = useRef(new Map<number, HTMLParagraphElement>());
   const lyricLinesRef = useRef<ChordSectionLine[]>([]);
   const matchedLineIndexRef = useRef<number | null>(null);
+  const matchedLineProgressRef = useRef(0);
+  const matchedLineWordEndIndexRef = useRef<number | null>(null);
   const visibleSectionIdsRef = useRef<string[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
@@ -324,7 +338,10 @@ export function ChordFullscreenPerformanceView({
 
     if (matchedLineIndexRef.current !== null) {
       matchedLineIndexRef.current = null;
+      matchedLineProgressRef.current = 0;
+      matchedLineWordEndIndexRef.current = null;
       setMatchedLineIndex(null);
+      setMatchedLineWordEndIndex(null);
     }
   }, [isVoiceGuideEnabled, updateVisibleSections]);
 
@@ -570,10 +587,13 @@ export function ChordFullscreenPerformanceView({
       }
 
       if (status === "unsupported") {
-        setVoiceGuideDebug(EMPTY_VOICE_GUIDE_DEBUG_STATE);
-        setMatchedLineIndex(null);
-        matchedLineIndexRef.current = null;
-        setIsVoiceGuideEnabled(false);
+      setVoiceGuideDebug(EMPTY_VOICE_GUIDE_DEBUG_STATE);
+      setMatchedLineIndex(null);
+      setMatchedLineWordEndIndex(null);
+      matchedLineIndexRef.current = null;
+      matchedLineProgressRef.current = 0;
+      matchedLineWordEndIndexRef.current = null;
+      setIsVoiceGuideEnabled(false);
         window.alert("Voice guide is not supported by this browser.");
       }
     },
@@ -601,6 +621,7 @@ export function ChordFullscreenPerformanceView({
     ({ isFinal, text: batchText }: VoiceTranscriptBatch): VoiceProcessingResult => {
       const match = findBestVoiceLyricMatch({
         currentLineIndex: matchedLineIndexRef.current,
+        currentLineProgressRatio: matchedLineProgressRef.current,
         isFinal,
         lines: lyricLinesRef.current,
         sections,
@@ -616,13 +637,27 @@ export function ChordFullscreenPerformanceView({
         return {
           lineNumber: null,
           matchedText: null,
+          progressRatio: null,
           score: null,
           status: "no-match",
           transcript: batchText,
         };
       }
 
+      matchedLineProgressRef.current =
+        match.line.globalIndex === matchedLineIndexRef.current
+          ? Math.max(matchedLineProgressRef.current, match.progressRatio)
+          : match.progressRatio;
+      matchedLineWordEndIndexRef.current =
+        match.line.globalIndex === matchedLineIndexRef.current
+          ? Math.max(
+              matchedLineWordEndIndexRef.current ?? -1,
+              match.matchedWordEndIndex,
+            )
+          : match.matchedWordEndIndex;
+      matchedLineIndexRef.current = match.line.globalIndex;
       setMatchedLineIndex(match.line.globalIndex);
+      setMatchedLineWordEndIndex(matchedLineWordEndIndexRef.current);
       scrollLineToCenter(match.line.globalIndex);
       showVoiceGuideToast({
         title: `Matched line ${match.line.globalIndex + 1}`,
@@ -631,6 +666,7 @@ export function ChordFullscreenPerformanceView({
       return {
         lineNumber: match.line.globalIndex + 1,
         matchedText: match.line.lyricText,
+        progressRatio: matchedLineProgressRef.current,
         score: match.score,
         status: "matched",
         transcript: batchText,
@@ -863,6 +899,10 @@ export function ChordFullscreenPerformanceView({
 
     if (firstLyricLine) {
       setMatchedLineIndex(firstLyricLine.globalIndex);
+      setMatchedLineWordEndIndex(null);
+      matchedLineIndexRef.current = firstLyricLine.globalIndex;
+      matchedLineProgressRef.current = 0;
+      matchedLineWordEndIndexRef.current = null;
     }
   }
 
@@ -876,7 +916,10 @@ export function ChordFullscreenPerformanceView({
         setSpeechStatus("idle");
         setVoiceGuideToast(null);
         setMatchedLineIndex(null);
+        setMatchedLineWordEndIndex(null);
         matchedLineIndexRef.current = null;
+        matchedLineProgressRef.current = 0;
+        matchedLineWordEndIndexRef.current = null;
         setVoiceGuideDebug(EMPTY_VOICE_GUIDE_DEBUG_STATE);
         voiceTranscriptBufferRef.current = [];
         pendingVoiceBatchRef.current = null;
@@ -1220,8 +1263,16 @@ export function ChordFullscreenPerformanceView({
                               lineRefs.current.delete(line.globalIndex);
                             }
                           }}
-                          isActive={matchedLineIndex === line.globalIndex}
-                          isPassed={
+                          highlightedWordEndIndex={
+                            matchedLineIndex === line.globalIndex
+                              ? matchedLineWordEndIndex
+                              : matchedLineIndex !== null &&
+                                  line.globalIndex < matchedLineIndex
+                                ? Number.MAX_SAFE_INTEGER
+                                : null
+                          }
+                          isCurrentMatch={matchedLineIndex === line.globalIndex}
+                          isPassedLine={
                             matchedLineIndex !== null &&
                             line.globalIndex < matchedLineIndex
                           }
@@ -1429,8 +1480,9 @@ function VoiceGuideDebugPanel({
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [panelPosition, setPanelPosition] = useState({ x: 20, y: 80 });
+  const hasSetInitialPanelPositionRef = useRef(false);
+  const [isMinimized, setIsMinimized] = useState(true);
+  const [panelPosition, setPanelPosition] = useState({ x: 20, y: 64 });
   const isRecognizerError = speechStatus === "error";
   const displayedAudioLevel = isRecognizerError ? 0 : voiceAudioLevel;
   const recognizerDiagnosis = getVoiceRecognizerDiagnosis(debug, speechStatus);
@@ -1444,6 +1496,25 @@ function VoiceGuideDebugPanel({
     debug.lastResult?.status === "matched"
       ? debug.lastResult.matchedText
       : debug.lastResult?.transcript;
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    const parent = panel?.offsetParent;
+
+    if (
+      hasSetInitialPanelPositionRef.current ||
+      !panel ||
+      !(parent instanceof HTMLElement)
+    ) {
+      return;
+    }
+
+    hasSetInitialPanelPositionRef.current = true;
+    setPanelPosition({
+      x: Math.max(20, parent.clientWidth - 340),
+      y: 64,
+    });
+  }, []);
 
   function handlePanelPointerDown(event: PointerEvent<HTMLDivElement>): void {
     const panel = panelRef.current;
@@ -1657,7 +1728,9 @@ function VoiceGuideDebugPanel({
           label={
             debug.lastResult?.score === null || debug.lastResult?.score === undefined
               ? "Last result"
-              : `Last result (${debug.lastResult.score.toFixed(1)})`
+              : `Last result (${debug.lastResult.score.toFixed(1)} / ${Math.round(
+                  (debug.lastResult.progressRatio ?? 0) * 100,
+                )}%)`
           }
           value={resultDetail}
         />
@@ -1755,69 +1828,104 @@ function getVoiceRecognizerDiagnosis(
 }
 
 const ChordPerformanceLine = forwardRef<HTMLParagraphElement, {
-  isActive: boolean;
+  highlightedWordEndIndex: number | null;
+  isCurrentMatch: boolean;
   isDarkMode: boolean;
-  isPassed: boolean;
+  isPassedLine: boolean;
   line: string;
   passedHighlightClass: string;
 }>(function ChordPerformanceLine({
-  isActive,
+  highlightedWordEndIndex,
+  isCurrentMatch,
   isDarkMode,
-  isPassed,
+  isPassedLine,
   line,
   passedHighlightClass,
 }, ref) {
-  const parts = line.split(/(\[[^\]\r\n]+\])/g).filter(Boolean);
-  const lineClassName = isActive
-    ? "rounded-md bg-cyan-300/10 text-cyan-300 shadow-[0_0_0_1px_rgba(103,232,249,0.18)]"
-    : "whitespace-pre-wrap";
-  const highlightedTextClassName = isActive || isPassed ? passedHighlightClass : "";
+  const parts = getChordPerformanceLineParts(line);
 
   return (
-    <p ref={ref} className={`whitespace-pre-wrap ${lineClassName}`}>
+    <p ref={ref} className="whitespace-pre-wrap">
       {parts.map((part, index) => {
-        if (!part.startsWith("[") || !part.endsWith("]")) {
+        if (part.kind === "space") {
+          return part.value;
+        }
+
+        if (part.kind === "word") {
+          const isHighlighted =
+            highlightedWordEndIndex !== null &&
+            part.wordIndex <= highlightedWordEndIndex;
+
           return (
-            <span key={index} className={highlightedTextClassName}>
-              {part}
+            <span
+              key={index}
+              className={isHighlighted ? passedHighlightClass : ""}
+            >
+              {part.value}
             </span>
           );
         }
 
-        const value = part.slice(1, -1).trim();
-        const isChord = Boolean(transposeChord(value, 0, "sharps"));
-
-        return isChord ? (
+        return part.kind === "chord" ? (
           <span
             key={index}
             className={`mr-1.5 inline-block font-sans text-[14px] font-black leading-none ${
-              isActive || isPassed
-                ? passedHighlightClass
-                : isDarkMode
-                  ? "text-[#f3f0e8]"
-                  : "text-[#111]"
+              isDarkMode ? "text-[#f3f0e8]" : "text-[#111]"
             }`}
           >
-            {value}
+            {part.value}
           </span>
         ) : (
           <strong
             key={index}
             className={`mr-1.5 inline-block font-sans text-[14px] font-black ${
-              isActive || isPassed
+              isCurrentMatch || isPassedLine
                 ? passedHighlightClass
                 : isDarkMode
                   ? "text-[#9a9da3]"
                   : "text-[#555]"
             }`}
           >
-            {value}
+            {part.value}
           </strong>
         );
       })}
     </p>
   );
 });
+
+type ChordPerformanceLinePart =
+  | { kind: "chord" | "label" | "space"; value: string }
+  | { kind: "word"; value: string; wordIndex: number };
+
+function getChordPerformanceLineParts(line: string): ChordPerformanceLinePart[] {
+  const lineParts = line.split(/(\[[^\]\r\n]+\])/g).filter(Boolean);
+  const renderedParts: ChordPerformanceLinePart[] = [];
+  let wordIndex = 0;
+
+  for (const linePart of lineParts) {
+    if (linePart.startsWith("[") && linePart.endsWith("]")) {
+      const value = linePart.slice(1, -1).trim();
+      renderedParts.push({
+        kind: transposeChord(value, 0, "sharps") ? "chord" : "label",
+        value,
+      });
+      continue;
+    }
+
+    for (const token of linePart.split(/(\s+)/)) {
+      if (!token.trim()) {
+        renderedParts.push({ kind: "space", value: token });
+        continue;
+      }
+
+      renderedParts.push({ kind: "word", value: token, wordIndex });
+      wordIndex += 1;
+    }
+  }
+
+  return renderedParts;
+}
 
 function SectionNumberBadge({
   isDarkMode,
@@ -1940,6 +2048,7 @@ function sectionHasLyrics(section: ChordSection): boolean {
 
 function findBestVoiceLyricMatch({
   currentLineIndex,
+  currentLineProgressRatio,
   isFinal,
   lines,
   sections,
@@ -1947,12 +2056,13 @@ function findBestVoiceLyricMatch({
   visibleSectionIds,
 }: {
   currentLineIndex: number | null;
+  currentLineProgressRatio: number;
   isFinal: boolean;
   lines: ChordSectionLine[];
   sections: ChordSection[];
   transcript: string;
   visibleSectionIds: string[];
-}): { line: ChordSectionLine; score: number } | null {
+}): VoiceLyricMatch | null {
   const transcriptWords = normalizeVoiceText(transcript).split(" ").filter(Boolean);
 
   if (transcriptWords.length === 0) {
@@ -1996,6 +2106,30 @@ function findBestVoiceLyricMatch({
   const transcriptPhrases = getVoiceWordPhrases(transcriptWords);
 
   const minimumScore = transcriptWords.length === 1 ? 2.25 : isFinal ? 3.5 : 5;
+
+  if (
+    currentLineIndex !== null &&
+    !lyricBridgeRange &&
+    currentLineProgressRatio < VOICE_GUIDE_LINE_COMPLETE_RATIO
+  ) {
+    const currentLineMatch = findBestVoiceLyricMatchInRange({
+      minimumScore,
+      searchEnd: currentLineIndex,
+      searchStart: currentLineIndex,
+      lines,
+      transcriptPhrases,
+      usefulTranscriptWords,
+      visibleSectionIds,
+    });
+
+    if (
+      currentLineMatch &&
+      currentLineMatch.progressRatio >= currentLineProgressRatio
+    ) {
+      return currentLineMatch;
+    }
+  }
+
   const primaryMatch = findBestVoiceLyricMatchInRange({
     minimumScore,
     searchEnd: primarySearchEnd,
@@ -2146,8 +2280,8 @@ function findBestVoiceLyricMatchInRange({
   transcriptPhrases: string[];
   usefulTranscriptWords: string[];
   visibleSectionIds: string[];
-}): { line: ChordSectionLine; score: number } | null {
-  let bestMatch: { line: ChordSectionLine; score: number } | null = null;
+}): VoiceLyricMatch | null {
+  let bestMatch: VoiceLyricMatch | null = null;
 
   for (const line of lines) {
     if (line.globalIndex < searchStart || line.globalIndex > searchEnd) {
@@ -2162,19 +2296,27 @@ function findBestVoiceLyricMatchInRange({
 
     let score = 0;
     const lineText = ` ${line.normalizedLyric} `;
+    let matchedWordEndIndex = -1;
 
     for (const phrase of transcriptPhrases) {
       if (lineText.includes(` ${phrase} `)) {
         score += phrase.split(" ").length >= 3 ? 8 : 5;
+        matchedWordEndIndex = Math.max(
+          matchedWordEndIndex,
+          getMatchedPhraseEndIndex(lineWords, phrase),
+        );
       }
     }
 
     let matchedUsefulWordCount = 0;
 
     for (const word of usefulTranscriptWords) {
-      if (lineWords.includes(word)) {
+      const wordIndex = lineWords.indexOf(word);
+
+      if (wordIndex >= 0) {
         matchedUsefulWordCount += 1;
         score += 1.5;
+        matchedWordEndIndex = Math.max(matchedWordEndIndex, wordIndex);
       }
     }
 
@@ -2192,12 +2334,36 @@ function findBestVoiceLyricMatchInRange({
       score += 1.5;
     }
 
+    if (matchedWordEndIndex < 0) {
+      continue;
+    }
+
+    const progressRatio = (matchedWordEndIndex + 1) / lineWords.length;
+
     if (!bestMatch || score > bestMatch.score) {
-      bestMatch = { line, score };
+      bestMatch = { line, matchedWordEndIndex, progressRatio, score };
     }
   }
 
   return bestMatch && bestMatch.score >= minimumScore ? bestMatch : null;
+}
+
+function getMatchedPhraseEndIndex(words: string[], phrase: string): number {
+  const phraseWords = phrase.split(" ").filter(Boolean);
+
+  if (!phraseWords.length || phraseWords.length > words.length) {
+    return -1;
+  }
+
+  for (let index = 0; index <= words.length - phraseWords.length; index += 1) {
+    const candidate = words.slice(index, index + phraseWords.length);
+
+    if (areStringArraysEqual(candidate, phraseWords)) {
+      return index + phraseWords.length - 1;
+    }
+  }
+
+  return -1;
 }
 
 function getVoiceWordPhrases(words: string[]): string[] {
