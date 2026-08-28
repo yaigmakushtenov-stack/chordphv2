@@ -37,11 +37,13 @@ model BetterAuthUser {
 }
 
 model Group {
-  id          String            @id @default(cuid())
-  name        String
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  memberships GroupMembership[]
+  id                 String              @id @default(cuid())
+  name               String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  memberships        GroupMembership[]
+  eventGroups        EventGroups[]
+  eventGroupSetLists EventGroupSetList[]
 }
 
 model GroupMembership {
@@ -167,6 +169,7 @@ model Track {
   musicFile         MusicFile?         @relation(fields: [musicFileId], references: [id], onDelete: SetNull)
   annotation        TrackAnnotation?
   additionalArtists AdditionalArtist[]
+  setListTracks     setListTracks[]
 
   @@index([ownerId, updatedAt])
   @@index([ownerId, visibilityStatus])
@@ -220,4 +223,65 @@ model AdditionalArtist {
 
   @@unique([trackId, artistId])
   @@index([artistId])
+}
+
+model Event {
+  id                 String              @id @default(cuid())
+  ownerId            String
+  title              String
+  description        String?
+  startDate          DateTime
+  place              String
+  eventGroups        EventGroups[]
+  eventGroupSetLists EventGroupSetList[]
+}
+
+model EventGroups {
+  id          String   @id @default(cuid())
+  description String?
+  eventId     String
+  groupId     String
+  orderNumber Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, groupId])
+}
+
+model EventGroupSetList {
+  id        String   @id @default(cuid())
+  eventId   String
+  groupId   String
+  setListId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  setList   setList  @relation(fields: [setListId], references: [id], onDelete: Cascade)
+}
+
+model setList {
+  id                 String              @id @default(cuid())
+  title              String
+  description        String?
+  ownerId            String
+  eventGroupSetLists EventGroupSetList[]
+  tracks             setListTracks[]
+}
+
+model setListTracks {
+  id          String   @id @default(cuid())
+  setListId   String
+  trackId     String
+  order       Int
+  orderNumber Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  settings    Json     @default("{}")
+  setList     setList  @relation(fields: [setListId], references: [id], onDelete: Cascade)
+  track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([setListId, trackId])
 }

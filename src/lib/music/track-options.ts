@@ -20,7 +20,7 @@ export const MUSICAL_KEYS = [
 
 export const TRACK_TUNINGS = [
   "Standard",
-  "Half-Step Down",
+  "Half-Step Down", 
   "Perfect Fourth Tuning",
   "A Tuning",
   "B Tuning",
