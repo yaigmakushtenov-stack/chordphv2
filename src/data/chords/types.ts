@@ -1,0 +1,44 @@
+export type Instrument = "guitar" | "ukulele" | "piano";
+
+export type FretValue = number | "x";
+
+export type FingerValue = 1 | 2 | 3 | 4 | "T";
+
+export type Barre = {
+  fret: number;
+  fromString: number;
+  toString: number;
+  finger?: FingerValue;
+};
+
+export type ChordVariation = {
+  id: string;
+  baseFret?: number;
+  frets: FretValue[];
+  fingers?: Array<FingerValue | null>;
+  barres?: Barre[];
+};
+
+export type ChordDefinition = {
+  symbol: string;
+  root: string;
+  quality: string;
+  bass?: string;
+  aliases?: string[];
+  variations: ChordVariation[];
+};
+
+export type PianoChordVariation = {
+  id: string;
+  symbol: string;
+  label: string;
+  notes: string[];
+};
+
+export type PianoChordDefinition = {
+  symbol: string;
+  root: string;
+  quality: string;
+  aliases?: string[];
+  variations: PianoChordVariation[];
+};

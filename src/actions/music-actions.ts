@@ -1,0 +1,334 @@
+"use server";
+
+import "server-only";
+
+import { headers } from "next/headers";
+
+import { auth } from "@/lib/auth";
+import {
+  actionFailure,
+  actionSuccess,
+  type ActionResult,
+} from "@/lib/actions";
+import {
+  MusicFileServiceError,
+  MusicService,
+  type MusicFileRecord,
+  type MusicFileSearchResult,
+  type MusicFileSort,
+  type PrepareMusicUploadInput,
+} from "@/services/music-service";
+import type { MusicFileListItemData } from "@/types/music";
+
+export type PrepareMusicUploadActionInput = {
+  originalFileName: string;
+  contentType: string;
+  sourceSizeBytes: number;
+  sourceSha256: string;
+  storedSizeBytes: number;
+  storedSha256: string;
+  duplicateStrategy?: "overwrite" | "create";
+  title?: string;
+  artist?: string;
+  album?: string;
+  durationSeconds?: number | null;
+};
+
+export type CompleteMusicUploadActionInput = {
+  fileId: string;
+};
+
+export type FindMusicFileByHashActionInput = {
+  sourceSha256: string;
+};
+
+export type ListMusicFilesActionInput = {
+  sort?: MusicFileSort;
+};
+
+export type MusicUploadFileData = {
+  id: string;
+  originalFileName: string;
+  contentType: string;
+  sourceSizeBytes: number;
+  storedSizeBytes: number | null;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  status: MusicFileRecord["status"];
+};
+
+type PrepareMusicUploadActionData =
+  | {
+      outcome: "duplicate";
+      file: MusicFileListItemData;
+    }
+  | {
+      outcome: "upload";
+      file: MusicUploadFileData;
+      upload: {
+        url: string;
+        expiresIn: number;
+        headers: Record<string, string>;
+      };
+    };
+
+export async function listFiles(
+  input: ListMusicFilesActionInput = {},
+): Promise<ActionResult<MusicFileListItemData[]>> {
+  const session = await getSession();
+
+  if (!session?.user?.id) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to view music files.");
+  }
+
+  const sort = parseMusicFileSort(input);
+
+  try {
+    const files = await MusicService.listReadyMusicFiles({
+      ownerId: session.user.id,
+      sort,
+    });
+
+    return actionSuccess(files.map(toMusicFileListItemData));
+  } catch (error: unknown) {
+    return handleMusicFileServiceError(error);
+  }
+}
+
+export async function findByHash(
+  input: FindMusicFileByHashActionInput,
+): Promise<ActionResult<MusicFileListItemData | null>> {
+  const session = await getSession();
+
+  if (!session?.user?.id) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to check music files.");
+  }
+
+  if (!isRecord(input) || typeof input.sourceSha256 !== "string") {
+    return actionFailure("VALIDATION_ERROR", "The source hash is invalid.");
+  }
+
+  try {
+    const file = await MusicService.findMusicFileByHash(
+      session.user.id,
+      input.sourceSha256,
+    );
+
+    return actionSuccess(file ? toMusicFileListItemData(file) : null);
+  } catch (error: unknown) {
+    return handleMusicFileServiceError(error);
+  }
+}
+
+export async function prepareUpload(
+  input: PrepareMusicUploadActionInput,
+): Promise<ActionResult<PrepareMusicUploadActionData>> {
+  const session = await getSession();
+
+  if (!session?.user?.id) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to upload music.");
+  }
+
+  const parsedInput = parsePrepareInput(input);
+
+  if (!parsedInput) {
+    return actionFailure(
+      "VALIDATION_ERROR",
+      "The upload details are invalid.",
+    );
+  }
+
+  try {
+    const result = await MusicService.prepareMusicUpload({
+      ...parsedInput,
+      ownerId: session.user.id,
+    });
+
+    if (result.outcome === "duplicate") {
+      return actionSuccess({
+        outcome: "duplicate",
+        file: toMusicFileListItemData(result.file),
+      });
+    }
+
+    return actionSuccess({
+      outcome: "upload",
+      file: toMusicUploadFileData(result.file),
+      upload: {
+        url: result.upload.uploadUrl,
+        expiresIn: result.upload.expiresIn,
+        headers: result.upload.headers,
+      },
+    });
+  } catch (error: unknown) {
+    return handleMusicFileServiceError(error);
+  }
+}
+
+export async function completeUpload(
+  input: CompleteMusicUploadActionInput,
+): Promise<ActionResult<MusicFileListItemData>> {
+  const session = await getSession();
+
+  if (!session?.user?.id) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to complete the upload.");
+  }
+
+  if (!isRecord(input) || typeof input.fileId !== "string") {
+    return actionFailure("VALIDATION_ERROR", "The file identifier is invalid.");
+  }
+
+  try {
+    const file = await MusicService.completeMusicUpload(
+      session.user.id,
+      input.fileId,
+    );
+
+    return actionSuccess(toMusicFileListItemData(file));
+  } catch (error: unknown) {
+    return handleMusicFileServiceError(error);
+  }
+}
+
+async function getSession() {
+  return auth.api.getSession({
+    headers: await headers(),
+  });
+}
+
+function parsePrepareInput(
+  input: PrepareMusicUploadActionInput,
+): Omit<PrepareMusicUploadInput, "ownerId"> | null {
+  if (!isRecord(input)) {
+    return null;
+  }
+
+  const requiredStrings = [
+    input.originalFileName,
+    input.contentType,
+    input.sourceSha256,
+    input.storedSha256,
+  ];
+  const optionalStrings = [input.title, input.artist, input.album];
+
+  if (
+    requiredStrings.some((value) => typeof value !== "string") ||
+    optionalStrings.some(
+      (value) => value !== undefined && typeof value !== "string",
+    ) ||
+    typeof input.sourceSizeBytes !== "number" ||
+    typeof input.storedSizeBytes !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    originalFileName: input.originalFileName,
+    contentType: input.contentType,
+    sourceSizeBytes: input.sourceSizeBytes,
+    sourceSha256: input.sourceSha256,
+    storedSizeBytes: input.storedSizeBytes,
+    storedSha256: input.storedSha256,
+    duplicateStrategy: parseDuplicateStrategy(input.duplicateStrategy),
+    title: input.title,
+    artist: input.artist,
+    album: input.album,
+    metadata: createMusicUploadMetadata(input.durationSeconds),
+  };
+}
+
+function handleMusicFileServiceError<T>(error: unknown): ActionResult<T> {
+  if (!(error instanceof MusicFileServiceError)) {
+    throw error;
+  }
+
+  switch (error.code) {
+    case "INVALID_INPUT":
+      return actionFailure("VALIDATION_ERROR", error.message);
+    case "NOT_FOUND":
+      return actionFailure("NOT_FOUND", "Music file not found.");
+    case "UPLOAD_CONFLICT":
+      return actionFailure("CONFLICT", error.message);
+    case "UPLOAD_MISMATCH":
+      return actionFailure(
+        "CONFLICT",
+        "The uploaded file does not match the prepared upload.",
+      );
+  }
+}
+
+function toMusicUploadFileData(file: MusicFileRecord): MusicUploadFileData {
+  return {
+    id: file.id,
+    originalFileName: file.originalFileName,
+    contentType: file.contentType,
+    sourceSizeBytes: file.sourceSizeBytes,
+    storedSizeBytes: file.storedSizeBytes,
+    title: file.title,
+    artist: file.artist,
+    album: file.album,
+    status: file.status,
+  };
+}
+
+function toMusicFileListItemData(
+  file: MusicFileSearchResult,
+): MusicFileListItemData {
+  return {
+    id: file.id,
+    title: file.title || file.originalFileName,
+    artist: file.artist,
+    album: file.album,
+    originalFileName: file.originalFileName,
+    contentType: file.contentType,
+    sourceSizeBytes: file.sourceSizeBytes,
+    storedSizeBytes: file.storedSizeBytes,
+    durationSeconds: getDurationSeconds(file.metadata),
+    playbackUrl: `/music/files/${encodeURIComponent(file.id)}/play`,
+    createdAt: file.createdAt.toISOString(),
+    uploadedAt: file.uploadedAt?.toISOString() ?? null,
+  };
+}
+
+function parseMusicFileSort(input: ListMusicFilesActionInput): MusicFileSort {
+  return isRecord(input) && input.sort === "alphabetical"
+    ? "alphabetical"
+    : "latest";
+}
+
+function parseDuplicateStrategy(value: unknown) {
+  return value === "overwrite" || value === "create" ? value : undefined;
+}
+
+function createMusicUploadMetadata(
+  durationSeconds: number | null | undefined,
+) {
+  if (
+    typeof durationSeconds !== "number" ||
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds < 0
+  ) {
+    return undefined;
+  }
+
+  return {
+    durationSeconds,
+  };
+}
+
+function getDurationSeconds(metadata: unknown) {
+  if (!isRecord(metadata)) {
+    return null;
+  }
+
+  const value = metadata.durationSeconds;
+
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}

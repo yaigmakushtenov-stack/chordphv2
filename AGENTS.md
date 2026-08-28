@@ -17,14 +17,16 @@ For a `Role: Vibe` session, warn before modifying any of these paths:
 - `prisma/**` and `prisma.config.ts`
 - `src/generated/**`
 - `src/app/api/**`
+- `src/actions/**`
+- `src/services/**`
 - `src/app/layout.tsx`
 - `src/app/login/**`
 - `src/lib/prisma.ts`
 - `src/lib/auth*.ts`
 - `src/lib/storage/**`
 - `src/lib/realtime/**`
-- `src/components/auth/**`
-- `src/components/providers/**`
+- `src/app/_components/auth/**`
+- `src/components/shared/providers/**`
 - `next.config.*`, `tsconfig.json`, `eslint.config.*`, and `postcss.config.*`
 
 Also warn before adding or changing a Server Action or any file containing the `"use server"` directive, regardless of its path.
@@ -54,17 +56,36 @@ Pay special attention to:
 - Better Auth and its Prisma adapter APIs and model configuration.
 - Tailwind CSS 4 and `@tailwindcss/postcss` configuration.
 - Ably 2 server and React APIs.
-- AWS SDK v3 S3 client and request-presigner APIs used with Backblaze B2.
+- AWS SDK v3 S3 client and request-presigner APIs used with Cloudflare R2.
 
 ## Repository Map
 
 - `src/app` contains App Router pages, layouts, and Route Handlers.
-- `src/components` contains UI components and application providers.
+- `src/actions` contains flat, domain-specific Server Action modules.
+- `src/components/shared` contains UI components reused across multiple pages or domains.
 - `src/lib` contains authentication, Prisma, storage, and realtime integrations.
+- `src/services` contains flat, domain-specific server-only service modules.
+- `src/types` contains shared application types used across multiple folders. Keep component props and local helper types colocated with their implementation.
 - `prisma/schema.prisma` is the database schema.
 - `src/generated/prisma` is generated code. Never edit it manually; regenerate it from the schema.
 - `public` contains static assets.
 - When repository documentation conflicts with installed packages, the schema, or active source code, verify the current implementation and report the stale documentation instead of following it blindly.
+
+## Actions and Services
+
+- Use a flat `src/actions` and `src/services` layout. Prefer domain-specific files such as `src/actions/track-actions.ts`, `src/actions/music-actions.ts`, `src/services/track-service.ts`, and `src/services/music-service.ts`.
+- Export top-level async functions from domain action modules and import them as module namespaces at frontend call sites so the server boundary is explicit, for example `import * as TrackActions from "@/actions/track-actions"` followed by `TrackActions.createNew(...)`, `TrackActions.saveDetails(...)`, or `MusicActions.prepareUpload(...)`.
+- Every file in `src/actions` must use the `"use server"` directive and expose Server Actions for UI-initiated application workflows.
+- Actions are boundary and orchestration code. They may verify the Better Auth session, validate client input, compose multiple services or third-party clients, translate known failures to user-safe responses, and return action results.
+- Actions must return `ActionResult<T>` from `src/lib/actions` for expected outcomes. Use `actionSuccess` and `actionFailure`; return `{ ok: true, data }` on success and `{ ok: false, error }` on expected failure. Use `null` as success data when there is no payload.
+- Keep action return payloads serializable and minimal. Do not return raw Prisma records, provider responses, secrets, storage object keys, presigned URLs beyond the intended upload response, stack traces, or internal error messages.
+- Services do the heavy lifting: database reads and writes, storage/realtime/provider operations, reusable domain rules, and cross-action business logic.
+- Every service module must be server-only. Add `import "server-only";` at the top of service files that touch the database, secrets, privileged provider clients, or server-only integrations.
+- Services should not return `ActionResult<T>`. Return domain data for success and throw typed service errors for expected domain failures that actions can translate.
+- Services must remain domain specific. Prefer `TrackService`, `MusicService`, `GroupService`, `StorageService`, and `RealtimeService` style modules over catch-all utility services.
+- Service functions that access user-owned or group-owned data must accept the verified acting user or membership context from the action and enforce ownership or role scope in the database query. Do not rely on frontend visibility or page-level checks.
+- Route Handlers under `src/app/api/**` are public HTTP boundaries and may call services directly. Do not route external webhooks or protocol endpoints through Server Actions.
+- During migration, avoid big-bang moves. Refactor one domain at a time, preserve exported behavior, update imports mechanically, and run the relevant verification commands.
 
 ## Groups Domain
 
@@ -91,6 +112,29 @@ Pay special attention to:
 - Avoid deeply nested logic and prefer early returns.
 - Keep file organization consistent with the existing structure.
 - Do not add code comments unless explicitly requested.
+
+## Component Organization
+
+- Keep page-specific or domain-specific components close to the route or domain that owns them. Prefer local component folders such as `src/app/_components`, `src/app/chord-chart/_components`, or `src/app/track/_components` over broad shared placement.
+- Put components in `src/components/shared` only when they are reused across multiple pages or domains, or are intended as app-wide primitives.
+- Do not place component prop types in `src/types`; keep props and local helper types in the component file or local component folder.
+- When a component starts local and later becomes reused across the app, move it to `src/components/shared` in the same change that introduces the second real use.
+- Avoid broad component folders named by vague UI areas, such as `main`, when a component is either page-local or clearly shared.
+
+## Product UI Style
+
+- Match the current home page direction before introducing new visual language.
+- Use `#ed1746` as the primary brand accent, with neutral white, near-black, gray, and zinc-like surfaces.
+- Support light and dark mode in every new page and shared component. Always define both normal and `dark:` states for surfaces, borders, text, hover states, focus states, and empty states.
+- Keep the product UI compact, polished, and music-tool focused. Prefer functional layouts over marketing-style sections for authenticated workflows.
+- Use full-width app layouts for authenticated product surfaces. Favor a Spotify-like structure: top navigation, left library panel, primary main-content panel, and a bottom footer strip for ads, notices, or status.
+- Do not cap app-shell width with `max-w-*` containers. The app shell, top navigation, left panel, main panel, and footer strip should use the full viewport width.
+- Top navigation should put the brand, home button, and rounded search input on the left, with install app, sign up, and log in actions on the right when applicable.
+- Shared main content wrappers belong under `src/components/shared/`.
+- Use responsive layouts by default. Components must work at mobile, tablet, and desktop widths without clipped text, overlapping controls, or inaccessible actions.
+- Use rounded pills for primary actions and filters when they match the existing home page. Use cards only for repeated content items or contained tools, not for nested page sections.
+- Preserve strong focus-visible styles and readable contrast in both themes.
+- Prefer existing spacing, border, and typography patterns from `src/app/_components/landing-page.tsx` until a formal design system exists.
 
 ## Change Scope
 
@@ -195,6 +239,7 @@ Pay special attention to:
 - Run `pnpm exec prisma validate` after changing `prisma/schema.prisma`.
 - Run `pnpm db:generate` when changed schema types are consumed by application code.
 - This project currently has no automated test script. Do not claim tests passed when none were run.
+- Do not run `pnpm dev` or start a browser for verification unless the user explicitly asks for it. Actual people will verify browser behavior.
 - If a relevant check cannot run or fails for a pre-existing or environmental reason, report the command and reason clearly.
 
 ## Definition of Done

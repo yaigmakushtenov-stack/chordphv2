@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { GoogleSignInButton } from "@/app/_components/auth/google-sign-in-button";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { auth } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -112,9 +113,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         <p className="mt-7 text-center text-[13px] text-[#747474] dark:text-[#a1a1aa]">
           New to ChordPH?{" "}
-          <span className="font-semibold text-[#171717] dark:text-[#f5f5f5]">
-            Your account is created automatically.
-          </span>
+          <Link
+            href="/signup"
+            className="font-semibold text-[#171717] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#f5f5f5]"
+          >
+            Create an account.
+          </Link>
         </p>
       </section>
     </main>

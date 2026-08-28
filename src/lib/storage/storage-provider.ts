@@ -16,6 +16,13 @@ export type CreateUploadUrlForKeyInput = {
   contentLength: number;
 };
 
+export type PutObjectInput = {
+  key: string;
+  contentType: string;
+  contentLength: number;
+  body: Uint8Array;
+};
+
 export type SignedUpload = {
   key: string;
   uploadUrl: string;
@@ -36,6 +43,7 @@ export interface StorageProvider {
   createUploadUrlForKey(
     input: CreateUploadUrlForKeyInput,
   ): Promise<SignedUpload>;
+  putObject(input: PutObjectInput): Promise<void>;
   getObjectMetadata(key: string): Promise<StoredObjectMetadata>;
   createDownloadUrl(key: string): Promise<string>;
   deleteObject(key: string): Promise<void>;
