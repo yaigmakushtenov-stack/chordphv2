@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 
+import * as SetListActions from "@/actions/setlist-actions";
 import * as TrackActions from "@/actions/track-actions";
 import { ChordCard } from "@/components/shared/chords/chord-card";
 import { ChordFullscreenPerformanceLauncher } from "@/components/shared/chords/chord-fullscreen-performance";
 import { ChordPopover } from "@/app/track/_components/chord-popover";
+import { BackButton } from "@/components/shared/back-button";
+import { BackLink } from "@/components/shared/back-link";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
 import { showToast } from "@/components/shared/toast";
 
@@ -26,10 +29,24 @@ import {
   type PianoChordDefinition,
 } from "@/data/chords";
 import { APP_CONSTANTS } from "@/lib/app-constants";
+import type { QuickAddSetListData } from "@/types/setlist";
 import type { AnnotationViewerData } from "@/types/track";
 import type { TrackPreference } from "@/types/track-preference";
 
-export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
+export function AnnotationViewer({
+  quickAddSetLists,
+  setListContext,
+  track,
+}: {
+  quickAddSetLists: QuickAddSetListData[];
+  setListContext?: {
+    arrangementLabel: string | null;
+    setListId: string;
+    setListTitle: string;
+    setListTrackId: string;
+  };
+  track: AnnotationViewerData;
+}) {
   const router = useRouter();
   const [transpose, setTranspose] = useState(0);
   const [publicityStatus, setPublicityStatus] = useState(
@@ -136,7 +153,7 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid h-full min-h-0 w-full overflow-y-auto bg-white dark:bg-[#121214] xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-hidden">
       <ChordFullscreenPerformanceLauncher
         chordInstrument={chordInstrument}
         onVariationChange={handleVariationChange}
@@ -148,15 +165,54 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
         }}
         trackPreference={trackPreference}
       />
-      <section className="min-w-0 rounded-2xl border border-[#e4e4e4] bg-white p-5 dark:border-[#303034] dark:bg-[#171719]">
+      <section className="min-w-0 p-5 sm:p-6 xl:min-h-0 xl:overflow-y-auto">
+        <div className="mb-4">
+          {setListContext ? (
+            <BackLink href={`/setlists/${setListContext.setListId}`}>
+              {setListContext.setListTitle}
+            </BackLink>
+          ) : (
+            <BackButton fallbackHref={track.isOwner ? "/annotation" : "/browse"} />
+          )}
+        </div>
         <div className="flex flex-col gap-4 border-b border-[#e6e6e6] pb-5 sm:flex-row sm:items-start sm:justify-between dark:border-[#303034]">
           <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#ed1746]">Personal chord sheet</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#ed1746]">
+              {setListContext
+                ? "Setlist arrangement"
+                : track.isOwner
+                  ? "Personal chord sheet"
+                  : "Public chord sheet"}
+            </p>
             <h2 className="mt-2 truncate text-2xl font-black">{track.title}</h2>
             <p className="mt-1 text-[14px] text-[#666] dark:text-[#b4b4bc]">{track.artistName}</p>
+            {setListContext?.arrangementLabel ? (
+              <p className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#ed1746]">
+                {setListContext.arrangementLabel}
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
-            {track.isOwner ? (
+            {setListContext ? (
+              <>
+                <CopyArrangementToSetList
+                  context={setListContext}
+                  setLists={quickAddSetLists}
+                />
+                <Link
+                  href={`/setlists/${setListContext.setListId}/tracks/${setListContext.setListTrackId}/edit`}
+                  className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+                >
+                  Edit arrangement
+                </Link>
+              </>
+            ) : track.isAuthenticated ? (
+              <QuickAddToSetList
+                setLists={quickAddSetLists}
+                trackId={track.id}
+              />
+            ) : null}
+            {!setListContext && track.isOwner ? (
               <>
                 {publicityStatus === "APPROVED" ? (
                   <button
@@ -185,7 +241,7 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
                 ) : null}
                 <Link href={`/track/${track.id}/annotate`} className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]">Edit annotation</Link>
               </>
-            ) : track.isAuthenticated ? (
+            ) : !setListContext && track.isAuthenticated ? (
               <button
                 type="button"
                 disabled={isPending}
@@ -194,9 +250,9 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
               >
                 {isPending ? "Saving…" : "Save as personal copy"}
               </button>
-            ) : (
+            ) : !setListContext ? (
               <Link href="/login" className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]">Sign in to save a copy</Link>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -245,7 +301,7 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
         )}
       </section>
 
-      <aside className="grid content-start gap-4">
+      <aside className="grid content-start gap-4 border-t border-[#e4e4e4] p-4 dark:border-[#303034] xl:min-h-0 xl:overflow-y-auto xl:border-l xl:border-t-0">
         <section className="rounded-2xl border border-[#e4e4e4] bg-white p-5 dark:border-[#303034] dark:bg-[#171719]">
           <h2 className="text-[14px] font-bold">Track details</h2>
           <dl className="mt-4 grid gap-3 text-[12px]">
@@ -269,6 +325,285 @@ export function AnnotationViewer({ track }: { track: AnnotationViewerData }) {
 
         {track.notes ? <section className="rounded-2xl border border-[#e4e4e4] bg-white p-5 dark:border-[#303034] dark:bg-[#171719]"><h2 className="text-[14px] font-bold">Private notes</h2><p className="mt-3 whitespace-pre-wrap text-[13px] leading-6 text-[#555] dark:text-[#c4c4cc]">{track.notes}</p></section> : null}
       </aside>
+    </div>
+  );
+}
+
+function CopyArrangementToSetList({
+  context,
+  setLists,
+}: {
+  context: {
+    setListId: string;
+    setListTrackId: string;
+  };
+  setLists: QuickAddSetListData[];
+}) {
+  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const [pendingSetListId, setPendingSetListId] = useState<string | null>(null);
+  const [addedSetListIds, setAddedSetListIds] = useState(
+    () =>
+      new Set(
+        setLists
+          .filter((setList) => setList.containsMatchingArrangement)
+          .map((setList) => setList.id),
+      ),
+  );
+  const [isPending, startTransition] = useTransition();
+
+  function handleCopy(targetSetListId: string): void {
+    setPendingSetListId(targetSetListId);
+    startTransition(async () => {
+      const result = await SetListActions.copyTrackArrangement({
+        sourceSetListId: context.setListId,
+        sourceSetListTrackId: context.setListTrackId,
+        targetSetListId,
+      });
+
+      if (!result.ok) {
+        showToast({
+          title: "Arrangement not copied",
+          description: result.error.message,
+          tone: "error",
+        });
+        setPendingSetListId(null);
+        return;
+      }
+
+      setAddedSetListIds((current) => new Set(current).add(targetSetListId));
+      setPendingSetListId(null);
+      showToast({ title: "Arrangement copied to setlist", tone: "success" });
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        onClick={() => setIsOpen((current) => !current)}
+        className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-[#d9d9d9] px-4 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
+      >
+        Copy to setlist
+      </button>
+      {isOpen ? (
+        <SetListPickerSurface
+          title="Copy arrangement"
+          description="The copied version can be edited independently."
+          ariaLabel="Copy arrangement to another setlist"
+          onClose={() => setIsOpen(false)}
+        >
+          <div className="max-h-72 divide-y divide-[#ececec] overflow-y-auto dark:divide-[#38383c]">
+            {setLists.map((setList) => {
+              const isAdded = addedSetListIds.has(setList.id);
+              const isCurrentPending = pendingSetListId === setList.id;
+
+              return (
+                <div key={setList.id} className="flex min-w-0 items-center gap-3 px-4 py-3">
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-bold">
+                    {setList.title}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={isPending || isAdded}
+                    onClick={() => handleCopy(setList.id)}
+                    className="inline-flex h-8 shrink-0 items-center rounded-full bg-[#ed1746] px-3 text-[10px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:bg-[#e5e5e5] disabled:text-[#777] dark:disabled:bg-[#343438] dark:disabled:text-[#a1a1aa]"
+                  >
+                    {isCurrentPending ? "Copying…" : isAdded ? "Already added" : "Copy"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </SetListPickerSurface>
+      ) : null}
+    </div>
+  );
+}
+
+function QuickAddToSetList({
+  setLists,
+  trackId,
+}: {
+  setLists: QuickAddSetListData[];
+  trackId: string;
+}) {
+  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const [pendingSetListId, setPendingSetListId] = useState<string | null>(null);
+  const [addedSetListIds, setAddedSetListIds] = useState(
+    () =>
+      new Set(
+        setLists
+          .filter((setList) => setList.containsTrack)
+          .map((setList) => setList.id),
+      ),
+  );
+  const [isPending, startTransition] = useTransition();
+
+  function handleAdd(setListId: string): void {
+    setPendingSetListId(setListId);
+    startTransition(async () => {
+      const result = await SetListActions.addTrack(setListId, trackId);
+
+      if (!result.ok) {
+        showToast({
+          title: "Track not added",
+          description: result.error.message,
+          tone: "error",
+        });
+        setPendingSetListId(null);
+        return;
+      }
+
+      setAddedSetListIds((current) => new Set(current).add(setListId));
+      setPendingSetListId(null);
+      showToast({ title: "Added to setlist", tone: "success" });
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        onClick={() => setIsOpen((current) => !current)}
+        className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-[#d9d9d9] px-4 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
+      >
+        + Add to setlist
+      </button>
+
+      {isOpen ? (
+        <SetListPickerSurface
+          title="Add to a setlist"
+          description="Choose any of your setlists."
+          ariaLabel="Choose a setlist"
+          onClose={() => setIsOpen(false)}
+        >
+          {setLists.length ? (
+            <div className="max-h-72 divide-y divide-[#ececec] overflow-y-auto dark:divide-[#38383c]">
+              {setLists.map((setList) => {
+                const isAdded = addedSetListIds.has(setList.id);
+                const isCurrentPending = pendingSetListId === setList.id;
+
+                return (
+                  <div
+                    key={setList.id}
+                    className="flex min-w-0 items-center gap-3 px-4 py-3"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12px] font-bold">
+                        {setList.title}
+                      </span>
+                      <span className="mt-0.5 block text-[10px] text-[#717171] dark:text-[#a1a1aa]">
+                        {setList.trackCount} {setList.trackCount === 1 ? "track" : "tracks"}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      disabled={isPending || isAdded}
+                      onClick={() => handleAdd(setList.id)}
+                      className="inline-flex h-8 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-3 text-[10px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:bg-[#e5e5e5] disabled:text-[#777] dark:disabled:bg-[#343438] dark:disabled:text-[#a1a1aa]"
+                    >
+                      {isCurrentPending ? "Adding…" : isAdded ? "Added" : "Add"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="px-4 py-6 text-[12px] leading-5 text-[#666] dark:text-[#b4b4bc]">
+              You have no setlists yet.
+            </p>
+          )}
+          <div className="border-t border-[#e7e7e7] p-3 dark:border-[#38383c]">
+            <Link
+              href="/setlists"
+              className="inline-flex h-9 w-full items-center justify-center rounded-full border border-[#d9d9d9] px-4 text-[11px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
+            >
+              Create or manage setlists
+            </Link>
+          </div>
+        </SetListPickerSurface>
+      ) : null}
+    </div>
+  );
+}
+
+function SetListPickerSurface({
+  ariaLabel,
+  children,
+  description,
+  onClose,
+  title,
+}: {
+  ariaLabel: string;
+  children: ReactNode;
+  description: string;
+  onClose: () => void;
+  title: string;
+}) {
+  useEffect(() => {
+    const mobileQuery = window.matchMedia("(max-width: 639px)");
+    const previousOverflow = document.body.style.overflow;
+
+    if (mobileQuery.matches) {
+      document.body.style.overflow = "hidden";
+    }
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-70 flex items-end sm:absolute sm:inset-auto sm:right-0 sm:top-12 sm:z-30 sm:block">
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label="Close setlist picker"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/60 sm:hidden"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={ariaLabel}
+        className="relative max-h-[85dvh] w-full overflow-hidden rounded-t-3xl border-t border-[#dedede] bg-white text-[#111] shadow-[0_-18px_55px_rgba(0,0,0,0.25)] sm:w-[min(320px,calc(100vw-2rem))] sm:rounded-2xl sm:border sm:shadow-[0_20px_55px_rgba(0,0,0,0.2)] dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-[#f5f5f5]"
+      >
+        <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-[#d4d4d8] sm:hidden dark:bg-[#52525b]" />
+        <div className="flex items-start justify-between gap-3 border-b border-[#e7e7e7] px-5 py-4 sm:px-4 sm:py-3 dark:border-[#38383c]">
+          <div className="min-w-0">
+            <p className="text-[15px] font-black sm:text-[13px]">{title}</p>
+            <p className="mt-1 text-[12px] leading-5 text-[#666] sm:mt-0.5 sm:text-[11px] dark:text-[#b4b4bc]">
+              {description}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close setlist picker"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f1f1f1] text-xl transition hover:bg-[#e5e5e5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] sm:hidden dark:bg-[#303034] dark:hover:bg-[#3a3a3f]"
+          >
+            ×
+          </button>
+        </div>
+        {children}
+      </div>
     </div>
   );
 }

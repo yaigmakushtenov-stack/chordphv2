@@ -75,6 +75,15 @@ const personalTrackSelect = {
   musicFileId: true,
 } satisfies Prisma.TrackSelect;
 
+const browseTrackSelect = {
+  id: true,
+  ownerId: true,
+  title: true,
+  artistName: true,
+  key: true,
+  tuning: true,
+} satisfies Prisma.TrackSelect;
+
 const copySourceTrackSelect = {
   id: true,
   title: true,
@@ -103,6 +112,10 @@ export type AnnotationTrack = Prisma.TrackGetPayload<{
 
 export type PersonalTrackRecord = Prisma.TrackGetPayload<{
   select: typeof personalTrackSelect;
+}>;
+
+export type BrowseTrackRecord = Prisma.TrackGetPayload<{
+  select: typeof browseTrackSelect;
 }>;
 
 export type SaveTrackDetailsInput = {
@@ -257,6 +270,58 @@ export async function listPersonalAnnotationTracks(
     },
     select: personalTrackSelect,
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    take: 100,
+  });
+}
+
+export async function searchViewableTracks(
+  viewerId: string | null,
+  query: string,
+): Promise<BrowseTrackRecord[]> {
+  const normalizedViewerId = viewerId
+    ? requireText(viewerId, "viewerId", 255)
+    : null;
+  const normalizedQuery = query.trim().slice(0, 100);
+  const accessWhere: Prisma.TrackWhereInput = normalizedViewerId
+    ? {
+        OR: [
+          { ownerId: normalizedViewerId },
+          {
+            visibilityStatus: VisibilityStatus.PUBLIC,
+            publicityStatus: PublicityStatus.APPROVED,
+          },
+        ],
+      }
+    : {
+        visibilityStatus: VisibilityStatus.PUBLIC,
+        publicityStatus: PublicityStatus.APPROVED,
+      };
+  const searchWhere: Prisma.TrackWhereInput = normalizedQuery
+    ? {
+        OR: [
+          {
+            title: {
+              contains: normalizedQuery,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+          {
+            artistName: {
+              contains: normalizedQuery,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+        ],
+      }
+    : {};
+
+  return prisma.track.findMany({
+    where: {
+      annotation: { isNot: null },
+      AND: [accessWhere, searchWhere],
+    },
+    select: browseTrackSelect,
+    orderBy: [{ title: "asc" }, { id: "asc" }],
     take: 100,
   });
 }
@@ -700,6 +765,7 @@ export const TrackService = {
   getTemporaryTrackArtists,
   getViewableAnnotationTrack,
   listPersonalAnnotationTracks,
+  searchViewableTracks,
   saveTrackAnnotation,
   saveTrackDetails,
   submitTrackForPublicReview,

@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
-import { Dashboard } from "@/components/shared/dashboard";
 import { AppShell } from "@/components/shared/app-shell";
 import { AnnotationViewer } from "@/app/track/_components/annotation-viewer";
 import { auth } from "@/lib/auth";
+import { SetListService } from "@/services/setlist-service";
 import { TrackService, type AnnotationTrack } from "@/services/track-service";
 import type { AnnotationViewerData } from "@/types/track";
 
@@ -23,10 +23,12 @@ export default async function TrackPage({
 
   const { trackId } = await params;
   const viewerId = session?.user?.id ?? null;
-  const track = await TrackService.getViewableAnnotationTrack(
-    trackId,
-    viewerId,
-  );
+  const [track, quickAddSetLists] = await Promise.all([
+    TrackService.getViewableAnnotationTrack(trackId, viewerId),
+    viewerId
+      ? SetListService.listSetListsForQuickAdd(viewerId, trackId)
+      : Promise.resolve([]),
+  ]);
 
   if (!track) {
     notFound();
@@ -36,18 +38,13 @@ export default async function TrackPage({
 
   return (
     <AppShell>
-      <Dashboard
-        eyebrow={isOwner ? "PERSONAL ANNOTATION" : "PUBLIC ANNOTATION"}
-        title={track.title}
-        description={`Lyrics and chords by ${track.artistName}. Transpose the display without changing your saved chords.`}
-      >
-        <AnnotationViewer
-          track={toViewerData(track, {
-            isOwner,
-            isAuthenticated: Boolean(viewerId),
-          })}
-        />
-      </Dashboard>
+      <AnnotationViewer
+        quickAddSetLists={quickAddSetLists}
+        track={toViewerData(track, {
+          isOwner,
+          isAuthenticated: Boolean(viewerId),
+        })}
+      />
     </AppShell>
   );
 }

@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { Dashboard } from "@/components/shared/dashboard";
 import { AnnotationEditor } from "@/app/track/_components/annotation-editor";
 import { AppShell } from "@/components/shared/app-shell";
+import { BackLink } from "@/components/shared/back-link";
 import { auth } from "@/lib/auth";
 import {
   TrackService,
@@ -38,6 +39,9 @@ export default async function AnnotateTrackPage({
   return (
     <AppShell>
       <Dashboard
+        headerNavigation={
+          <BackLink href="/">Back to dashboard</BackLink>
+        }
         eyebrow="TRACK WORKSPACE"
         title="Annotate track"
         description="Add song details, collaborators, lyrics, chords, and rehearsal notes. Preview transposition without changing the saved source."

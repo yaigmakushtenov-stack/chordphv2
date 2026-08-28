@@ -97,3 +97,13 @@ export type PersonalTrackListItem = {
   hasAudio: boolean;
   updatedAt: string;
 };
+
+export type TrackBrowseItemData = {
+  id: string;
+  title: string;
+  artistName: string;
+  key: string;
+  tuning: string;
+  isOwnerTrack: boolean;
+  isInSetList?: boolean;
+};

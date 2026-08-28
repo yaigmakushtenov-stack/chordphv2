@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Dashboard } from "@/components/shared/dashboard";
 import { AppShell } from "@/components/shared/app-shell";
 import { AnnotationEditor } from "@/app/track/_components/annotation-editor";
+import { BackButton } from "@/components/shared/back-button";
 import { auth } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -20,8 +21,10 @@ export default async function NewTrackAnnotationPage() {
   }
 
   return (
-    <AppShell focusMode>
+    <AppShell documentScroll focusMode>
       <Dashboard
+        documentScroll
+        headerNavigation={<BackButton fallbackHref="/annotation" />}
         eyebrow="NEW TRACK"
         title="Create an annotation"
         description="Complete the guided form at your own pace. The Track and annotation are created together only on the final step."

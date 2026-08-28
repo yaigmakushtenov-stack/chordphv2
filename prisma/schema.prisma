@@ -33,7 +33,10 @@ model BetterAuthUser {
   accounts         BetterAuthAccount[]
   musicFiles       MusicFile[]
   tracks           Track[]
+  setLists         SetList[]
   groupMemberships GroupMembership[]
+
+  @@map("better_auth_users")
 }
 
 model Group {
@@ -44,6 +47,8 @@ model Group {
   memberships        GroupMembership[]
   eventGroups        EventGroups[]
   eventGroupSetLists EventGroupSetList[]
+
+  @@map("groups")
 }
 
 model GroupMembership {
@@ -58,6 +63,7 @@ model GroupMembership {
   @@id([groupId, userId])
   @@index([userId, createdAt])
   @@index([groupId, role])
+  @@map("group_memberships")
 }
 
 model BetterAuthSession {
@@ -72,6 +78,7 @@ model BetterAuthSession {
   user      BetterAuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@map("better_auth_sessions")
 }
 
 model BetterAuthAccount {
@@ -91,6 +98,7 @@ model BetterAuthAccount {
   user                  BetterAuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@map("better_auth_accounts")
 }
 
 model BetterAuthVerification {
@@ -102,6 +110,7 @@ model BetterAuthVerification {
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
+  @@map("better_auth_verifications")
 }
 
 model MusicFile {
@@ -129,6 +138,7 @@ model MusicFile {
   @@index([ownerId, sourceSha256])
   @@index([ownerId, createdAt])
   @@index([ownerId, status])
+  @@map("music_files")
 }
 
 enum VisibilityStatus {
@@ -169,13 +179,14 @@ model Track {
   musicFile         MusicFile?         @relation(fields: [musicFileId], references: [id], onDelete: SetNull)
   annotation        TrackAnnotation?
   additionalArtists AdditionalArtist[]
-  setListTracks     setListTracks[]
+  setListTracks     SetListTrack[]
 
   @@index([ownerId, updatedAt])
   @@index([ownerId, visibilityStatus])
   @@index([artistId])
   @@index([visibilityStatus, updatedAt])
   @@index([publicityStatus, updatedAt])
+  @@map("tracks")
 }
 
 enum TrackAnnotationType {
@@ -198,6 +209,7 @@ model TrackAnnotation {
   track           Track               @relation(fields: [trackId], references: [id], onDelete: Cascade)
 
   @@index([updatedAt])
+  @@map("track_annotations")
 }
 
 model Artist {
@@ -209,6 +221,7 @@ model Artist {
   credits   AdditionalArtist[]
 
   @@index([name])
+  @@map("artists")
 }
 
 model AdditionalArtist {
@@ -223,6 +236,7 @@ model AdditionalArtist {
 
   @@unique([trackId, artistId])
   @@index([artistId])
+  @@map("additional_artists")
 }
 
 model Event {
@@ -234,6 +248,8 @@ model Event {
   place              String
   eventGroups        EventGroups[]
   eventGroupSetLists EventGroupSetList[]
+
+  @@map("events")
 }
 
 model EventGroups {
@@ -248,6 +264,7 @@ model EventGroups {
   group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, groupId])
+  @@map("event_groups")
 }
 
 model EventGroupSetList {
@@ -259,29 +276,41 @@ model EventGroupSetList {
   updatedAt DateTime @updatedAt
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  setList   setList  @relation(fields: [setListId], references: [id], onDelete: Cascade)
+  setList   SetList  @relation(fields: [setListId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, groupId, setListId])
+  @@index([setListId])
+  @@map("event_group_set_lists")
 }
 
-model setList {
+model SetList {
   id                 String              @id @default(cuid())
   title              String
   description        String?
   ownerId            String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  owner              BetterAuthUser      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   eventGroupSetLists EventGroupSetList[]
-  tracks             setListTracks[]
+  tracks             SetListTrack[]
+
+  @@index([ownerId, updatedAt])
+  @@map("set_lists")
 }
 
-model setListTracks {
+model SetListTrack {
   id          String   @id @default(cuid())
   setListId   String
   trackId     String
-  order       Int
   orderNumber Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   settings    Json     @default("{}")
-  setList     setList  @relation(fields: [setListId], references: [id], onDelete: Cascade)
+  setList     SetList  @relation(fields: [setListId], references: [id], onDelete: Cascade)
   track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
 
-  @@unique([setListId, trackId])
+  @@index([setListId, trackId])
+  @@unique([setListId, orderNumber])
+  @@index([trackId])
+  @@map("set_list_tracks")
 }

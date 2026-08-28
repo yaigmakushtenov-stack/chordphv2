@@ -29,7 +29,7 @@ export default async function AnnotationLibraryPage() {
   );
 
   return (
-    <AppShell initialLibraryItems={items}>
+    <AppShell>
       <Dashboard
         eyebrow="YOUR ANNOTATIONS"
         title="Personal annotations"

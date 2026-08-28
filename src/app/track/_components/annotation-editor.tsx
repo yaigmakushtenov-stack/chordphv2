@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
@@ -1071,15 +1070,19 @@ function CreationNavigation({
   onCreate: () => void;
 }) {
   return (
-    <div className="sticky bottom-3 z-10 flex items-center justify-between gap-3 rounded-2xl border border-[#e4e4e4] bg-white/95 p-3 shadow-lg backdrop-blur dark:border-[#303034] dark:bg-[#171719]/95">
-      <button
-        type="button"
-        disabled={currentStep === 1 || isPending}
-        onClick={onBack}
-        className="h-10 rounded-full border border-[#dedede] px-5 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#3a3a3f]"
-      >
-        Back
-      </button>
+    <footer className="flex items-center justify-between gap-3 rounded-2xl border border-[#e4e4e4] bg-white p-3 dark:border-[#303034] dark:bg-[#171719]">
+      {currentStep > 1 ? (
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={onBack}
+          className="h-10 rounded-full border border-[#dedede] px-5 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#3a3a3f]"
+        >
+          ← Previous step
+        </button>
+      ) : (
+        <span aria-hidden="true" />
+      )}
       <p className="hidden text-[11px] text-[#717171] sm:block dark:text-[#a1a1aa]">
         Step {currentStep} of 3
       </p>
@@ -1102,7 +1105,7 @@ function CreationNavigation({
           {isPending ? "Creating…" : "Create track & save annotation"}
         </button>
       )}
-    </div>
+    </footer>
   );
 }
 
@@ -1313,25 +1316,17 @@ function AudioPanel({
 }) {
   return (
     <section className="rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="truncate text-[14px] font-bold">{title}</p>
-          <p className="mt-1 truncate text-[12px] text-[#717171] dark:text-[#a1a1aa]">
-            {audio
-              ? `${audio.originalFileName}${
-                  audio.durationSeconds !== null
-                    ? ` · ${formatDuration(audio.durationSeconds)}`
-                    : ""
-                }`
-              : "Private annotation draft · No audio attached"}
-          </p>
-        </div>
-        <Link
-          href="/"
-          className="text-[12px] font-bold text-[#ed1746] hover:text-[#c9123a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-        >
-          Back to dashboard
-        </Link>
+      <div className="min-w-0">
+        <p className="truncate text-[14px] font-bold">{title}</p>
+        <p className="mt-1 truncate text-[12px] text-[#717171] dark:text-[#a1a1aa]">
+          {audio
+            ? `${audio.originalFileName}${
+                audio.durationSeconds !== null
+                  ? ` · ${formatDuration(audio.durationSeconds)}`
+                  : ""
+              }`
+            : "Private annotation draft · No audio attached"}
+        </p>
       </div>
       {audio ? (
         <audio

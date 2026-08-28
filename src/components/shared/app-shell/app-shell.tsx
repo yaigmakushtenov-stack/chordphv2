@@ -2,21 +2,21 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 
-import { LeftLibraryPanel } from "@/components/shared/app-shell/left-library-panel";
+import {
+  AppMenuProvider,
+  LeftLibraryPanel,
+  MobileMenuButton,
+} from "@/components/shared/app-shell/left-library-panel";
 import { StickyMusicPlayer } from "@/components/shared/app-shell/sticky-music-player";
 import { ToastProvider } from "@/components/shared/toast";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { auth } from "@/lib/auth";
-import {
-  TrackService,
-  type PersonalTrackRecord,
-} from "@/services/track-service";
-import type { PersonalTrackListItem } from "@/types/track";
 
 type AppShellProps = {
   children: ReactNode;
-  initialLibraryItems?: PersonalTrackListItem[];
+  documentScroll?: boolean;
   focusMode?: boolean;
+  mobileDocumentScroll?: boolean;
 };
 
 type AppShellUser = {
@@ -108,8 +108,9 @@ function PixelAvatar({ email, name }: AppShellUser) {
 
 export async function AppShell({
   children,
-  initialLibraryItems: providedInitialLibraryItems,
+  documentScroll = false,
   focusMode = false,
+  mobileDocumentScroll = false,
 }: AppShellProps) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -121,22 +122,23 @@ export async function AppShell({
           name: session.user.name,
         }
       : null;
-  const initialLibraryItems =
-    focusMode
-      ? []
-      : providedInitialLibraryItems ??
-        (session?.user?.id
-          ? (await TrackService.listPersonalAnnotationTracks(session.user.id)).map(
-              toPersonalTrackListItem,
-            )
-          : []);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[#f4f4f4] text-[#111] dark:bg-black dark:text-[#f5f5f5]">
-      <ToastProvider />
-      <header className="shrink-0 border-b border-[#e5e5e5] bg-white px-3 py-2 dark:border-[#151515] dark:bg-black">
+    <AppMenuProvider>
+      <div
+        className={
+          documentScroll
+            ? "flex min-h-dvh flex-col bg-[#f4f4f4] text-[#111] dark:bg-black dark:text-[#f5f5f5]"
+            : mobileDocumentScroll
+            ? "flex min-h-dvh flex-col bg-[#f4f4f4] text-[#111] lg:h-dvh lg:overflow-hidden dark:bg-black dark:text-[#f5f5f5]"
+            : "flex h-dvh flex-col overflow-hidden bg-[#f4f4f4] text-[#111] dark:bg-black dark:text-[#f5f5f5]"
+        }
+      >
+        <ToastProvider />
+        <header className="shrink-0 border-b border-[#e5e5e5] bg-white px-3 py-2 dark:border-[#151515] dark:bg-black">
         <div className="flex flex-col gap-2">
           <div className="flex min-h-14 min-w-0 items-center gap-2">
+            <MobileMenuButton />
             <Link
               href="/"
               aria-label="ChordPH home"
@@ -144,22 +146,19 @@ export async function AppShell({
             >
               <MusicLogoIcon />
             </Link>
-            <button
-              type="button"
-              aria-label="Search music"
-              className="hidden size-11 shrink-0 items-center justify-center rounded-full bg-[#ededed] text-[#111] transition hover:bg-[#e2e2e2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] max-md:flex dark:bg-[#1f1f1f] dark:text-white dark:hover:bg-[#2a2a2a]"
-            >
-              <SearchIcon />
-            </button>
-            <label className="hidden h-11 min-w-0 flex-1 items-center gap-3 rounded-full border border-[#dedede] bg-white px-4 text-[#696969] transition focus-within:border-[#b8b8b8] focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(237,23,70,0.08)] md:flex md:max-w-[620px] dark:border-[#2a2a2a] dark:bg-[#1f1f1f] dark:text-[#b4b4bc] dark:focus-within:border-[#494949] dark:focus-within:bg-[#252525]">
-              <span className="sr-only">Search music</span>
-              <SearchIcon />
-              <input
-                type="search"
-                placeholder="What do you want to play?"
-                className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-medium text-[#171717] outline-none placeholder:text-[#777] dark:text-[#f5f5f5] dark:placeholder:text-[#a1a1aa]"
-              />
-            </label>
+            <form action="/browse" className="hidden min-w-0 flex-1 md:block md:max-w-[620px]">
+              <label className="flex h-11 min-w-0 items-center gap-3 rounded-full border border-[#dedede] bg-white px-4 text-[#696969] transition focus-within:border-[#b8b8b8] focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(237,23,70,0.08)] dark:border-[#2a2a2a] dark:bg-[#1f1f1f] dark:text-[#b4b4bc] dark:focus-within:border-[#494949] dark:focus-within:bg-[#252525]">
+                <span className="sr-only">Search tracks</span>
+                <SearchIcon />
+                <input
+                  type="search"
+                  name="q"
+                  maxLength={100}
+                  placeholder="What do you want to play?"
+                  className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-medium text-[#171717] outline-none placeholder:text-[#777] dark:text-[#f5f5f5] dark:placeholder:text-[#a1a1aa]"
+                />
+              </label>
+            </form>
             <nav
               aria-label="Account navigation"
               className="ml-auto flex min-w-0 items-center justify-end gap-2"
@@ -193,44 +192,38 @@ export async function AppShell({
             </nav>
           </div>
         </div>
-      </header>
+        </header>
 
-      <div
-        className={
-          focusMode
-            ? "flex min-h-0 flex-1 p-2"
-            : "grid min-h-0 flex-1 gap-2 p-2 lg:grid-cols-[minmax(260px,360px)_1fr]"
-        }
-      >
-        {!focusMode ? (
-          <LeftLibraryPanel
-            initialItems={initialLibraryItems}
-            isAuthenticated={Boolean(user)}
-          />
-        ) : null}
-        <main className="flex min-h-0 min-w-0 flex-1">{children}</main>
-      </div>
-
-      {!focusMode ? (
-        <footer className="shrink-0 px-2 pb-2">
-        <div className="flex flex-col gap-3 rounded-xl bg-[linear-gradient(90deg,#ed1746_0%,#7c5cff_55%,#4f8cff_100%)] px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-[13px] font-bold">ChordPH notice</p>
-            <p className="mt-1 text-[14px] leading-5">
-              Audio links are public-by-link for now. Anyone with a track link can play it.
-            </p>
-          </div>
-          <Link
-            href="/annotation"
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-white px-5 text-[13px] font-bold text-[#111] transition hover:bg-[#f4f4f4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        <div
+          className={
+            documentScroll
+              ? focusMode
+                ? "flex flex-1 p-2"
+                : "grid flex-1 gap-2 p-2 lg:grid-cols-[minmax(220px,280px)_1fr]"
+              : focusMode
+              ? "flex min-h-0 flex-1 p-2"
+              : mobileDocumentScroll
+                ? "grid flex-1 gap-2 p-2 lg:min-h-0 lg:grid-cols-[minmax(220px,280px)_1fr]"
+                : "grid min-h-0 flex-1 gap-2 p-2 lg:grid-cols-[minmax(220px,280px)_1fr]"
+          }
+        >
+          <LeftLibraryPanel showDesktop={!focusMode} />
+          <main
+            className={
+              documentScroll
+                ? "flex min-w-0 flex-1"
+                : mobileDocumentScroll
+                ? "flex min-w-0 flex-1 lg:h-full lg:min-h-0"
+                : "flex h-full min-h-0 min-w-0 flex-1"
+            }
           >
-            Open library
-          </Link>
+            {children}
+          </main>
         </div>
-        </footer>
-      ) : null}
-      {!focusMode ? <StickyMusicPlayer /> : null}
-    </div>
+
+        {!focusMode ? <StickyMusicPlayer /> : null}
+      </div>
+    </AppMenuProvider>
   );
 }
 
@@ -243,19 +236,4 @@ function hashText(value: string) {
   }
 
   return Math.abs(hash);
-}
-
-function toPersonalTrackListItem(
-  track: PersonalTrackRecord,
-): PersonalTrackListItem {
-  return {
-    id: track.id,
-    title: track.title,
-    artistName: track.artistName,
-    key: track.key,
-    tuning: track.tuning,
-    tags: track.tags,
-    hasAudio: Boolean(track.musicFileId),
-    updatedAt: track.updatedAt.toISOString(),
-  };
 }
