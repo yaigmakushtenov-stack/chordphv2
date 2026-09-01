@@ -9,7 +9,9 @@ import {
   MusicService,
   type MusicFileSearchResult,
 } from "@/services/music-service";
+import { TrackService } from "@/services/track-service";
 import type { MusicFileListItemData } from "@/types/music";
+import type { DashboardPublicTrackData } from "@/types/track";
 
 export const metadata: Metadata = {
   title: "ChordPH | Guitar chords, tabs, and lyrics",
@@ -23,12 +25,29 @@ export default async function Home() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  const libraryItems = session?.user?.id
-    ? (await MusicService.listReadyMusicFiles({
-        ownerId: session.user.id,
-        sort: "latest",
-      })).map(toMusicFileListItemData)
-    : [];
+  const [libraryItems, publicTracks] = await Promise.all([
+    session?.user?.id
+      ? MusicService.listReadyMusicFiles({
+          ownerId: session.user.id,
+          sort: "latest",
+        }).then((files) => files.map(toMusicFileListItemData))
+      : Promise.resolve([]),
+    TrackService.listDashboardPublicTracks().then((tracks) =>
+      tracks.flatMap((track): DashboardPublicTrackData[] =>
+        track.annotation
+          ? [
+              {
+                id: track.id,
+                title: track.title,
+                artistName: track.artistName,
+                key: track.key,
+                annotationType: track.annotation.type,
+              },
+            ]
+          : [],
+      ),
+    ),
+  ]);
   const newestSongs = libraryItems.filter(isNewestSong);
 
   return (
@@ -38,7 +57,10 @@ export default async function Home() {
         title="Dashboard"
         description="Create track annotations and keep your chords, lyrics, references, and practice library in one workspace."
       >
-        <DashboardHome initialNewestSongs={newestSongs} />
+        <DashboardHome
+          initialNewestSongs={newestSongs}
+          publicTracks={publicTracks}
+        />
       </Dashboard>
     </AppShell>
   );

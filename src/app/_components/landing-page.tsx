@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { LogoutButton } from "@/app/_components/auth/logout-button";
+import { LogoutButton } from "@/components/shared/logout-button";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { authClient } from "@/lib/auth-client";
 

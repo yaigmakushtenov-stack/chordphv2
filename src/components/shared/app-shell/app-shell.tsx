@@ -207,7 +207,10 @@ export async function AppShell({
                 : "grid min-h-0 flex-1 gap-2 p-2 lg:grid-cols-[minmax(220px,280px)_1fr]"
           }
         >
-          <LeftLibraryPanel showDesktop={!focusMode} />
+          <LeftLibraryPanel
+            isAuthenticated={Boolean(user)}
+            showDesktop={!focusMode}
+          />
           <main
             className={
               documentScroll

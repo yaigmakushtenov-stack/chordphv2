@@ -107,3 +107,11 @@ export type TrackBrowseItemData = {
   isOwnerTrack: boolean;
   isInSetList?: boolean;
 };
+
+export type DashboardPublicTrackData = {
+  id: string;
+  title: string;
+  artistName: string;
+  key: string;
+  annotationType: "VOCALS" | "CHORDS" | "TAB" | "BASS" | "DRUMS";
+};

@@ -21,12 +21,18 @@ enum GroupRole {
   MEMBER
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 model BetterAuthUser {
   id               String              @id
   name             String
   email            String              @unique
   emailVerified    Boolean             @default(false)
   image            String?
+  role             UserRole            @default(USER)
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   sessions         BetterAuthSession[]

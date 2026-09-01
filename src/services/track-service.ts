@@ -5,6 +5,7 @@ import {
   Prisma,
   PublicityStatus,
   TrackAnnotationType,
+  UserRole,
   VisibilityStatus,
 } from "@/generated/prisma/client";
 import {
@@ -84,6 +85,18 @@ const browseTrackSelect = {
   tuning: true,
 } satisfies Prisma.TrackSelect;
 
+const dashboardPublicTrackSelect = {
+  id: true,
+  title: true,
+  artistName: true,
+  key: true,
+  annotation: {
+    select: {
+      type: true,
+    },
+  },
+} satisfies Prisma.TrackSelect;
+
 const copySourceTrackSelect = {
   id: true,
   title: true,
@@ -116,6 +129,10 @@ export type PersonalTrackRecord = Prisma.TrackGetPayload<{
 
 export type BrowseTrackRecord = Prisma.TrackGetPayload<{
   select: typeof browseTrackSelect;
+}>;
+
+export type DashboardPublicTrackRecord = Prisma.TrackGetPayload<{
+  select: typeof dashboardPublicTrackSelect;
 }>;
 
 export type SaveTrackDetailsInput = {
@@ -168,6 +185,15 @@ export async function createTrackWithAnnotation(
   const annotation = validateAnnotationValues(input);
 
   return prisma.$transaction(async (transaction) => {
+    const owner = await transaction.betterAuthUser.findUnique({
+      where: { id: ownerId },
+      select: { role: true },
+    });
+
+    if (!owner) {
+      throw new TrackAnnotationServiceError("NOT_FOUND", "User not found.");
+    }
+
     if (musicFileId) {
       const musicFile = await transaction.musicFile.findFirst({
         where: {
@@ -187,6 +213,8 @@ export async function createTrackWithAnnotation(
       }
     }
 
+    const isAdmin = owner.role === UserRole.ADMIN;
+
     return transaction.track.create({
       data: {
         ownerId,
@@ -204,7 +232,12 @@ export async function createTrackWithAnnotation(
         metadata: {
           additionalArtists: details.additionalArtists,
         },
-        visibilityStatus: VisibilityStatus.PRIVATE,
+        visibilityStatus: isAdmin
+          ? VisibilityStatus.PUBLIC
+          : VisibilityStatus.PRIVATE,
+        publicityStatus: isAdmin
+          ? PublicityStatus.APPROVED
+          : PublicityStatus.PRIVATE,
         annotation: {
           create: {
             type: TrackAnnotationType.CHORDS,
@@ -271,6 +304,21 @@ export async function listPersonalAnnotationTracks(
     select: personalTrackSelect,
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     take: 100,
+  });
+}
+
+export async function listDashboardPublicTracks(): Promise<
+  DashboardPublicTrackRecord[]
+> {
+  return prisma.track.findMany({
+    where: {
+      visibilityStatus: VisibilityStatus.PUBLIC,
+      publicityStatus: PublicityStatus.APPROVED,
+      annotation: { isNot: null },
+    },
+    select: dashboardPublicTrackSelect,
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    take: 6,
   });
 }
 
@@ -764,6 +812,7 @@ export const TrackService = {
   getAnnotationTrack,
   getTemporaryTrackArtists,
   getViewableAnnotationTrack,
+  listDashboardPublicTracks,
   listPersonalAnnotationTracks,
   searchViewableTracks,
   saveTrackAnnotation,
