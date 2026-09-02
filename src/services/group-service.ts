@@ -1,6 +1,10 @@
 import "server-only";
 
-import { GroupMembershipStatus, GroupRole, Prisma } from "@/generated/prisma/client";
+import {
+  GroupMembershipStatus,
+  GroupRole,
+  Prisma,
+} from "@/generated/prisma/client";
 import {
   hasGroupPermission,
   type GroupPermission,

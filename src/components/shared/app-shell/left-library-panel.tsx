@@ -48,8 +48,8 @@ const MENU_ITEMS: MenuItem[] = [
     label: "Track library",
   },
   { href: "/setlists", icon: "setlists", label: "Setlists" },
-  { icon: "bands", label: "Bands", note: "Coming soon" },
-  { icon: "events", label: "Events", note: "Coming soon" },
+  { href: "/bands", icon: "bands", label: "Bands" },
+  { href: "/events", icon: "events", label: "Events" },
   { href: "/chord-chart", icon: "chords", label: "Chord chart" },
 ];
 
