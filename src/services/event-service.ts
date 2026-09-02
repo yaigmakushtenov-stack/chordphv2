@@ -1,6 +1,10 @@
 import "server-only";
 
-import { Prisma } from "@/generated/prisma/client";
+import {
+  Prisma,
+  PublicityStatus,
+  VisibilityStatus,
+} from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 
 const MAX_EVENT_TITLE_LENGTH = 120;
@@ -74,12 +78,76 @@ const eventDetailSelect = {
   },
 } satisfies Prisma.EventSelect;
 
+const eventStagePlaylistSelect = {
+  id: true,
+  eventId: true,
+  setListId: true,
+  event: {
+    select: {
+      id: true,
+      ownerId: true,
+      title: true,
+    },
+  },
+  setList: {
+    select: {
+      id: true,
+      title: true,
+      tracks: {
+        orderBy: [{ orderNumber: "asc" as const }, { id: "asc" as const }],
+        select: {
+          id: true,
+          orderNumber: true,
+          settings: true,
+          track: {
+            select: {
+              id: true,
+              ownerId: true,
+              title: true,
+              artistName: true,
+              key: true,
+              capo: true,
+              tempo: true,
+              timeSignature: true,
+              tuning: true,
+              visibilityStatus: true,
+              publicityStatus: true,
+              annotation: {
+                select: {
+                  lyricsAndChords: true,
+                  notes: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  eventGroupSetLists: {
+    take: 1,
+    orderBy: [{ createdAt: "asc" as const }, { id: "asc" as const }],
+    select: {
+      group: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.EventSetListSelect;
+
 export type EventSummaryRecord = Prisma.EventGetPayload<{
   select: typeof eventSummarySelect;
 }>;
 
 export type EventDetailRecord = Prisma.EventGetPayload<{
   select: typeof eventDetailSelect;
+}>;
+
+export type EventStagePlaylistRecord = Prisma.EventSetListGetPayload<{
+  select: typeof eventStagePlaylistSelect;
 }>;
 
 export type CreateEventInput = {
@@ -144,6 +212,43 @@ export async function getEventDetailForOwner(
     },
     select: eventDetailSelect,
   });
+}
+
+export async function getStagePlaylistForOwner(input: {
+  ownerId: string;
+  eventId: string;
+  eventSetListId: string;
+}): Promise<EventStagePlaylistRecord | null> {
+  const ownerId = requireId(input.ownerId, "ownerId");
+
+  return prisma.eventSetList.findFirst({
+    where: {
+      id: requireId(input.eventSetListId, "eventSetListId"),
+      eventId: requireId(input.eventId, "eventId"),
+      event: {
+        ownerId,
+      },
+      setList: {
+        ownerId,
+      },
+    },
+    select: eventStagePlaylistSelect,
+  });
+}
+
+export function canViewStageTrack(
+  ownerId: string,
+  track: {
+    ownerId: string;
+    publicityStatus: PublicityStatus;
+    visibilityStatus: VisibilityStatus;
+  },
+): boolean {
+  return (
+    track.ownerId === ownerId ||
+    (track.visibilityStatus === VisibilityStatus.PUBLIC &&
+      track.publicityStatus === PublicityStatus.APPROVED)
+  );
 }
 
 export async function createEvent(
@@ -564,6 +669,7 @@ export const EventService = {
   createEvent,
   getEventDetailForOwner,
   getEventForOwner,
+  getStagePlaylistForOwner,
   listEventsForUser,
   removeSetListFromEvent,
   reorderEventSetLists,

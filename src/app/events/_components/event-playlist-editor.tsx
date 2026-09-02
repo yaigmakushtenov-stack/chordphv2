@@ -495,6 +495,12 @@ export function EventPlaylistEditor({
                 </label>
                 {isEditing ? (
                   <div className="flex shrink-0 gap-1">
+                    <Link
+                      href={`/events/${event.id}/playlists/${playlist.id}/stage`}
+                      className="inline-flex h-9 items-center justify-center rounded-full bg-[#ed1746] px-3 text-[11px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+                    >
+                      Stage
+                    </Link>
                     <button
                       type="button"
                       disabled={isPending}
@@ -523,9 +529,17 @@ export function EventPlaylistEditor({
                     </button>
                   </div>
                 ) : (
-                  <span className="w-fit rounded-full bg-[#f1f1f1] px-3 py-1.5 text-[11px] font-bold dark:bg-[#28282c]">
-                    {playlist.band?.name ?? "No band"}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="w-fit rounded-full bg-[#f1f1f1] px-3 py-1.5 text-[11px] font-bold dark:bg-[#28282c]">
+                      {playlist.band?.name ?? "No band"}
+                    </span>
+                    <Link
+                      href={`/events/${event.id}/playlists/${playlist.id}/stage`}
+                      className="inline-flex h-9 items-center justify-center rounded-full bg-[#ed1746] px-3 text-[11px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+                    >
+                      Stage
+                    </Link>
+                  </div>
                 )}
               </li>
             ))}
