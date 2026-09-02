@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Roboto_Mono } from "next/font/google";
 import {
   useCallback,
   useEffect,
@@ -14,7 +15,23 @@ import { transposeChord, transposeChordPro } from "@/lib/chords/chord-pro";
 import type { AccidentalPreference } from "@/lib/chords/chord-pro";
 import type { StagePlaylistData, StageTrackData } from "@/types/stage";
 
+const stageFont = Roboto_Mono({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-stage",
+});
+
 type StageTheme = "dark" | "light";
+type StageDisplayMode = "default" | "vocals";
+
+type StageAppearance = {
+  activeSectionBorderClassName: string;
+  chordClassName: string;
+  idleSectionBorderClassName: string;
+  labelClassName: string;
+  lyricClassName: string;
+  sectionSurfaceClassName: string;
+};
 
 type StageSection = {
   id: string;
@@ -88,6 +105,9 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   const effectiveActiveSectionId = activeSectionId ?? anchors[0]?.id ?? null;
   const activeAnchor =
     anchors.find((anchor) => anchor.id === effectiveActiveSectionId) ?? null;
+  const isDark = theme === "dark";
+  const stageDisplayMode: StageDisplayMode = "default";
+  const appearance = getStageAppearance(stageDisplayMode, isDark);
 
   const updateActiveSection = useCallback(() => {
     const scroller = scrollerRef.current;
@@ -195,11 +215,9 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     await document.documentElement.requestFullscreen?.().catch(() => undefined);
   }
 
-  const isDark = theme === "dark";
-
   return (
     <main
-      className={`grid h-dvh min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden ${
+      className={`${stageFont.variable} grid h-dvh min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden font-[family:var(--font-stage)] ${
         isDark ? "bg-[#08090b] text-[#f5f3ed]" : "bg-[#f8f7f3] text-[#151515]"
       }`}
     >
@@ -259,16 +277,14 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
         >
           <div className="mx-auto grid max-w-[980px] gap-12">
             {tracks.length ? (
-              tracks.map((track, trackIndex) => (
+              tracks.map((track) => (
                 <article
                   key={track.setListTrackId}
                   className="grid gap-7"
                   data-stage-track-id={track.setListTrackId}
                 >
                   <StageTrackHeader
-                    isDark={isDark}
                     track={track}
-                    trackNumber={trackIndex + 1}
                   />
                   {track.isAvailable && track.sections.length ? (
                     <div className="grid gap-8">
@@ -282,17 +298,13 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                               sectionRefs.current.delete(section.id);
                             }
                           }}
-                          className="scroll-mt-20"
+                          className={`scroll-mt-20 border-l-4 pl-3 ${
+                            effectiveActiveSectionId === section.id
+                              ? appearance.activeSectionBorderClassName
+                              : appearance.idleSectionBorderClassName
+                          }`}
                         >
-                          <div
-                            className={`mb-3 flex items-center gap-3 border-l-4 pl-3 ${
-                              effectiveActiveSectionId === section.id
-                                ? "border-[#ed1746]"
-                                : isDark
-                                  ? "border-[#343740]"
-                                  : "border-[#d8d3c8]"
-                            }`}
-                          >
+                          <div className="mb-3 flex items-center gap-3">
                             <span
                               className={`flex size-8 shrink-0 items-center justify-center rounded-full text-[12px] font-black ${
                                 effectiveActiveSectionId === section.id
@@ -309,14 +321,14 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                             </h2>
                           </div>
                           <div
-                            className={`rounded-lg px-3 py-4 font-mono text-[20px] leading-[1.45] sm:text-[24px] sm:leading-[1.5] md:text-[28px] md:leading-[1.52] ${
-                              isDark ? "bg-[#111216]" : "bg-[#fffdf8]"
+                            className={`rounded-lg px-3 py-4 font-[family:var(--font-stage)] text-[20px] leading-[1.45] sm:text-[24px] sm:leading-[1.5] md:text-[28px] md:leading-[1.52] ${
+                              appearance.sectionSurfaceClassName
                             }`}
                           >
                             {section.lines.map((line, lineIndex) => (
                               <StageChordLine
                                 key={`${section.id}-${lineIndex}`}
-                                isDark={isDark}
+                                appearance={appearance}
                                 line={line}
                               />
                             ))}
@@ -480,40 +492,20 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
 }
 
 function StageTrackHeader({
-  isDark,
   track,
-  trackNumber,
 }: {
-  isDark: boolean;
   track: StageTrackDocument;
-  trackNumber: number;
 }) {
   return (
-    <header
-      className={`rounded-lg border px-4 py-4 ${
-        isDark
-          ? "border-[#23252a] bg-[#0d0e12]"
-          : "border-[#dedbd2] bg-[#fffdf8]"
-      }`}
-    >
-      <p className="text-[12px] font-bold text-[#ed1746]">
-        Song {trackNumber}
-      </p>
-      <h2 className="mt-1 text-[28px] font-black leading-tight sm:text-[36px]">
+    <header className="flex min-w-0 items-center justify-start gap-4 px-1 py-2">
+      {track.displayKey ? (
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-[#ed1746] text-[18px] font-black text-white shadow-[0_10px_24px_rgba(237,23,70,0.24)]">
+          {track.displayKey}
+        </span>
+      ) : null}
+      <h2 className="min-w-0 truncate text-[28px] font-black leading-tight sm:text-[36px]">
         {track.title}
       </h2>
-      <div
-        className={`mt-3 flex flex-wrap gap-2 text-[12px] font-bold ${
-          isDark ? "text-[#c9c3b8]" : "text-[#555]"
-        }`}
-      >
-        <span>{track.artistName}</span>
-        {track.displayKey ? <span>Key {track.displayKey}</span> : null}
-        {track.tuning ? <span>{track.tuning}</span> : null}
-        {track.capo !== null ? <span>Capo {track.capo}</span> : null}
-        {track.tempo !== null ? <span>{track.tempo} BPM</span> : null}
-        {track.timeSignature ? <span>{track.timeSignature}</span> : null}
-      </div>
     </header>
   );
 }
@@ -603,10 +595,10 @@ function StageNavigator({
 }
 
 function StageChordLine({
-  isDark,
+  appearance,
   line,
 }: {
-  isDark: boolean;
+  appearance: StageAppearance;
   line: string;
 }) {
   const parts = getStageLineParts(line);
@@ -616,7 +608,7 @@ function StageChordLine({
   }
 
   return (
-    <p className="whitespace-pre-wrap">
+    <p className={`whitespace-pre-wrap ${appearance.lyricClassName}`}>
       {parts.map((part, index) => {
         if (part.kind === "space") {
           return <FragmentText key={index}>{part.value}</FragmentText>;
@@ -629,12 +621,10 @@ function StageChordLine({
         return (
           <strong
             key={index}
-            className={`mr-1.5 inline-block font-sans text-[0.72em] font-black leading-none ${
+            className={`mr-1.5 inline-block font-[family:var(--font-stage)] text-[1em] font-black leading-none ${
               part.kind === "chord"
-                ? "text-[#ed1746]"
-                : isDark
-                  ? "text-[#b8b2a7]"
-                  : "text-[#57534e]"
+                ? appearance.chordClassName
+                : appearance.labelClassName
             }`}
           >
             {part.value}
@@ -740,6 +730,33 @@ function createSectionSlug(value: string): string {
       .replaceAll(/[^a-z0-9]+/g, "-")
       .replaceAll(/^-|-$/g, "") || "section"
   );
+}
+
+function getStageAppearance(
+  mode: StageDisplayMode,
+  isDark: boolean,
+): StageAppearance {
+  const base = {
+    activeSectionBorderClassName: "border-[#ed1746]",
+    idleSectionBorderClassName: isDark
+      ? "border-[#343740]"
+      : "border-[#d8d3c8]",
+    labelClassName: isDark ? "text-[#b8b2a7]" : "text-[#57534e]",
+    lyricClassName: isDark ? "text-[#f5f3ed]" : "text-[#151515]",
+    sectionSurfaceClassName: isDark ? "bg-[#111216]" : "bg-[#fffdf8]",
+  };
+
+  if (mode === "vocals") {
+    return {
+      ...base,
+      chordClassName: isDark ? "text-[#71717a]" : "text-[#a1a1aa]",
+    };
+  }
+
+  return {
+    ...base,
+    chordClassName: isDark ? "text-[#d4d4d8]" : "text-[#3f3f46]",
+  };
 }
 
 function stageButtonClass(isDark: boolean): string {
