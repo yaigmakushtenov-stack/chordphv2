@@ -21,6 +21,11 @@ enum GroupRole {
   MEMBER
 }
 
+enum GroupMembershipStatus {
+  PENDING
+  ACCEPTED
+}
+
 enum UserRole {
   USER
   ADMIN
@@ -40,7 +45,10 @@ model BetterAuthUser {
   musicFiles       MusicFile[]
   tracks           Track[]
   setLists         SetList[]
+  events           Event[]
+  createdGroups    Group[]             @relation("GroupCreator")
   groupMemberships GroupMembership[]
+  groupInvitesSent GroupMembership[]   @relation("GroupMembershipInviter")
 
   @@map("better_auth_users")
 }
@@ -48,27 +56,37 @@ model BetterAuthUser {
 model Group {
   id                 String              @id @default(cuid())
   name               String
+  createdById        String?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+  createdBy          BetterAuthUser?     @relation("GroupCreator", fields: [createdById], references: [id], onDelete: SetNull)
   memberships        GroupMembership[]
   eventGroups        EventGroups[]
   eventGroupSetLists EventGroupSetList[]
 
+  @@index([createdById, createdAt])
   @@map("groups")
 }
 
 model GroupMembership {
-  groupId   String
-  userId    String
-  role      GroupRole      @default(MEMBER)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  group     Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user      BetterAuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId     String
+  userId      String
+  role        GroupRole             @default(MEMBER)
+  status      GroupMembershipStatus @default(ACCEPTED)
+  invitedById String?
+  invitedAt   DateTime              @default(now())
+  acceptedAt  DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  group       Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user        BetterAuthUser        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy   BetterAuthUser?       @relation("GroupMembershipInviter", fields: [invitedById], references: [id], onDelete: SetNull)
 
   @@id([groupId, userId])
   @@index([userId, createdAt])
   @@index([groupId, role])
+  @@index([groupId, status])
+  @@index([invitedById])
   @@map("group_memberships")
 }
 
@@ -251,10 +269,20 @@ model Event {
   title              String
   description        String?
   startDate          DateTime
+  endDate            DateTime?
   place              String
+  timezone           String?
+  locationAddress    String?
+  latitude           Float?
+  longitude          Float?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  owner              BetterAuthUser      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   eventGroups        EventGroups[]
+  eventSetLists      EventSetList[]
   eventGroupSetLists EventGroupSetList[]
 
+  @@index([ownerId, startDate])
   @@map("events")
 }
 
@@ -274,19 +302,38 @@ model EventGroups {
 }
 
 model EventGroupSetList {
-  id        String   @id @default(cuid())
-  eventId   String
-  groupId   String
-  setListId String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  setList   SetList  @relation(fields: [setListId], references: [id], onDelete: Cascade)
+  id           String       @id @default(cuid())
+  eventId      String
+  groupId      String
+  setListId    String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventSetList EventSetList @relation(fields: [eventId, setListId], references: [eventId, setListId], onDelete: Cascade)
+  group        Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  setList      SetList      @relation(fields: [setListId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, groupId, setListId])
   @@index([setListId])
+  @@index([groupId])
   @@map("event_group_set_lists")
+}
+
+model EventSetList {
+  id                 String              @id @default(cuid())
+  eventId            String
+  setListId          String
+  orderNumber        Int
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  event              Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  setList            SetList             @relation(fields: [setListId], references: [id], onDelete: Cascade)
+  eventGroupSetLists EventGroupSetList[]
+
+  @@unique([eventId, setListId])
+  @@unique([eventId, orderNumber])
+  @@index([setListId])
+  @@map("event_set_lists")
 }
 
 model SetList {
@@ -297,6 +344,7 @@ model SetList {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   owner              BetterAuthUser      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  eventSetLists      EventSetList[]
   eventGroupSetLists EventGroupSetList[]
   tracks             SetListTrack[]
 
@@ -315,8 +363,8 @@ model SetListTrack {
   setList     SetList  @relation(fields: [setListId], references: [id], onDelete: Cascade)
   track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
 
-  @@index([setListId, trackId])
   @@unique([setListId, orderNumber])
+  @@index([setListId, trackId])
   @@index([trackId])
   @@map("set_list_tracks")
 }

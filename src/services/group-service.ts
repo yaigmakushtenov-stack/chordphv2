@@ -1,6 +1,6 @@
 import "server-only";
 
-import { GroupRole, Prisma } from "@/generated/prisma/client";
+import { GroupMembershipStatus, GroupRole, Prisma } from "@/generated/prisma/client";
 import {
   hasGroupPermission,
   type GroupPermission,
@@ -58,11 +58,15 @@ export async function createGroup(
 
   const group = await prisma.group.create({
     data: {
+      createdById: userId,
       name,
       memberships: {
         create: {
           userId,
           role: GroupRole.OWNER,
+          status: GroupMembershipStatus.ACCEPTED,
+          invitedById: userId,
+          acceptedAt: new Date(),
         },
       },
     },

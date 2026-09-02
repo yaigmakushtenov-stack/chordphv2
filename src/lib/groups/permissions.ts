@@ -35,8 +35,6 @@ const ownerPermissions = Object.freeze([
 const moderatorPermissions = Object.freeze([
   GroupPermission.VIEW_GROUP,
   GroupPermission.VIEW_MEMBERS,
-  GroupPermission.INVITE_MEMBERS,
-  GroupPermission.REMOVE_MEMBERS,
   GroupPermission.VIEW_CONTENT,
   GroupPermission.CREATE_CONTENT,
   GroupPermission.MANAGE_CONTENT,
