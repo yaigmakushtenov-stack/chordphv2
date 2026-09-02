@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Roboto_Mono } from "next/font/google";
 import {
+  forwardRef,
   useCallback,
   useEffect,
   useMemo,
@@ -13,16 +14,21 @@ import {
 
 import { transposeChord, transposeChordPro } from "@/lib/chords/chord-pro";
 import type { AccidentalPreference } from "@/lib/chords/chord-pro";
-import type { StagePlaylistData, StageTrackData } from "@/types/stage";
+import { publishStageRuntimeState } from "@/lib/client/stage-runtime-store";
+import type {
+  StageDisplayMode,
+  StagePlaylistData,
+  StageRuntimePosition,
+  StageRuntimeState,
+  StageTheme,
+  StageTrackData,
+} from "@/types/stage";
 
 const stageFont = Roboto_Mono({
   display: "swap",
   subsets: ["latin"],
   variable: "--font-stage",
 });
-
-type StageTheme = "dark" | "light";
-type StageDisplayMode = "default" | "vocals";
 
 type StageAppearance = {
   activeSectionBorderClassName: string;
@@ -33,13 +39,20 @@ type StageAppearance = {
   sectionSurfaceClassName: string;
 };
 
+type StageLine = {
+  id: string;
+  index: number;
+  text: string;
+};
+
 type StageSection = {
   id: string;
   trackId: string;
+  setListTrackId: string;
   trackTitle: string;
   title: string;
   number: number;
-  lines: string[];
+  lines: StageLine[];
 };
 
 type StageTrackDocument = StageTrackData & {
@@ -50,6 +63,7 @@ type StageTrackDocument = StageTrackData & {
 type StageAnchor = {
   id: string;
   trackId: string;
+  setListTrackId: string;
   trackTitle: string;
   sectionTitle: string;
 };
@@ -61,11 +75,12 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     useState<AccidentalPreference>("sharps");
   const [scrollSpeed, setScrollSpeed] = useState(0);
   const [isNavigatorOpen, setIsNavigatorOpen] = useState(false);
-  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
+  const lineRefs = useRef(new Map<string, HTMLParagraphElement>());
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
+  const lastPublishedStateKeyRef = useRef("");
 
   const tracks = useMemo(
     () =>
@@ -83,7 +98,8 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           displayKey,
           sections: parseStageSections({
             source,
-            trackId: track.setListTrackId,
+            setListTrackId: track.setListTrackId,
+            trackId: track.id,
             trackTitle: track.title,
           }),
         };
@@ -96,28 +112,66 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
         track.sections.map((section) => ({
           id: section.id,
           trackId: section.trackId,
+          setListTrackId: section.setListTrackId,
           trackTitle: section.trackTitle,
           sectionTitle: section.title,
         })),
       ),
     [tracks],
   );
-  const effectiveActiveSectionId = activeSectionId ?? anchors[0]?.id ?? null;
-  const activeAnchor =
-    anchors.find((anchor) => anchor.id === effectiveActiveSectionId) ?? null;
   const isDark = theme === "dark";
   const stageDisplayMode: StageDisplayMode = "default";
   const appearance = getStageAppearance(stageDisplayMode, isDark);
+  const [stageState, setStageState] = useState<StageRuntimeState>(() =>
+    createStageRuntimeState({
+      accidentals,
+      displayMode: stageDisplayMode,
+      playlist,
+      position: null,
+      scrollSpeed,
+      theme,
+      transpose,
+    }),
+  );
+  const effectiveActiveSectionId =
+    stageState.position?.sectionId ?? anchors[0]?.id ?? null;
+  const activeAnchor =
+    anchors.find((anchor) => anchor.id === effectiveActiveSectionId) ?? null;
 
-  const updateActiveSection = useCallback(() => {
+  const publishStageState = useCallback(
+    (position: StageRuntimePosition | null, nextScrollSpeed = scrollSpeed) => {
+      const nextState = createStageRuntimeState({
+        accidentals,
+        displayMode: stageDisplayMode,
+        playlist,
+        position,
+        scrollSpeed: nextScrollSpeed,
+        theme,
+        transpose,
+      });
+      const stateKey = getStageRuntimeStateKey(nextState);
+
+      if (lastPublishedStateKeyRef.current === stateKey) {
+        return;
+      }
+
+      lastPublishedStateKeyRef.current = stateKey;
+      publishStageRuntimeState(nextState);
+      setStageState(nextState);
+    },
+    [accidentals, playlist, scrollSpeed, stageDisplayMode, theme, transpose],
+  );
+
+  const updateStagePosition = useCallback(() => {
     const scroller = scrollerRef.current;
 
     if (!scroller || anchors.length === 0) {
+      publishStageState(null);
       return;
     }
 
     const anchorLine = scroller.scrollTop + scroller.clientHeight * 0.32;
-    let nextActiveId = anchors[0].id;
+    let nextActiveSection = anchors[0];
 
     for (const anchor of anchors) {
       const element = sectionRefs.current.get(anchor.id);
@@ -127,20 +181,56 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
       }
 
       if (element.offsetTop <= anchorLine) {
-        nextActiveId = anchor.id;
+        nextActiveSection = anchor;
       } else {
         break;
       }
     }
 
-    setActiveSectionId((current) =>
-      current === nextActiveId ? current : nextActiveId,
+    const section = tracks
+      .flatMap((track) => track.sections)
+      .find((item) => item.id === nextActiveSection.id);
+    const sectionElement = sectionRefs.current.get(nextActiveSection.id);
+
+    if (!section || !sectionElement) {
+      publishStageState(null);
+      return;
+    }
+
+    const sectionTopOffsetPx =
+      sectionElement.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top;
+    const sectionProgressRatio = getSectionProgressRatio(
+      sectionElement,
+      scroller,
     );
-  }, [anchors]);
+    const activeLine = findActiveLine(section, anchorLine, lineRefs.current);
+
+    publishStageState({
+      lineId: activeLine?.id ?? null,
+      lineIndex: activeLine?.index ?? null,
+      lineNumber: activeLine ? activeLine.index + 1 : null,
+      lineOffsetFromViewportTopPx: activeLine
+        ? Math.round(
+            (lineRefs.current.get(activeLine.id)?.getBoundingClientRect().top ??
+              0) - scroller.getBoundingClientRect().top,
+          )
+        : null,
+      sectionId: section.id,
+      sectionNumber: section.number,
+      sectionProgressRatio,
+      sectionTitle: section.title,
+      sectionTopOffsetPx: Math.round(sectionTopOffsetPx),
+      setListTrackId: section.setListTrackId,
+      trackId: section.trackId,
+      trackTitle: section.trackTitle,
+      viewportHeight: scroller.clientHeight,
+    });
+  }, [anchors, publishStageState, tracks]);
 
   useEffect(() => {
-    updateActiveSection();
-  }, [tracks, updateActiveSection]);
+    updateStagePosition();
+  }, [tracks, updateStagePosition]);
 
   useEffect(() => {
     if (scrollSpeed <= 0) {
@@ -161,7 +251,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
 
       if (scroller) {
         scroller.scrollTop += elapsedSeconds * scrollSpeed * 34;
-        updateActiveSection();
+        updateStagePosition();
       }
 
       animationFrameRef.current = requestAnimationFrame(tick);
@@ -177,7 +267,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
       animationFrameRef.current = null;
       lastFrameTimeRef.current = null;
     };
-  }, [scrollSpeed, updateActiveSection]);
+  }, [scrollSpeed, updateStagePosition]);
 
   function jumpToSection(sectionId: string): void {
     const scroller = scrollerRef.current;
@@ -187,10 +277,20 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
       return;
     }
 
-    setActiveSectionId(sectionId);
     scroller.scrollTo({
       behavior: "smooth",
       top: Math.max(0, section.offsetTop - scroller.clientHeight * 0.18),
+    });
+    window.setTimeout(updateStagePosition, 120);
+  }
+
+  function updateScrollSpeed(
+    updater: (currentScrollSpeed: number) => number,
+  ): void {
+    setScrollSpeed((currentScrollSpeed) => {
+      const nextScrollSpeed = updater(currentScrollSpeed);
+      publishStageState(stageState.position, nextScrollSpeed);
+      return nextScrollSpeed;
     });
   }
 
@@ -217,62 +317,14 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
 
   return (
     <main
-      className={`${stageFont.variable} grid h-dvh min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden font-[family:var(--font-stage)] ${
+      className={`${stageFont.variable} grid h-dvh min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden font-[family:var(--font-stage)] ${
         isDark ? "bg-[#08090b] text-[#f5f3ed]" : "bg-[#f8f7f3] text-[#151515]"
       }`}
     >
-      <header
-        className={`flex min-w-0 items-center gap-3 border-b px-3 py-2 sm:px-4 ${
-          isDark
-            ? "border-[#23252a] bg-[#111216]"
-            : "border-[#dedbd2] bg-[#fffdf8]"
-        }`}
-      >
-        <Link
-          href={`/events/${playlist.eventId}`}
-          className={`inline-flex h-10 shrink-0 items-center rounded-full border px-4 text-[12px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
-            isDark
-              ? "border-[#343740] hover:border-[#ed1746]"
-              : "border-[#d8d3c8] hover:border-[#ed1746]"
-          }`}
-        >
-          Back
-        </Link>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[11px] font-bold text-[#ed1746]">
-            {playlist.eventTitle}
-          </p>
-          <h1 className="truncate text-[15px] font-black sm:text-[18px]">
-            {playlist.setListTitle}
-          </h1>
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsNavigatorOpen((current) => !current)}
-          className={stageButtonClass(isDark)}
-        >
-          Sections
-        </button>
-        <button
-          type="button"
-          onClick={() => setTheme(isDark ? "light" : "dark")}
-          className={stageButtonClass(isDark)}
-        >
-          {isDark ? "Light" : "Dark"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void enterFullscreen()}
-          className="hidden h-10 shrink-0 items-center rounded-full bg-[#ed1746] px-4 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] sm:inline-flex"
-        >
-          Fullscreen
-        </button>
-      </header>
-
       <div className="grid min-h-0 min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div
           ref={scrollerRef}
-          onScroll={updateActiveSection}
+          onScroll={updateStagePosition}
           className="min-h-0 overflow-y-auto scroll-smooth px-4 pb-[42vh] pt-6 sm:px-8 lg:px-12"
         >
           <div className="mx-auto grid max-w-[980px] gap-12">
@@ -325,9 +377,16 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                               appearance.sectionSurfaceClassName
                             }`}
                           >
-                            {section.lines.map((line, lineIndex) => (
+                            {section.lines.map((line) => (
                               <StageChordLine
-                                key={`${section.id}-${lineIndex}`}
+                                key={line.id}
+                                ref={(element) => {
+                                  if (element) {
+                                    lineRefs.current.set(line.id, element);
+                                  } else {
+                                    lineRefs.current.delete(line.id);
+                                  }
+                                }}
                                 appearance={appearance}
                                 line={line}
                               />
@@ -391,17 +450,32 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
       >
         <div className="min-w-0">
           <p className="truncate text-[12px] font-bold text-[#ed1746]">
-            {activeAnchor?.trackTitle ?? playlist.setListTitle}
+            {playlist.eventTitle}
           </p>
           <p
             className={`truncate text-[15px] font-black ${
               isDark ? "text-[#f5f3ed]" : "text-[#151515]"
             }`}
           >
-            {activeAnchor?.sectionTitle ?? "Ready"}
+            {activeAnchor
+              ? `${activeAnchor.trackTitle} / ${activeAnchor.sectionTitle}`
+              : playlist.setListTitle}
           </p>
         </div>
         <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-0.5 sm:justify-end sm:pb-0">
+          <Link
+            href={`/events/${playlist.eventId}`}
+            className={stageButtonClass(isDark)}
+          >
+            Back
+          </Link>
+          <button
+            type="button"
+            onClick={() => setIsNavigatorOpen((current) => !current)}
+            className={stageButtonClass(isDark)}
+          >
+            Sections
+          </button>
           <button
             type="button"
             onClick={() => jumpByOffset(-1)}
@@ -412,7 +486,9 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           </button>
           <button
             type="button"
-            onClick={() => setScrollSpeed((speed) => Math.max(0, speed - 1))}
+            onClick={() =>
+              updateScrollSpeed((speed) => Math.max(0, speed - 1))
+            }
             className={stageButtonClass(isDark)}
           >
             -
@@ -426,7 +502,9 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           </div>
           <button
             type="button"
-            onClick={() => setScrollSpeed((speed) => Math.min(12, speed + 1))}
+            onClick={() =>
+              updateScrollSpeed((speed) => Math.min(12, speed + 1))
+            }
             className="inline-flex h-10 shrink-0 items-center rounded-full bg-[#ed1746] px-4 text-[16px] font-black text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
           >
             +
@@ -440,6 +518,20 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
             className={stageButtonClass(isDark)}
           >
             Next
+          </button>
+          <button
+            type="button"
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            className={stageButtonClass(isDark)}
+          >
+            {isDark ? "Light" : "Dark"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void enterFullscreen()}
+            className="inline-flex h-10 shrink-0 items-center rounded-full bg-[#ed1746] px-4 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+          >
+            Fullscreen
           </button>
           <div
             className={`inline-flex h-10 items-center overflow-hidden rounded-full border ${
@@ -594,21 +686,21 @@ function StageNavigator({
   );
 }
 
-function StageChordLine({
+const StageChordLine = forwardRef<HTMLParagraphElement, {
+  appearance: StageAppearance;
+  line: StageLine;
+}>(function StageChordLine({
   appearance,
   line,
-}: {
-  appearance: StageAppearance;
-  line: string;
-}) {
-  const parts = getStageLineParts(line);
+}, ref) {
+  const parts = getStageLineParts(line.text);
 
   if (parts.length === 0) {
-    return <p className="min-h-[1.45em]">&nbsp;</p>;
+    return <p ref={ref} className="min-h-[1.45em]">&nbsp;</p>;
   }
 
   return (
-    <p className={`whitespace-pre-wrap ${appearance.lyricClassName}`}>
+    <p ref={ref} className={`whitespace-pre-wrap ${appearance.lyricClassName}`}>
       {parts.map((part, index) => {
         if (part.kind === "space") {
           return <FragmentText key={index}>{part.value}</FragmentText>;
@@ -633,7 +725,7 @@ function StageChordLine({
       })}
     </p>
   );
-}
+});
 
 function FragmentText({ children }: { children: ReactNode }) {
   return <>{children}</>;
@@ -668,10 +760,12 @@ function getStageLineParts(line: string): StageLinePart[] {
 }
 
 function parseStageSections({
+  setListTrackId,
   source,
   trackId,
   trackTitle,
 }: {
+  setListTrackId: string;
   source: string;
   trackId: string;
   trackTitle: string;
@@ -683,6 +777,7 @@ function parseStageSections({
     const section = {
       id: `${trackId}-${createSectionSlug(title)}-${sections.length}`,
       trackId,
+      setListTrackId,
       trackTitle,
       title,
       number: sections.length + 1,
@@ -704,11 +799,15 @@ function parseStageSections({
       currentSection = startSection("Song");
     }
 
-    currentSection.lines.push(line);
+    currentSection.lines.push({
+      id: `${currentSection.id}-line-${currentSection.lines.length}`,
+      index: currentSection.lines.length,
+      text: line,
+    });
   }
 
   return sections.filter((section) =>
-    section.lines.some((line) => line.trim().length > 0),
+    section.lines.some((line) => line.text.trim().length > 0),
   );
 }
 
@@ -757,6 +856,98 @@ function getStageAppearance(
     ...base,
     chordClassName: isDark ? "text-[#d4d4d8]" : "text-[#3f3f46]",
   };
+}
+
+function createStageRuntimeState({
+  accidentals,
+  displayMode,
+  playlist,
+  position,
+  scrollSpeed,
+  theme,
+  transpose,
+}: {
+  accidentals: AccidentalPreference;
+  displayMode: StageDisplayMode;
+  playlist: StagePlaylistData;
+  position: StageRuntimePosition | null;
+  scrollSpeed: number;
+  theme: StageTheme;
+  transpose: number;
+}): StageRuntimeState {
+  return {
+    appearance: {
+      accidentals,
+      displayMode,
+      theme,
+      transpose,
+    },
+    channel: {
+      bandId: playlist.band?.id ?? null,
+      eventId: playlist.eventId,
+      eventSetListId: playlist.id,
+      setListId: playlist.setListId,
+    },
+    playback: {
+      scrollSpeed,
+      status: scrollSpeed > 0 ? "playing" : "paused",
+    },
+    position,
+    updatedAt: Date.now(),
+  };
+}
+
+function getStageRuntimeStateKey(state: StageRuntimeState): string {
+  return JSON.stringify({
+    appearance: state.appearance,
+    channel: state.channel,
+    playback: state.playback,
+    position: state.position
+      ? {
+          ...state.position,
+          sectionProgressRatio:
+            Math.round(state.position.sectionProgressRatio * 1000) / 1000,
+          sectionTopOffsetPx: Math.round(state.position.sectionTopOffsetPx),
+        }
+      : null,
+  });
+}
+
+function findActiveLine(
+  section: StageSection,
+  anchorLine: number,
+  lineElements: Map<string, HTMLParagraphElement>,
+): StageLine | null {
+  let activeLine: StageLine | null = null;
+
+  for (const line of section.lines) {
+    const lineElement = lineElements.get(line.id);
+
+    if (!lineElement) {
+      continue;
+    }
+
+    if (lineElement.offsetTop <= anchorLine) {
+      activeLine = line;
+    } else {
+      break;
+    }
+  }
+
+  return activeLine;
+}
+
+function getSectionProgressRatio(
+  sectionElement: HTMLElement,
+  scroller: HTMLElement,
+): number {
+  const sectionStart = sectionElement.offsetTop;
+  const sectionHeight = Math.max(sectionElement.offsetHeight, 1);
+  const rawProgress =
+    (scroller.scrollTop + scroller.clientHeight * 0.32 - sectionStart) /
+    sectionHeight;
+
+  return Math.min(1, Math.max(0, rawProgress));
 }
 
 function stageButtonClass(isDark: boolean): string {
