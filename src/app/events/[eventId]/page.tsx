@@ -2,11 +2,25 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
+import { EventPlaylistEditor } from "@/app/events/_components/event-playlist-editor";
 import { AppShell } from "@/components/shared/app-shell";
 import { BackLink } from "@/components/shared/back-link";
 import { Dashboard } from "@/components/shared/dashboard";
 import { auth } from "@/lib/auth";
-import { EventService } from "@/services/event-service";
+import {
+  EventService,
+  type EventDetailRecord,
+} from "@/services/event-service";
+import { GroupService } from "@/services/group-service";
+import {
+  SetListService,
+  type SetListSummaryRecord,
+} from "@/services/setlist-service";
+import type {
+  EventBandOptionData,
+  EventDetailData,
+  EventPlaylistOptionData,
+} from "@/types/event";
 
 export const metadata: Metadata = {
   title: "Event | ChordPH",
@@ -25,11 +39,24 @@ export default async function EventDetailPage({
   }
 
   const { eventId } = await params;
-  const event = await EventService.getEventForOwner(session.user.id, eventId);
+  const [event, setLists, groupMemberships] = await Promise.all([
+    EventService.getEventDetailForOwner(session.user.id, eventId),
+    SetListService.listSetListsForUser(session.user.id),
+    GroupService.listGroupsForUser(session.user.id),
+  ]);
 
   if (!event) {
     notFound();
   }
+
+  const eventData = toEventDetailData(event);
+  const playlistOptions = toPlaylistOptions(setLists);
+  const bandOptions = groupMemberships.map<EventBandOptionData>(
+    (membership) => ({
+      id: membership.group.id,
+      name: membership.group.name,
+    }),
+  );
 
   return (
     <AppShell mobileDocumentScroll>
@@ -38,18 +65,54 @@ export default async function EventDetailPage({
         headerNavigation={<BackLink href="/events">Events</BackLink>}
         eyebrow={`EVENT · ${formatDateTime(event.startDate)}`}
         title={event.title}
-        description={event.description || `${event.place}${event.locationAddress ? `, ${event.locationAddress}` : ""}`}
+        description={
+          event.description ||
+          `${event.place}${event.locationAddress ? `, ${event.locationAddress}` : ""}`
+        }
       >
-        <section className="rounded-2xl border border-dashed border-[#d9d9d9] bg-white px-6 py-16 text-center dark:border-[#3a3a3f] dark:bg-[#171719]">
-          <h2 className="text-[16px] font-bold">Setlists and bands coming next</h2>
-          <p className="mx-auto mt-2 max-w-md text-[13px] leading-5 text-[#666] dark:text-[#b4b4bc]">
-            This event is ready for the next workflow: adding owned setlists and
-            attaching bands under them.
-          </p>
-        </section>
+        <EventPlaylistEditor
+          event={eventData}
+          playlistOptions={playlistOptions}
+          bandOptions={bandOptions}
+        />
       </Dashboard>
     </AppShell>
   );
+}
+
+function toEventDetailData(event: EventDetailRecord): EventDetailData {
+  return {
+    id: event.id,
+    title: event.title,
+    description: event.description,
+    startDate: event.startDate.toISOString(),
+    endDate: event.endDate?.toISOString() ?? null,
+    place: event.place,
+    locationAddress: event.locationAddress,
+    playlists: event.eventSetLists.map((item) => {
+      const band = item.eventGroupSetLists[0]?.group ?? null;
+
+      return {
+        id: item.id,
+        setListId: item.setListId,
+        title: item.setList.title,
+        description: item.setList.description,
+        trackCount: item.setList._count.tracks,
+        band: band ? { id: band.id, name: band.name } : null,
+        orderNumber: item.orderNumber,
+      };
+    }),
+  };
+}
+
+function toPlaylistOptions(
+  setLists: SetListSummaryRecord[],
+): EventPlaylistOptionData[] {
+  return setLists.map((setList) => ({
+    id: setList.id,
+    title: setList.title,
+    trackCount: setList._count.tracks,
+  }));
 }
 
 function formatDateTime(value: Date): string {

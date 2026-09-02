@@ -25,6 +25,17 @@ type EventIdData = {
   eventId: string;
 };
 
+export type ReorderEventSetListsInput = {
+  eventId: string;
+  eventSetListIds: string[];
+};
+
+export type AssignEventSetListGroupInput = {
+  eventId: string;
+  eventSetListId: string;
+  groupId: string | null;
+};
+
 export async function createNew(
   input: CreateEventActionInput,
 ): Promise<ActionResult<EventIdData>> {
@@ -74,6 +85,143 @@ export async function createNew(
   }
 }
 
+export async function addSetList(
+  eventId: string,
+  setListId: string,
+): Promise<ActionResult<null>> {
+  const userId = await getAuthenticatedUserId();
+
+  if (!userId) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to update this event.");
+  }
+
+  if (!isId(eventId) || !isId(setListId)) {
+    return actionFailure("VALIDATION_ERROR", "The selected playlist is invalid.");
+  }
+
+  try {
+    await EventService.addSetListToEvent({
+      ownerId: userId,
+      eventId,
+      setListId,
+    });
+    revalidateEvent(eventId);
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleEventServiceError(error);
+  }
+}
+
+export async function removeSetList(
+  eventId: string,
+  eventSetListId: string,
+): Promise<ActionResult<null>> {
+  const userId = await getAuthenticatedUserId();
+
+  if (!userId) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to update this event.");
+  }
+
+  if (!isId(eventId) || !isId(eventSetListId)) {
+    return actionFailure("VALIDATION_ERROR", "The selected playlist is invalid.");
+  }
+
+  try {
+    await EventService.removeSetListFromEvent({
+      ownerId: userId,
+      eventId,
+      eventSetListId,
+    });
+    revalidateEvent(eventId);
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleEventServiceError(error);
+  }
+}
+
+export async function reorderSetLists(
+  input: ReorderEventSetListsInput,
+): Promise<ActionResult<null>> {
+  const userId = await getAuthenticatedUserId();
+
+  if (!userId) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to update this event.");
+  }
+
+  if (!isReorderEventSetListsInput(input)) {
+    return actionFailure("VALIDATION_ERROR", "The playlist order is invalid.");
+  }
+
+  try {
+    await EventService.reorderEventSetLists({
+      ownerId: userId,
+      eventId: input.eventId,
+      eventSetListIds: input.eventSetListIds,
+    });
+    revalidateEvent(input.eventId);
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleEventServiceError(error);
+  }
+}
+
+export async function assignSetListGroup(
+  input: AssignEventSetListGroupInput,
+): Promise<ActionResult<null>> {
+  const userId = await getAuthenticatedUserId();
+
+  if (!userId) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to update this event.");
+  }
+
+  if (!isAssignEventSetListGroupInput(input)) {
+    return actionFailure("VALIDATION_ERROR", "The selected band is invalid.");
+  }
+
+  try {
+    await EventService.assignGroupToEventSetList({
+      ownerId: userId,
+      eventId: input.eventId,
+      eventSetListId: input.eventSetListId,
+      groupId: input.groupId,
+    });
+    revalidateEvent(input.eventId);
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleEventServiceError(error);
+  }
+}
+
+async function getAuthenticatedUserId(): Promise<string | null> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  return session?.user?.id ?? null;
+}
+
+function revalidateEvent(eventId: string): void {
+  revalidatePath("/events");
+  revalidatePath(`/events/${eventId}`);
+}
+
+function handleEventServiceError<T>(error: unknown): ActionResult<T> {
+  if (!(error instanceof EventServiceError)) {
+    throw error;
+  }
+
+  if (error.code === "NOT_FOUND") {
+    return actionFailure("NOT_FOUND", error.message);
+  }
+
+  if (error.code === "FORBIDDEN") {
+    return actionFailure("FORBIDDEN", error.message);
+  }
+
+  if (error.code === "CONFLICT") {
+    return actionFailure("CONFLICT", error.message);
+  }
+
+  return actionFailure("VALIDATION_ERROR", error.message);
+}
+
 function isCreateEventActionInput(
   value: unknown,
 ): value is CreateEventActionInput {
@@ -91,12 +239,38 @@ function isCreateEventActionInput(
   );
 }
 
+function isReorderEventSetListsInput(
+  value: unknown,
+): value is ReorderEventSetListsInput {
+  return (
+    isRecord(value) &&
+    isId(value.eventId) &&
+    Array.isArray(value.eventSetListIds) &&
+    value.eventSetListIds.every(isId)
+  );
+}
+
+function isAssignEventSetListGroupInput(
+  value: unknown,
+): value is AssignEventSetListGroupInput {
+  return (
+    isRecord(value) &&
+    isId(value.eventId) &&
+    isId(value.eventSetListId) &&
+    (value.groupId === null || isId(value.groupId))
+  );
+}
+
 function optionalString(value: unknown): boolean {
   return value === undefined || typeof value === "string";
 }
 
 function optionalNumberOrNull(value: unknown): boolean {
   return value === undefined || value === null || typeof value === "number";
+}
+
+function isId(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
