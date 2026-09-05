@@ -12,8 +12,19 @@ import {
   type ReactNode,
 } from "react";
 
+import { ChordCard } from "@/components/shared/chords/chord-card";
+import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
+import {
+  GUITAR_CHORDS,
+  PIANO_CHORDS,
+  UKELELE_CHORDS,
+  normalizeChordSymbol,
+  type ChordDefinition,
+  type PianoChordDefinition,
+} from "@/data/chords";
 import { transposeChord, transposeChordPro } from "@/lib/chords/chord-pro";
 import type { AccidentalPreference } from "@/lib/chords/chord-pro";
+import { splitVariationSuffix } from "@/lib/chords/chord-pro";
 import { useStageSync } from "@/lib/client/stage-sync";
 import { publishStageRuntimeState } from "@/lib/client/stage-runtime-store";
 import type {
@@ -43,6 +54,7 @@ const MAX_SYNC_LATENCY_COMPENSATION_MS = 1200;
 type StageAppearance = {
   activeSectionBorderClassName: string;
   chordClassName: string;
+  chordSurfaceClassName: string;
   idleSectionBorderClassName: string;
   labelClassName: string;
   lyricClassName: string;
@@ -89,6 +101,11 @@ type StageSectionMetric = StageSection & {
 };
 
 type StageInstrumentId = "guitar" | "piano" | "ukulele" | "vocals";
+type StageChordInstrument = Exclude<StageInstrumentId, "vocals">;
+type SelectedStageChord = {
+  reference: GuitarChordReference;
+  value: string;
+};
 
 const STAGE_INSTRUMENT_CONFIG: Array<{
   displayMode: StageDisplayMode;
@@ -120,6 +137,9 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   const [isNavigatorOpen, setIsNavigatorOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isInstrumentMenuOpen, setIsInstrumentMenuOpen] = useState(false);
+  const [selectedChord, setSelectedChord] = useState<SelectedStageChord | null>(
+    null,
+  );
   const [syncMode, setSyncMode] = useState<StageSyncMode>("synced");
   const [lockState, setLockState] = useState<StageSyncLockState>("free");
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -717,15 +737,16 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           tabIndex={-1}
           className="min-h-0 overflow-y-auto px-0 pb-[42vh] pt-6 sm:px-8 lg:px-12"
         >
-          <div className="mx-auto grid max-w-[980px] gap-12">
+          <div className="mx-auto grid max-w-[980px] gap-2">
             {tracks.length ? (
               tracks.map((track) => (
                 <article
                   key={track.setListTrackId}
-                  className="grid gap-7"
+                  className="grid gap-2"
                   data-stage-track-id={track.setListTrackId}
                 >
                   <StageTrackHeader
+                    isDark={isDark}
                     track={track}
                   />
                   {track.isAvailable && track.sections.length ? (
@@ -746,7 +767,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                               : appearance.idleSectionBorderClassName
                           }`}
                         >
-                          <div className="mb-2 flex items-center gap-2 sm:mb-3 sm:gap-3">
+                          <div className="my-2 flex items-center gap-2 sm:my-3 sm:gap-3">
                             <span
                               className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-black sm:size-8 sm:text-[12px] ${
                                 effectiveActiveSectionId === section.id
@@ -778,6 +799,8 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                                   }
                                 }}
                                 appearance={appearance}
+                                onChordSelect={setSelectedChord}
+                                stageInstrument={stageInstrument}
                                 line={line}
                               />
                             ))}
@@ -830,6 +853,31 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           tracks={tracks}
         />
       </div>
+
+      {selectedChord && stageInstrument !== "vocals" ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-end justify-center bg-black/20 px-4 pb-20 sm:items-center sm:pb-4"
+          onPointerDown={() => setSelectedChord(null)}
+        >
+          <div
+            className="relative"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedChord(null)}
+              className="absolute -right-3 -top-3 z-10 flex size-8 items-center justify-center rounded-full bg-[#ed1746] text-[18px] font-black leading-none text-white shadow-lg transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+              aria-label={`Close ${selectedChord.value} chord`}
+            >
+              ×
+            </button>
+            <StageChordPopoverContent
+              chordReference={selectedChord.reference}
+              instrument={stageInstrument}
+            />
+          </div>
+        </div>
+      ) : null}
 
       <footer
         className={`relative border-t px-3 py-2 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-2 sm:px-4 ${
@@ -1252,18 +1300,24 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
 }
 
 function StageTrackHeader({
+  isDark,
   track,
 }: {
+  isDark: boolean;
   track: StageTrackDocument;
 }) {
   return (
-    <header className="flex min-w-0 items-center justify-start gap-3 px-3 py-2 sm:gap-4 sm:px-1">
+    <header
+      className={`mx-3 flex min-w-0 items-center justify-center gap-2 rounded-md px-3 py-2 text-center sm:mx-0 sm:justify-start sm:gap-4 sm:bg-transparent sm:px-1 ${
+        isDark ? "bg-[#18191f]" : "bg-[#27272a]"
+      }`}
+    >
       {track.displayKey ? (
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] text-[15px] font-black text-white shadow-[0_10px_24px_rgba(237,23,70,0.24)] sm:size-14 sm:text-[18px]">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#ed1746] text-[11px] font-black text-white shadow-[0_10px_24px_rgba(237,23,70,0.2)] sm:size-14 sm:text-[18px]">
           {track.displayKey}
         </span>
       ) : null}
-      <h2 className="min-w-0 truncate text-[22px] font-black leading-tight sm:text-[36px]">
+      <h2 className="min-w-0 truncate text-[16px] font-black leading-tight text-[#f5f3ed] sm:text-[36px] sm:text-inherit">
         {track.title}
       </h2>
     </header>
@@ -1357,9 +1411,13 @@ function StageNavigator({
 const StageChordLine = forwardRef<HTMLParagraphElement, {
   appearance: StageAppearance;
   line: StageLine;
+  onChordSelect: (chord: SelectedStageChord) => void;
+  stageInstrument: StageInstrumentId;
 }>(function StageChordLine({
   appearance,
   line,
+  onChordSelect,
+  stageInstrument,
 }, ref) {
   const parts = getStageLineParts(line.text);
 
@@ -1381,12 +1439,31 @@ const StageChordLine = forwardRef<HTMLParagraphElement, {
           return <FragmentText key={index}>{part.value}</FragmentText>;
         }
 
+        if (part.kind === "chord" && stageInstrument !== "vocals") {
+          const chordReference = getGuitarChordReference(part.value);
+
+          if (chordReference) {
+            return (
+              <button
+                key={index}
+                type="button"
+                onClick={() =>
+                  onChordSelect({ reference: chordReference, value: part.value })
+                }
+                className={`mr-1.5 inline-block rounded-sm px-1 py-0 font-[family:var(--font-stage)] text-[1em] font-black leading-none transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}
+              >
+                {part.value}
+              </button>
+            );
+          }
+        }
+
         return (
           <strong
             key={index}
-            className={`mr-1.5 inline-block font-[family:var(--font-stage)] text-[1em] font-black leading-none ${
+            className={`mr-1.5 inline-block rounded-sm px-1 py-0 font-[family:var(--font-stage)] text-[1em] font-black leading-none ${
               part.kind === "chord"
-                ? appearance.chordClassName
+                ? `${appearance.chordClassName} ${appearance.chordSurfaceClassName}`
                 : appearance.labelClassName
             }`}
           >
@@ -1400,6 +1477,50 @@ const StageChordLine = forwardRef<HTMLParagraphElement, {
 
 function FragmentText({ children }: { children: ReactNode }) {
   return <>{children}</>;
+}
+
+function StageChordPopoverContent({
+  chordReference,
+  instrument,
+}: {
+  chordReference: GuitarChordReference;
+  instrument: StageChordInstrument;
+}) {
+  if (instrument === "piano") {
+    const pianoReference = getPianoChordReference(chordReference);
+
+    return (
+      <PianoChordCard
+        chord={pianoReference.chord}
+        compact
+        initialVariationIndex={pianoReference.variationIndex}
+        variationLabel={pianoReference.variationNumber}
+      />
+    );
+  }
+
+  if (instrument === "ukulele") {
+    const ukuleleReference = getUkuleleChordReference(chordReference);
+
+    return (
+      <ChordCard
+        chord={ukuleleReference.chord}
+        compact
+        instrumentLabel="ukulele"
+        initialVariationIndex={ukuleleReference.variationIndex}
+        variationLabel={ukuleleReference.variationNumber}
+      />
+    );
+  }
+
+  return (
+    <ChordCard
+      chord={chordReference.chord}
+      compact
+      initialVariationIndex={chordReference.variationIndex}
+      variationLabel={chordReference.variationNumber}
+    />
+  );
 }
 
 function StageSyncIcon({ synced }: { synced: boolean }) {
@@ -1442,6 +1563,25 @@ function StageSyncIcon({ synced }: { synced: boolean }) {
 type StageLinePart =
   | { kind: "chord" | "label" | "space" | "word"; value: string };
 
+type GuitarChordReference = {
+  chord: ChordDefinition;
+  displaySymbol: string;
+  variationIndex: number;
+  variationNumber: number | null;
+};
+
+type PianoChordReference = {
+  chord: PianoChordDefinition;
+  variationIndex: number;
+  variationNumber: number | null;
+};
+
+type UkuleleChordReference = {
+  chord: ChordDefinition;
+  variationIndex: number;
+  variationNumber: number | null;
+};
+
 function getStageLineParts(line: string): StageLinePart[] {
   const lineParts = line.split(/(\[[^\]\r\n]+\])/g).filter(Boolean);
   const renderedParts: StageLinePart[] = [];
@@ -1465,6 +1605,185 @@ function getStageLineParts(line: string): StageLinePart[] {
   }
 
   return renderedParts;
+}
+
+function getGuitarChordReference(value: string): GuitarChordReference | null {
+  const parsedChord = splitVariationSuffix(value);
+  const normalizedSymbol = normalizeChordSymbol(parsedChord.symbol);
+
+  if (!normalizedSymbol) {
+    return null;
+  }
+
+  const chord =
+    findGuitarChord(normalizedSymbol) ?? createEmptyGuitarChord(normalizedSymbol);
+
+  if (!chord) {
+    return null;
+  }
+
+  return {
+    chord,
+    displaySymbol: chord.symbol,
+    variationIndex: parsedChord.variationNumber
+      ? parsedChord.variationNumber - 1
+      : 0,
+    variationNumber: parsedChord.variationNumber,
+  };
+}
+
+function getPianoChordReference(
+  guitarReference: GuitarChordReference,
+): PianoChordReference {
+  const chord =
+    findPianoChord(guitarReference.displaySymbol) ??
+    createEmptyPianoChord(guitarReference.displaySymbol);
+
+  return {
+    chord,
+    variationIndex: guitarReference.variationIndex,
+    variationNumber: guitarReference.variationNumber,
+  };
+}
+
+function getUkuleleChordReference(
+  guitarReference: GuitarChordReference,
+): UkuleleChordReference {
+  const chord =
+    findUkuleleChord(guitarReference.displaySymbol) ??
+    createEmptyUkuleleChord(guitarReference.displaySymbol);
+
+  return {
+    chord,
+    variationIndex: guitarReference.variationIndex,
+    variationNumber: guitarReference.variationNumber,
+  };
+}
+
+function findGuitarChord(symbol: string): ChordDefinition | null {
+  const candidates = getNormalizedChordCandidates(symbol);
+
+  for (const candidate of candidates) {
+    const chord = GUITAR_CHORDS.find((item) => item.symbol === candidate);
+
+    if (chord) {
+      return chord;
+    }
+  }
+
+  return null;
+}
+
+function findPianoChord(symbol: string): PianoChordDefinition | null {
+  const candidates = getNormalizedChordCandidates(symbol);
+
+  for (const candidate of candidates) {
+    const chord = PIANO_CHORDS.find((item) => item.symbol === candidate);
+
+    if (chord) {
+      return chord;
+    }
+  }
+
+  return null;
+}
+
+function findUkuleleChord(symbol: string): ChordDefinition | null {
+  const candidates = getNormalizedChordCandidates(symbol);
+
+  for (const candidate of candidates) {
+    const chord = UKELELE_CHORDS.find((item) => item.symbol === candidate);
+
+    if (chord) {
+      return chord;
+    }
+  }
+
+  return null;
+}
+
+function getNormalizedChordCandidates(symbol: string): string[] {
+  return [
+    normalizeChordSymbol(symbol),
+    normalizeChordSymbol(transposeChord(symbol, 0, "sharps") ?? ""),
+    normalizeChordSymbol(transposeChord(symbol, 0, "flats") ?? ""),
+  ].filter((value, index, values): value is string =>
+    Boolean(value && values.indexOf(value) === index),
+  );
+}
+
+function createEmptyGuitarChord(symbol: string): ChordDefinition | null {
+  const parsedChord = parseChordSymbol(symbol);
+
+  if (!parsedChord) {
+    return null;
+  }
+
+  return {
+    symbol,
+    root: parsedChord.root,
+    quality: parsedChord.quality,
+    ...(parsedChord.bass ? { bass: parsedChord.bass } : {}),
+    variations: [
+      {
+        id: `${symbol.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-empty`,
+        frets: [0, 0, 0, 0, 0, 0],
+      },
+    ],
+  };
+}
+
+function createEmptyPianoChord(symbol: string): PianoChordDefinition {
+  const parsedChord = parseChordSymbol(symbol);
+
+  return {
+    symbol,
+    root: parsedChord?.root ?? symbol,
+    quality: parsedChord?.quality ?? "",
+    variations: [
+      {
+        id: `${symbol.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-empty`,
+        symbol,
+        label: "No chord data",
+        notes: [],
+      },
+    ],
+  };
+}
+
+function createEmptyUkuleleChord(symbol: string): ChordDefinition {
+  const parsedChord = parseChordSymbol(symbol);
+
+  return {
+    symbol,
+    root: parsedChord?.root ?? symbol,
+    quality: parsedChord?.quality ?? "",
+    ...(parsedChord?.bass ? { bass: parsedChord.bass } : {}),
+    variations: [
+      {
+        id: `${symbol.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-empty`,
+        frets: [0, 0, 0, 0],
+      },
+    ],
+  };
+}
+
+function parseChordSymbol(symbol: string): {
+  root: string;
+  quality: string;
+  bass?: string;
+} | null {
+  const match = /^([A-G][#b]?)([^/\s]*)(?:\/([A-G][#b]?))?$/.exec(symbol);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    root: match[1],
+    quality: match[2],
+    ...(match[3] ? { bass: match[3] } : {}),
+  };
 }
 
 function parseStageSections({
@@ -1545,6 +1864,7 @@ function getStageAppearance(
 ): StageAppearance {
   const base = {
     activeSectionBorderClassName: "border-[#ed1746]",
+    chordSurfaceClassName: isDark ? "bg-[#1c1d22]" : "bg-[#ededf0]",
     idleSectionBorderClassName: isDark
       ? "border-[#343740]"
       : "border-[#d8d3c8]",
@@ -1557,6 +1877,7 @@ function getStageAppearance(
     return {
       ...base,
       chordClassName: isDark ? "text-[#4b4b52]" : "text-[#c4c4cc]",
+      chordSurfaceClassName: isDark ? "bg-[#15161a]" : "bg-[#f1f1f3]",
     };
   }
 
