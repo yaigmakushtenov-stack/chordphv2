@@ -729,7 +729,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                     track={track}
                   />
                   {track.isAvailable && track.sections.length ? (
-                    <div className="grid gap-8">
+                    <div className="grid gap-0 sm:gap-8">
                       {track.sections.map((section) => (
                         <section
                           key={section.id}
@@ -746,9 +746,9 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                               : appearance.idleSectionBorderClassName
                           }`}
                         >
-                          <div className="mb-3 flex items-center gap-3">
+                          <div className="mb-2 flex items-center gap-2 sm:mb-3 sm:gap-3">
                             <span
-                              className={`flex size-8 shrink-0 items-center justify-center rounded-full text-[12px] font-black ${
+                              className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-black sm:size-8 sm:text-[12px] ${
                                 effectiveActiveSectionId === section.id
                                   ? "bg-[#ed1746] text-white"
                                   : isDark
@@ -758,7 +758,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                             >
                               {section.number}
                             </span>
-                            <h2 className="text-[18px] font-black sm:text-[22px]">
+                            <h2 className="text-[14px] font-black sm:text-[22px]">
                               {section.title}
                             </h2>
                           </div>
