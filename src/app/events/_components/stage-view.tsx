@@ -777,7 +777,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                             </h2>
                           </div>
                           <div
-                            className={`overflow-x-auto rounded-lg px-3 py-4 font-mono text-[10px] leading-[1.4] [tab-size:4] sm:text-[24px] sm:leading-[1.5] md:text-[28px] md:leading-[1.52] ${
+                            className={`overflow-x-auto rounded-lg px-3 py-4 text-[12px] leading-[1.4] [tab-size:4] sm:text-[24px] sm:leading-[1.5] md:text-[28px] md:leading-[1.52] ${
                               appearance.sectionSurfaceClassName
                             }`}
                           >
@@ -1441,7 +1441,7 @@ const StageChordLine = forwardRef<HTMLParagraphElement, {
                 onClick={() =>
                   onChordSelect({ reference: chordReference, value: part.value })
                 }
-                className={`inline-flex items-center justify-center rounded-sm font-mono text-[1em] font-black leading-none transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}
+                className={`inline-flex items-center justify-center rounded-sm font-sans text-[1em] font-black leading-none transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}
                 style={{ width: `${part.sourceLength}ch` }}
               >
                 {part.value}
