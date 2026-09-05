@@ -784,7 +784,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                             </h2>
                           </div>
                           <div
-                            className={`overflow-x-auto rounded-lg px-3 py-4 font-[family:var(--font-stage)] text-[10px] leading-[1.4] sm:text-[24px] sm:leading-[1.5] md:text-[28px] md:leading-[1.52] ${
+                            className={`overflow-x-auto rounded-lg px-3 py-4 font-[family:var(--font-stage)] text-[10px] leading-[1.4] [tab-size:4] sm:text-[24px] sm:leading-[1.5] md:text-[28px] md:leading-[1.52] ${
                               appearance.sectionSurfaceClassName
                             }`}
                           >
@@ -1428,7 +1428,7 @@ const StageChordLine = forwardRef<HTMLParagraphElement, {
   return (
     <p
       ref={ref}
-      className={`whitespace-pre sm:whitespace-pre-wrap ${appearance.lyricClassName}`}
+      className={`whitespace-pre ${appearance.lyricClassName}`}
     >
       {parts.map((part, index) => {
         if (part.kind === "space") {
@@ -1450,7 +1450,8 @@ const StageChordLine = forwardRef<HTMLParagraphElement, {
                 onClick={() =>
                   onChordSelect({ reference: chordReference, value: part.value })
                 }
-                className={`mr-1.5 inline-block rounded-sm px-1 py-0 font-[family:var(--font-stage)] text-[1em] font-black leading-none transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}
+                className={`inline-flex items-center justify-center rounded-sm font-[family:var(--font-stage)] text-[1em] font-black leading-none transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}
+                style={{ width: `${part.sourceLength}ch` }}
               >
                 {part.value}
               </button>
@@ -1458,14 +1459,17 @@ const StageChordLine = forwardRef<HTMLParagraphElement, {
           }
         }
 
+        const sourceLength = part.sourceLength;
+
         return (
           <strong
             key={index}
-            className={`mr-1.5 inline-block rounded-sm px-1 py-0 font-[family:var(--font-stage)] text-[1em] font-black leading-none ${
+            className={`inline-flex items-center justify-center rounded-sm font-[family:var(--font-stage)] text-[1em] font-black leading-none ${
               part.kind === "chord"
                 ? `${appearance.chordClassName} ${appearance.chordSurfaceClassName}`
                 : appearance.labelClassName
             }`}
+            style={{ width: `${sourceLength}ch` }}
           >
             {part.value}
           </strong>
@@ -1561,7 +1565,11 @@ function StageSyncIcon({ synced }: { synced: boolean }) {
 }
 
 type StageLinePart =
-  | { kind: "chord" | "label" | "space" | "word"; value: string };
+  | {
+      kind: "chord" | "label" | "space" | "word";
+      sourceLength: number;
+      value: string;
+    };
 
 type GuitarChordReference = {
   chord: ChordDefinition;
@@ -1591,6 +1599,7 @@ function getStageLineParts(line: string): StageLinePart[] {
       const value = linePart.slice(1, -1).trim();
       renderedParts.push({
         kind: transposeChord(value, 0, "sharps") ? "chord" : "label",
+        sourceLength: linePart.length,
         value,
       });
       continue;
@@ -1599,6 +1608,7 @@ function getStageLineParts(line: string): StageLinePart[] {
     for (const token of linePart.split(/(\s+)/)) {
       renderedParts.push({
         kind: token.trim() ? "word" : "space",
+        sourceLength: token.length,
         value: token,
       });
     }

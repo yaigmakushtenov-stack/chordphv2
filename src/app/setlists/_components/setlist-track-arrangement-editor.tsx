@@ -145,8 +145,9 @@ export function SetListTrackArrangementEditor({
             required
             maxLength={100_000}
             value={arrangement.lyricsAndChords}
+            wrap="off"
             onChange={(event) => update("lyricsAndChords", event.target.value)}
-            className="mt-1.5 min-h-[480px] w-full resize-y rounded-xl border border-[#dedede] bg-[#fafafa] p-4 font-mono text-[13px] leading-6 outline-none transition focus:border-[#ed1746] focus:ring-2 focus:ring-[#ed1746]/10 dark:border-[#3a3a3f] dark:bg-[#202023]"
+            className="mt-1.5 min-h-[480px] w-full resize-y overflow-auto rounded-xl border border-[#dedede] bg-[#fafafa] p-4 font-mono text-[13px] leading-6 outline-none transition [tab-size:4] focus:border-[#ed1746] focus:ring-2 focus:ring-[#ed1746]/10 dark:border-[#3a3a3f] dark:bg-[#202023]"
           />
         </Field>
       </section>

@@ -486,13 +486,14 @@ export function AnnotationEditor({
               <textarea
                 value={annotation.lyricsAndChords}
                 maxLength={100_000}
+                wrap="off"
                 onChange={(event) =>
                   updateAnnotation("lyricsAndChords", event.target.value)
                 }
                 placeholder={
                   "[Verse 1]\n[D]\n  You were the Word at the beginning\n         [G]       [Bm]       [A]\nOne With God the Lord Most High"
                 }
-                className="mt-4 min-h-[420px] w-full resize-y rounded-xl border border-[#dedede] bg-[#fafafa] p-4 font-mono text-[13px] leading-6 text-[#111] outline-none transition focus:border-[#ed1746] focus:ring-2 focus:ring-[#ed1746]/10 dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-[#f5f5f5]"
+                className="mt-4 min-h-[420px] w-full resize-y overflow-auto rounded-xl border border-[#dedede] bg-[#fafafa] p-4 font-mono text-[13px] leading-6 text-[#111] outline-none transition [tab-size:4] focus:border-[#ed1746] focus:ring-2 focus:ring-[#ed1746]/10 dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-[#f5f5f5]"
               />
             </section>
 
@@ -1441,7 +1442,7 @@ function ChordPreview({
   }
 
   return (
-    <div className="mt-5 max-h-[60vh] overflow-auto rounded-xl bg-[#fafafa] p-4 text-[14px] leading-7 dark:bg-[#202023]">
+    <div className="mt-5 max-h-[60vh] overflow-auto rounded-xl bg-[#fafafa] p-4 font-mono text-[13px] leading-6 [tab-size:4] dark:bg-[#202023]">
       {chords.length ? (
         <TrackChordSection
           chords={chords}

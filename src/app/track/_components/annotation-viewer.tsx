@@ -282,7 +282,7 @@ export function AnnotationViewer({
         ) : null}
 
         {source.trim() ? (
-          <div className="rounded-xl bg-[#fafafa] p-4 text-[15px] leading-8 dark:bg-[#202023] sm:p-6">
+          <div className="overflow-x-auto rounded-xl bg-[#fafafa] p-4 font-mono text-[13px] leading-6 [tab-size:4] dark:bg-[#202023] sm:p-6">
             {source.split("\n").map((line, index) => (
               <ChordLine
                 key={index}
@@ -631,7 +631,7 @@ export function ChordLine({
   }
 
   const parts = line.split(/(\[[^\]\r\n]+\])/g).filter(Boolean);
-  return <div className="min-h-8 whitespace-pre-wrap">{parts.map((part, index) => {
+  return <div className="min-h-6 whitespace-pre">{parts.map((part, index) => {
     if (!part.startsWith("[") || !part.endsWith("]")) return <span key={index}>{part}</span>;
     const value = part.slice(1, -1).trim();
     const isChord = Boolean(transposeChord(value, 0, "sharps"));
@@ -644,7 +644,7 @@ export function ChordLine({
       : null;
 
     if (!chordReference) {
-      return <strong key={index} className={isChord ? "mr-1 inline-block text-[13px] font-black text-[#ed1746]" : "mr-1 inline-block text-[12px] font-bold text-[#666] dark:text-[#b4b4bc]"}>{value}</strong>;
+      return <strong key={index} className={isChord ? "inline-flex items-center justify-center rounded-sm text-[1em] font-black leading-none text-[#ed1746]" : "inline-flex items-center justify-center rounded-sm text-[1em] font-bold leading-none text-[#666] dark:text-[#b4b4bc]"} style={{ width: `${part.length}ch` }}>{value}</strong>;
     }
 
     return (
@@ -718,7 +718,8 @@ export function ChordLine({
       >
         <button
           type="button"
-          className="mr-1 inline-block rounded bg-[#e7e7e9] px-1.5 py-0.5 text-[13px] font-black leading-none text-[#111] transition hover:bg-[#ffdce4] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#343438] dark:text-white dark:hover:bg-[#4a1c28]"
+          className="inline-flex items-center justify-center rounded-sm bg-[#e7e7e9] text-[1em] font-black leading-none text-[#111] transition hover:bg-[#ffdce4] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#343438] dark:text-white dark:hover:bg-[#4a1c28]"
+          style={{ width: `${part.length}ch` }}
         >
           <PreferredChordSymbolLabel
             chordInstrument={chordInstrument}
