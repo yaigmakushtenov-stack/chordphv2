@@ -129,6 +129,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
   const lastPublishedStateKeyRef = useRef("");
+  const lastRenderedSectionIdRef = useRef<string | null>(null);
   const remoteScrollFrameRef = useRef<number | null>(null);
   const scrollEndTimerRef = useRef<number | null>(null);
   const lastSpeedDownAtRef = useRef(0);
@@ -226,7 +227,10 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
 
       stageStateRef.current = nextState;
 
-      if (!options.render) {
+      if (
+        !options.render &&
+        position?.sectionId === lastRenderedSectionIdRef.current
+      ) {
         return;
       }
 
@@ -235,6 +239,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
       }
 
       lastPublishedStateKeyRef.current = stateKey;
+      lastRenderedSectionIdRef.current = position?.sectionId ?? null;
       publishStageRuntimeState(nextState);
       setStageState(nextState);
     },
