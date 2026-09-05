@@ -38,9 +38,10 @@ export function BandLibrary({ items }: BandLibraryProps) {
         <section aria-label="Your bands">
           <div className="divide-y divide-[#e9e9e9] border-y border-[#e9e9e9] dark:divide-[#303034] dark:border-[#303034]">
             {items.map((item) => (
-              <div
+              <Link
                 key={item.id}
-                className="flex flex-col gap-3 px-2 py-4 sm:flex-row sm:items-center sm:px-3"
+                href={`/bands/${item.id}`}
+                className="flex flex-col gap-3 px-2 py-4 transition hover:bg-[#f7f7f7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] sm:flex-row sm:items-center sm:px-3 dark:hover:bg-[#202023]"
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] font-bold">
@@ -53,7 +54,7 @@ export function BandLibrary({ items }: BandLibraryProps) {
                 <span className="w-fit rounded-full bg-[#f1f1f1] px-3 py-1.5 text-[11px] font-bold dark:bg-[#28282c]">
                   {formatRole(item.role)}
                 </span>
-              </div>
+              </Link>
             ))}
           </div>
         </section>

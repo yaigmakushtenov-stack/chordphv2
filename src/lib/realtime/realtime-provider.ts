@@ -1,4 +1,5 @@
 export type CreateRealtimeTokenInput = {
+  capability: Record<string, ("presence" | "publish" | "subscribe")[]>;
   clientId: string;
 };
 

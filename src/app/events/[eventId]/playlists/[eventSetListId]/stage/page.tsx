@@ -6,6 +6,7 @@ import { StageView } from "@/app/events/_components/stage-view";
 import {
   canViewStageTrack,
   EventService,
+  type EventStageAccessRecord,
   type EventStagePlaylistRecord,
 } from "@/services/event-service";
 import { auth } from "@/lib/auth";
@@ -29,8 +30,8 @@ export default async function EventPlaylistStagePage({
   }
 
   const { eventId, eventSetListId } = await params;
-  const stagePlaylist = await EventService.getStagePlaylistForOwner({
-    ownerId: session.user.id,
+  const stagePlaylist = await EventService.getStagePlaylistForUser({
+    userId: session.user.id,
     eventId,
     eventSetListId,
   });
@@ -39,17 +40,42 @@ export default async function EventPlaylistStagePage({
     notFound();
   }
 
-  return <StageView playlist={toStagePlaylistData(stagePlaylist, session.user.id)} />;
+  const band = stagePlaylist.eventGroupSetLists[0]?.group ?? null;
+  const access = band
+    ? await EventService.getStageAccessForUser({
+        userId: session.user.id,
+        eventId,
+        setListId: stagePlaylist.setListId,
+        bandId: band.id,
+      })
+    : null;
+
+  if (band && !access) {
+    notFound();
+  }
+
+  return (
+    <StageView
+      playlist={toStagePlaylistData(stagePlaylist, session.user.id, access)}
+    />
+  );
 }
 
 function toStagePlaylistData(
   playlist: EventStagePlaylistRecord,
-  ownerId: string,
+  userId: string,
+  access: EventStageAccessRecord | null,
 ): StagePlaylistData {
   const band = playlist.eventGroupSetLists[0]?.group ?? null;
+  const trackOwnerId = playlist.setList.ownerId;
 
   return {
     id: playlist.id,
+    currentUser: {
+      canLead: access?.canLead ?? playlist.event.ownerId === userId,
+      id: userId,
+      role: access?.role ?? null,
+    },
     eventId: playlist.event.id,
     eventTitle: playlist.event.title,
     setListId: playlist.setList.id,
@@ -57,7 +83,7 @@ function toStagePlaylistData(
     band: band ? { id: band.id, name: band.name } : null,
     tracks: playlist.setList.tracks.map((item) => {
       const arrangement = parseSetListTrackArrangement(item.settings);
-      const isViewable = canViewStageTrack(ownerId, item.track);
+      const isViewable = canViewStageTrack(trackOwnerId, item.track);
       const lyricsAndChords = isViewable
         ? (arrangement?.lyricsAndChords ??
           item.track.annotation?.lyricsAndChords ??

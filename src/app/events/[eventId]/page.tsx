@@ -40,7 +40,7 @@ export default async function EventDetailPage({
 
   const { eventId } = await params;
   const [event, setLists, groupMemberships] = await Promise.all([
-    EventService.getEventDetailForOwner(session.user.id, eventId),
+    EventService.getEventDetailForUser(session.user.id, eventId),
     SetListService.listSetListsForUser(session.user.id),
     GroupService.listGroupsForUser(session.user.id),
   ]);
@@ -50,6 +50,7 @@ export default async function EventDetailPage({
   }
 
   const eventData = toEventDetailData(event);
+  const canManageEvent = event.ownerId === session.user.id;
   const playlistOptions = toPlaylistOptions(setLists);
   const bandOptions = groupMemberships.map<EventBandOptionData>(
     (membership) => ({
@@ -71,6 +72,7 @@ export default async function EventDetailPage({
         }
       >
         <EventPlaylistEditor
+          canManage={canManageEvent}
           event={eventData}
           playlistOptions={playlistOptions}
           bandOptions={bandOptions}

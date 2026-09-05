@@ -14,13 +14,18 @@ import {
 
 import { transposeChord, transposeChordPro } from "@/lib/chords/chord-pro";
 import type { AccidentalPreference } from "@/lib/chords/chord-pro";
+import { useStageSync } from "@/lib/client/stage-sync";
 import { publishStageRuntimeState } from "@/lib/client/stage-runtime-store";
 import type {
   StageDisplayMode,
   StagePlaylistData,
   StageRuntimePosition,
   StageRuntimeState,
+  StageSyncLockState,
+  StageSyncMode,
+  StageSyncSnapshot,
   StageTheme,
+  StageTrackTransposes,
   StageTrackData,
 } from "@/types/stage";
 
@@ -29,6 +34,10 @@ const stageFont = Roboto_Mono({
   subsets: ["latin"],
   variable: "--font-stage",
 });
+
+const AUTO_SCROLL_PIXELS_PER_SECOND = 34;
+const MANUAL_SCROLL_PAUSE_MS = 700;
+const PROGRAMMATIC_SCROLL_IGNORE_MS = 80;
 
 type StageAppearance = {
   activeSectionBorderClassName: string;
@@ -70,28 +79,40 @@ type StageAnchor = {
 
 export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   const [theme, setTheme] = useState<StageTheme>("dark");
-  const [transpose, setTranspose] = useState(0);
+  const [trackTransposes, setTrackTransposes] = useState<StageTrackTransposes>(
+    {},
+  );
   const [accidentals, setAccidentals] =
     useState<AccidentalPreference>("sharps");
   const [scrollSpeed, setScrollSpeed] = useState(0);
   const [isNavigatorOpen, setIsNavigatorOpen] = useState(false);
+  const [syncMode, setSyncMode] = useState<StageSyncMode>("synced");
+  const [lockState, setLockState] = useState<StageSyncLockState>("free");
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
   const lineRefs = useRef(new Map<string, HTMLParagraphElement>());
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
   const lastPublishedStateKeyRef = useRef("");
+  const remoteScrollFrameRef = useRef<number | null>(null);
+  const scrollEndTimerRef = useRef<number | null>(null);
+  const manualScrollPauseUntilRef = useRef(0);
+  const programmaticScrollIgnoreUntilRef = useRef(0);
+  const isUserScrollingRef = useRef(false);
+  const isApplyingRemoteScrollRef = useRef(false);
+  const stageStateRef = useRef<StageRuntimeState | null>(null);
 
   const tracks = useMemo(
     () =>
       playlist.tracks.map<StageTrackDocument>((track) => {
+        const trackTranspose = trackTransposes[track.setListTrackId] ?? 0;
         const source = transposeChordPro(
           track.lyricsAndChords,
-          transpose,
+          trackTranspose,
           accidentals,
         );
         const displayKey =
-          transposeChord(track.key, transpose, accidentals) ?? track.key;
+          transposeChord(track.key, trackTranspose, accidentals) ?? track.key;
 
         return {
           ...track,
@@ -104,7 +125,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           }),
         };
       }),
-    [accidentals, playlist.tracks, transpose],
+    [accidentals, playlist.tracks, trackTransposes],
   );
   const anchors = useMemo(
     () =>
@@ -130,16 +151,25 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
       position: null,
       scrollSpeed,
       theme,
-      transpose,
+      transpose: 0,
     }),
   );
   const effectiveActiveSectionId =
     stageState.position?.sectionId ?? anchors[0]?.id ?? null;
   const activeAnchor =
     anchors.find((anchor) => anchor.id === effectiveActiveSectionId) ?? null;
+  const activeSetListTrackId = activeAnchor?.setListTrackId ?? null;
+  const activeTrackTranspose = activeSetListTrackId
+    ? (trackTransposes[activeSetListTrackId] ?? 0)
+    : 0;
+
+  useEffect(() => {
+    stageStateRef.current = stageState;
+  }, [stageState]);
 
   const publishStageState = useCallback(
     (position: StageRuntimePosition | null, nextScrollSpeed = scrollSpeed) => {
+      const activeTrackId = position?.setListTrackId ?? activeSetListTrackId;
       const nextState = createStageRuntimeState({
         accidentals,
         displayMode: stageDisplayMode,
@@ -147,9 +177,11 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
         position,
         scrollSpeed: nextScrollSpeed,
         theme,
-        transpose,
+        transpose: activeTrackId ? (trackTransposes[activeTrackId] ?? 0) : 0,
       });
       const stateKey = getStageRuntimeStateKey(nextState);
+
+      stageStateRef.current = nextState;
 
       if (lastPublishedStateKeyRef.current === stateKey) {
         return;
@@ -159,8 +191,110 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
       publishStageRuntimeState(nextState);
       setStageState(nextState);
     },
-    [accidentals, playlist, scrollSpeed, stageDisplayMode, theme, transpose],
+    [
+      accidentals,
+      activeSetListTrackId,
+      playlist,
+      scrollSpeed,
+      setStageState,
+      stageDisplayMode,
+      theme,
+      trackTransposes,
+    ],
   );
+
+  const applyViewportState = useCallback(
+    (position: StageRuntimePosition | null, nextScrollSpeed: number) => {
+      const nextState = createStageRuntimeState({
+        accidentals,
+        displayMode: stageDisplayMode,
+        playlist,
+        position,
+        scrollSpeed: nextScrollSpeed,
+        theme,
+        transpose: position
+          ? (trackTransposes[position.setListTrackId] ?? 0)
+          : activeTrackTranspose,
+      });
+
+      lastPublishedStateKeyRef.current = getStageRuntimeStateKey(nextState);
+      stageStateRef.current = nextState;
+      publishStageRuntimeState(nextState);
+      setStageState(nextState);
+
+      if (remoteScrollFrameRef.current !== null) {
+        cancelAnimationFrame(remoteScrollFrameRef.current);
+      }
+
+      remoteScrollFrameRef.current = requestAnimationFrame(() => {
+        remoteScrollFrameRef.current = null;
+        isApplyingRemoteScrollRef.current = true;
+        markProgrammaticScroll(programmaticScrollIgnoreUntilRef);
+        scrollToStagePosition(
+          position,
+          sectionRefs.current,
+          scrollerRef.current,
+        );
+        setScrollSpeed(nextScrollSpeed);
+        window.setTimeout(() => {
+          isApplyingRemoteScrollRef.current = false;
+        }, PROGRAMMATIC_SCROLL_IGNORE_MS);
+      });
+    },
+    [
+      accidentals,
+      activeTrackTranspose,
+      playlist,
+      setStageState,
+      stageDisplayMode,
+      theme,
+      trackTransposes,
+    ],
+  );
+
+  const stageSync = useStageSync({
+    bandId: playlist.band?.id ?? null,
+    canPublish: playlist.currentUser.canLead,
+    eventId: playlist.eventId,
+    lockState,
+    onSnapshot: (event: StageSyncSnapshot) => {
+      setTrackTransposes(event.trackTransposes);
+
+      if (syncMode === "unsynced") {
+        return;
+      }
+
+      applyViewportState(event.position, clampScrollSpeed(event.speed));
+      setLockState("locked");
+    },
+    onTrackTranspose: (event) => {
+      if (!event.setListTrackId) {
+        return;
+      }
+
+      setTrackTransposes((current) => ({
+        ...current,
+        [event.setListTrackId]: clampTranspose(event.transpose),
+      }));
+    },
+    onViewport: (event) => {
+      if (syncMode === "unsynced") {
+        return;
+      }
+
+      applyViewportState(event.position, clampScrollSpeed(event.speed));
+      setLockState("locked");
+    },
+    role: playlist.currentUser.role,
+    setListId: playlist.setListId,
+    snapshot: {
+      position: stageState.position,
+      speed: scrollSpeed,
+      trackTransposes,
+    },
+    syncMode,
+    userId: playlist.currentUser.id,
+  });
 
   const updateStagePosition = useCallback(() => {
     const scroller = scrollerRef.current;
@@ -250,8 +384,12 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
       lastFrameTimeRef.current = time;
 
       if (scroller) {
-        scroller.scrollTop += elapsedSeconds * scrollSpeed * 34;
-        updateStagePosition();
+        if (performance.now() >= manualScrollPauseUntilRef.current) {
+          markProgrammaticScroll(programmaticScrollIgnoreUntilRef);
+          scroller.scrollTop +=
+            elapsedSeconds * scrollSpeed * AUTO_SCROLL_PIXELS_PER_SECOND;
+          updateStagePosition();
+        }
       }
 
       animationFrameRef.current = requestAnimationFrame(tick);
@@ -269,6 +407,18 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     };
   }, [scrollSpeed, updateStagePosition]);
 
+  useEffect(() => {
+    return () => {
+      if (remoteScrollFrameRef.current !== null) {
+        cancelAnimationFrame(remoteScrollFrameRef.current);
+      }
+
+      if (scrollEndTimerRef.current !== null) {
+        window.clearTimeout(scrollEndTimerRef.current);
+      }
+    };
+  }, []);
+
   function jumpToSection(sectionId: string): void {
     const scroller = scrollerRef.current;
     const section = sectionRefs.current.get(sectionId);
@@ -281,17 +431,99 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
       behavior: "smooth",
       top: Math.max(0, section.offsetTop - scroller.clientHeight * 0.18),
     });
-    window.setTimeout(updateStagePosition, 120);
+    if (syncMode === "synced" && lockState === "locked") {
+      setLockState("free");
+    }
+
+    window.setTimeout(() => {
+      updateStagePosition();
+      stageSync.publishViewport({
+        mode: "jump",
+        position: stageStateRef.current?.position ?? null,
+        speed: scrollSpeed,
+      });
+    }, 180);
   }
 
   function updateScrollSpeed(
     updater: (currentScrollSpeed: number) => number,
   ): void {
+    updateStagePosition();
+
     setScrollSpeed((currentScrollSpeed) => {
       const nextScrollSpeed = updater(currentScrollSpeed);
-      publishStageState(stageState.position, nextScrollSpeed);
+      const currentPosition =
+        stageStateRef.current?.position ?? stageState.position;
+      publishStageState(currentPosition, nextScrollSpeed);
+      stageSync.publishSpeed({
+        position: currentPosition,
+        speed: nextScrollSpeed,
+      });
       return nextScrollSpeed;
     });
+  }
+
+  function updateActiveTrackTranspose(offset: -1 | 1): void {
+    if (!activeSetListTrackId) {
+      return;
+    }
+
+    setTrackTransposes((current) => {
+      const nextTranspose = clampTranspose(
+        (current[activeSetListTrackId] ?? 0) + offset,
+      );
+      const nextTransposes = {
+        ...current,
+        [activeSetListTrackId]: nextTranspose,
+      };
+
+      stageSync.publishTrackTranspose({
+        setListTrackId: activeSetListTrackId,
+        transpose: nextTranspose,
+      });
+
+      return nextTransposes;
+    });
+  }
+
+  function handleLocalScrollIntent(): void {
+    isUserScrollingRef.current = true;
+    manualScrollPauseUntilRef.current =
+      performance.now() + MANUAL_SCROLL_PAUSE_MS;
+
+    if (syncMode === "synced" && lockState === "locked") {
+      setLockState("free");
+    }
+  }
+
+  function handleStageScroll(): void {
+    updateStagePosition();
+
+    if (
+      !isUserScrollingRef.current &&
+      (isApplyingRemoteScrollRef.current ||
+        performance.now() < programmaticScrollIgnoreUntilRef.current)
+    ) {
+      return;
+    }
+
+    if (!isUserScrollingRef.current) {
+      return;
+    }
+
+    if (scrollEndTimerRef.current !== null) {
+      window.clearTimeout(scrollEndTimerRef.current);
+    }
+
+    scrollEndTimerRef.current = window.setTimeout(() => {
+      scrollEndTimerRef.current = null;
+      isUserScrollingRef.current = false;
+      stageSync.publishViewport({
+        mode: "scroll-end",
+        position: stageStateRef.current?.position ?? null,
+        speed: scrollSpeed,
+      });
+    }, 220);
   }
 
   function jumpByOffset(offset: -1 | 1): void {
@@ -324,8 +556,13 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
       <div className="grid min-h-0 min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div
           ref={scrollerRef}
-          onScroll={updateStagePosition}
-          className="min-h-0 overflow-y-auto scroll-smooth px-4 pb-[42vh] pt-6 sm:px-8 lg:px-12"
+          onKeyDown={handleLocalScrollIntent}
+          onPointerDown={handleLocalScrollIntent}
+          onScroll={handleStageScroll}
+          onTouchStart={handleLocalScrollIntent}
+          onWheel={handleLocalScrollIntent}
+          tabIndex={-1}
+          className="min-h-0 overflow-y-auto px-4 pb-[42vh] pt-6 sm:px-8 lg:px-12"
         >
           <div className="mx-auto grid max-w-[980px] gap-12">
             {tracks.length ? (
@@ -469,6 +706,41 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           >
             Back
           </Link>
+          <div
+            className={`flex h-10 shrink-0 items-center justify-center rounded-full border px-3 text-[12px] font-black ${
+              isDark
+                ? "border-[#343740] bg-[#17191f] text-[#f5f3ed]"
+                : "border-[#d8d3c8] bg-white text-[#151515]"
+            }`}
+          >
+            {getStageSyncLabel({
+              isSyncAvailable: stageSync.isSyncAvailable,
+              lockState,
+              status: stageSync.status,
+              syncMode,
+            })}
+          </div>
+          {stageSync.lastControllerLabel ? (
+            <div
+              className={`flex h-10 shrink-0 items-center justify-center rounded-full px-3 text-[12px] font-black ${
+                isDark ? "bg-[#23252a]" : "bg-[#ebe7dd]"
+              }`}
+            >
+              By {stageSync.lastControllerLabel}
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setSyncMode((current) =>
+                current === "synced" ? "unsynced" : "synced",
+              );
+              setLockState("free");
+            }}
+            className={stageButtonClass(isDark)}
+          >
+            {syncMode === "synced" ? "Unsync" : "Sync"}
+          </button>
           <button
             type="button"
             onClick={() => setIsNavigatorOpen((current) => !current)}
@@ -542,20 +814,20 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           >
             <button
               type="button"
-              disabled={transpose <= -12}
-              onClick={() => setTranspose((value) => Math.max(-12, value - 1))}
+              disabled={!activeSetListTrackId || activeTrackTranspose <= -12}
+              onClick={() => updateActiveTrackTranspose(-1)}
               className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#ed1746] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Transpose down one semitone"
             >
               -
             </button>
             <span className="min-w-8 text-center text-[12px] font-black tabular-nums">
-              {transpose}
+              {activeTrackTranspose}
             </span>
             <button
               type="button"
-              disabled={transpose >= 12}
-              onClick={() => setTranspose((value) => Math.min(12, value + 1))}
+              disabled={!activeSetListTrackId || activeTrackTranspose >= 12}
+              onClick={() => updateActiveTrackTranspose(1)}
               className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#ed1746] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Transpose up one semitone"
             >
@@ -858,6 +1130,82 @@ function getStageAppearance(
   };
 }
 
+function scrollToStagePosition(
+  position: StageRuntimePosition | null,
+  sectionElements: Map<string, HTMLElement>,
+  scroller: HTMLDivElement | null,
+): void {
+  if (!position || !scroller) {
+    return;
+  }
+
+  const section = sectionElements.get(position.sectionId);
+
+  if (!section) {
+    return;
+  }
+
+  scroller.scrollTo({
+    behavior: "auto",
+    top: Math.max(
+      0,
+      section.offsetTop +
+        section.offsetHeight * position.sectionProgressRatio -
+        scroller.clientHeight * 0.32,
+    ),
+  });
+}
+
+function getStageSyncLabel(sync: {
+  isSyncAvailable: boolean;
+  lockState: StageSyncLockState;
+  status: string;
+  syncMode: StageSyncMode;
+}): string {
+  if (!sync.isSyncAvailable) {
+    return "Solo stage";
+  }
+
+  if (sync.status === "connecting") {
+    return "Syncing";
+  }
+
+  if (sync.status !== "connected") {
+    return "Offline";
+  }
+
+  if (sync.syncMode === "unsynced") {
+    return "Unsync + Free";
+  }
+
+  return sync.lockState === "locked" ? "Sync + Locked" : "Sync + Free";
+}
+
+function clampScrollSpeed(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(12, Math.round(value)));
+}
+
+function clampTranspose(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(-12, Math.min(12, Math.round(value)));
+}
+
+function markProgrammaticScroll(
+  programmaticScrollIgnoreUntilRef: { current: number },
+): void {
+  programmaticScrollIgnoreUntilRef.current = Math.max(
+    programmaticScrollIgnoreUntilRef.current,
+    performance.now() + PROGRAMMATIC_SCROLL_IGNORE_MS,
+  );
+}
+
 function createStageRuntimeState({
   accidentals,
   displayMode,
@@ -904,10 +1252,10 @@ function getStageRuntimeStateKey(state: StageRuntimeState): string {
     playback: state.playback,
     position: state.position
       ? {
-          ...state.position,
-          sectionProgressRatio:
-            Math.round(state.position.sectionProgressRatio * 1000) / 1000,
-          sectionTopOffsetPx: Math.round(state.position.sectionTopOffsetPx),
+          lineId: state.position.lineId,
+          sectionId: state.position.sectionId,
+          setListTrackId: state.position.setListTrackId,
+          trackId: state.position.trackId,
         }
       : null,
   });

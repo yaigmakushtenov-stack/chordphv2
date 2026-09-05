@@ -24,12 +24,14 @@ import type {
 } from "@/types/event";
 
 type EventPlaylistEditorProps = {
+  canManage: boolean;
   event: EventDetailData;
   playlistOptions: EventPlaylistOptionData[];
   bandOptions: EventBandOptionData[];
 };
 
 export function EventPlaylistEditor({
+  canManage,
   event,
   playlistOptions,
   bandOptions,
@@ -101,6 +103,10 @@ export function EventPlaylistEditor({
   }, [playlists]);
 
   function handleAddPlaylist(): void {
+    if (!canManage) {
+      return;
+    }
+
     if (!selectedSetListId) {
       return;
     }
@@ -124,7 +130,7 @@ export function EventPlaylistEditor({
   }
 
   function handleRemovePlaylist(eventSetListId: string): void {
-    if (!isEditing) {
+    if (!canManage || !isEditing) {
       return;
     }
 
@@ -154,6 +160,10 @@ export function EventPlaylistEditor({
     eventSetListId: string,
     changeEvent: ChangeEvent<HTMLSelectElement>,
   ): void {
+    if (!canManage) {
+      return;
+    }
+
     const groupId = changeEvent.target.value || null;
     const previousPlaylists = playlistsRef.current;
     const selectedBand =
@@ -204,7 +214,7 @@ export function EventPlaylistEditor({
     pointerEvent: ReactPointerEvent<HTMLButtonElement>,
     eventSetListId: string,
   ): void {
-    if (!isEditing || isPending || pointerEvent.button !== 0) {
+    if (!canManage || !isEditing || isPending || pointerEvent.button !== 0) {
       return;
     }
 
@@ -309,6 +319,7 @@ export function EventPlaylistEditor({
     eventSetListId: string,
   ): void {
     if (
+      !canManage ||
       !isEditing ||
       isPending ||
       (keyboardEvent.key !== "ArrowUp" && keyboardEvent.key !== "ArrowDown")
@@ -365,42 +376,46 @@ export function EventPlaylistEditor({
       handleDragCancel();
     }
 
-    setIsEditing((current) => !current);
+    setIsEditing((current) => (canManage ? !current : current));
   }
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-        <label className="grid gap-1.5 text-[12px] font-bold">
-          Add playlist
-          <select
-            value={selectedSetListId}
-            onChange={(selectEvent) => setSelectedSetListId(selectEvent.target.value)}
-            disabled={isPending || availablePlaylistOptions.length === 0}
-            className="h-11 min-w-0 rounded-xl border border-[#d9d9d9] bg-white px-3 text-[13px] font-medium outline-none transition focus:border-[#ed1746] focus:ring-3 focus:ring-[#ed1746]/10 disabled:cursor-not-allowed disabled:opacity-55 dark:border-[#3a3a3f] dark:bg-[#202023] dark:focus:border-[#ed1746]"
-          >
-            <option value="">
-              {availablePlaylistOptions.length
-                ? "Choose a playlist"
-                : "No playlists available"}
-            </option>
-            {availablePlaylistOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.title} · {option.trackCount}{" "}
-                {option.trackCount === 1 ? "track" : "tracks"}
+      {canManage ? (
+        <section className="grid gap-3 rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <label className="grid gap-1.5 text-[12px] font-bold">
+            Add playlist
+            <select
+              value={selectedSetListId}
+              onChange={(selectEvent) =>
+                setSelectedSetListId(selectEvent.target.value)
+              }
+              disabled={isPending || availablePlaylistOptions.length === 0}
+              className="h-11 min-w-0 rounded-xl border border-[#d9d9d9] bg-white px-3 text-[13px] font-medium outline-none transition focus:border-[#ed1746] focus:ring-3 focus:ring-[#ed1746]/10 disabled:cursor-not-allowed disabled:opacity-55 dark:border-[#3a3a3f] dark:bg-[#202023] dark:focus:border-[#ed1746]"
+            >
+              <option value="">
+                {availablePlaylistOptions.length
+                  ? "Choose a playlist"
+                  : "No playlists available"}
               </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          disabled={isPending || !selectedSetListId}
-          onClick={handleAddPlaylist}
-          className="inline-flex h-11 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-55"
-        >
-          + Add playlist
-        </button>
-      </section>
+              {availablePlaylistOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.title} · {option.trackCount}{" "}
+                  {option.trackCount === 1 ? "track" : "tracks"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={isPending || !selectedSetListId}
+            onClick={handleAddPlaylist}
+            className="inline-flex h-11 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-55"
+          >
+            + Add playlist
+          </button>
+        </section>
+      ) : null}
 
       <section className="overflow-hidden rounded-2xl border border-[#e4e4e4] bg-white dark:border-[#303034] dark:bg-[#171719]">
         <div className="flex flex-col gap-4 border-b border-[#e4e4e4] px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#303034]">
@@ -409,10 +424,13 @@ export function EventPlaylistEditor({
             <p className="mt-1 text-[12px] text-[#717171] dark:text-[#a1a1aa]">
               {isEditing
                 ? "Drag the handle to arrange playlists, assign bands, or remove playlists from this event."
-                : "Playlists run from top to bottom. Choose Edit to change the plan."}
+                : canManage
+                  ? "Playlists run from top to bottom. Choose Edit to change the plan."
+                  : "Playlists assigned to your band are available for stage mode."}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          {canManage ? (
+            <div className="flex shrink-0 items-center gap-2">
             {isEditing ? (
               <span
                 aria-live="polite"
@@ -438,7 +456,8 @@ export function EventPlaylistEditor({
               {isEditing ? <DoneIcon /> : <PencilIcon />}
               {isEditing ? "Done" : "Edit"}
             </button>
-          </div>
+            </div>
+          ) : null}
         </div>
 
         {playlists.length ? (
@@ -462,37 +481,56 @@ export function EventPlaylistEditor({
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f1f1f1] text-[12px] font-black dark:bg-[#28282c]">
                   {index + 1}
                 </span>
-                <Link
-                  href={`/setlists/${playlist.setListId}`}
-                  className="min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-                >
-                  <span className="block truncate text-[15px] font-bold hover:text-[#ed1746]">
-                    {playlist.title}
-                  </span>
-                  <span className="mt-0.5 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
-                    {playlist.description || "No description"} ·{" "}
-                    {playlist.trackCount}{" "}
-                    {playlist.trackCount === 1 ? "track" : "tracks"}
-                  </span>
-                </Link>
-                <label className="grid gap-1 text-[11px] font-bold text-[#666] dark:text-[#b4b4bc]">
-                  Band
-                  <select
-                    value={playlist.band?.id ?? ""}
-                    onChange={(selectEvent) =>
-                      handleBandChange(playlist.id, selectEvent)
-                    }
-                    disabled={isPending}
-                    className="h-9 min-w-0 rounded-full border border-[#d9d9d9] bg-white px-3 text-[12px] font-bold text-[#111] outline-none transition focus:border-[#ed1746] focus:ring-3 focus:ring-[#ed1746]/10 disabled:cursor-not-allowed disabled:opacity-55 dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-white dark:focus:border-[#ed1746]"
+                {canManage ? (
+                  <Link
+                    href={`/setlists/${playlist.setListId}`}
+                    className="min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
                   >
-                    <option value="">No band</option>
-                    {bandOptions.map((band) => (
-                      <option key={band.id} value={band.id}>
-                        {band.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    <span className="block truncate text-[15px] font-bold hover:text-[#ed1746]">
+                      {playlist.title}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
+                      {playlist.description || "No description"} ·{" "}
+                      {playlist.trackCount}{" "}
+                      {playlist.trackCount === 1 ? "track" : "tracks"}
+                    </span>
+                  </Link>
+                ) : (
+                  <span className="min-w-0">
+                    <span className="block truncate text-[15px] font-bold">
+                      {playlist.title}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
+                      {playlist.description || "No description"} ·{" "}
+                      {playlist.trackCount}{" "}
+                      {playlist.trackCount === 1 ? "track" : "tracks"}
+                    </span>
+                  </span>
+                )}
+                {canManage ? (
+                  <label className="grid gap-1 text-[11px] font-bold text-[#666] dark:text-[#b4b4bc]">
+                    Band
+                    <select
+                      value={playlist.band?.id ?? ""}
+                      onChange={(selectEvent) =>
+                        handleBandChange(playlist.id, selectEvent)
+                      }
+                      disabled={isPending}
+                      className="h-9 min-w-0 rounded-full border border-[#d9d9d9] bg-white px-3 text-[12px] font-bold text-[#111] outline-none transition focus:border-[#ed1746] focus:ring-3 focus:ring-[#ed1746]/10 disabled:cursor-not-allowed disabled:opacity-55 dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-white dark:focus:border-[#ed1746]"
+                    >
+                      <option value="">No band</option>
+                      {bandOptions.map((band) => (
+                        <option key={band.id} value={band.id}>
+                          {band.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <span className="w-fit rounded-full bg-[#f1f1f1] px-3 py-1.5 text-[11px] font-bold dark:bg-[#28282c]">
+                    {playlist.band?.name ?? "No band"}
+                  </span>
+                )}
                 {isEditing ? (
                   <div className="flex shrink-0 gap-1">
                     <Link
@@ -530,9 +568,11 @@ export function EventPlaylistEditor({
                   </div>
                 ) : (
                   <div className="flex shrink-0 items-center gap-2">
-                    <span className="w-fit rounded-full bg-[#f1f1f1] px-3 py-1.5 text-[11px] font-bold dark:bg-[#28282c]">
-                      {playlist.band?.name ?? "No band"}
-                    </span>
+                    {canManage ? (
+                      <span className="w-fit rounded-full bg-[#f1f1f1] px-3 py-1.5 text-[11px] font-bold dark:bg-[#28282c]">
+                        {playlist.band?.name ?? "No band"}
+                      </span>
+                    ) : null}
                     <Link
                       href={`/events/${event.id}/playlists/${playlist.id}/stage`}
                       className="inline-flex h-9 items-center justify-center rounded-full bg-[#ed1746] px-3 text-[11px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"

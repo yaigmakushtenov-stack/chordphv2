@@ -19,9 +19,7 @@ export class AblyRealtime implements RealtimeProvider {
     return this.getClient().auth.createTokenRequest({
       clientId: input.clientId,
       ttl: TOKEN_TTL_MS,
-      capability: {
-        "chordph:*": ["publish", "subscribe", "presence"],
-      },
+      capability: input.capability,
     });
   }
 

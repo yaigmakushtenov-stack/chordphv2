@@ -1,6 +1,8 @@
 import "server-only";
 
 import {
+  GroupMembershipStatus,
+  GroupRole,
   Prisma,
   PublicityStatus,
   VisibilityStatus,
@@ -34,6 +36,7 @@ const eventSummarySelect = {
 
 const eventDetailSelect = {
   id: true,
+  ownerId: true,
   title: true,
   description: true,
   startDate: true,
@@ -92,6 +95,7 @@ const eventStagePlaylistSelect = {
   setList: {
     select: {
       id: true,
+      ownerId: true,
       title: true,
       tracks: {
         orderBy: [{ orderNumber: "asc" as const }, { id: "asc" as const }],
@@ -149,6 +153,15 @@ export type EventDetailRecord = Prisma.EventGetPayload<{
 export type EventStagePlaylistRecord = Prisma.EventSetListGetPayload<{
   select: typeof eventStagePlaylistSelect;
 }>;
+
+export type EventStageAccessRecord = {
+  bandId: string | null;
+  canLead: boolean;
+  eventId: string;
+  eventSetListId: string;
+  role: GroupRole | null;
+  setListId: string;
+};
 
 export type CreateEventInput = {
   ownerId: string;
@@ -214,26 +227,208 @@ export async function getEventDetailForOwner(
   });
 }
 
-export async function getStagePlaylistForOwner(input: {
-  ownerId: string;
+export async function getEventDetailForUser(
+  userId: string,
+  eventId: string,
+): Promise<EventDetailRecord | null> {
+  const normalizedUserId = requireId(userId, "userId");
+  const normalizedEventId = requireId(eventId, "eventId");
+  const access = await prisma.event.findFirst({
+    where: {
+      id: normalizedEventId,
+      OR: [
+        { ownerId: normalizedUserId },
+        {
+          eventGroupSetLists: {
+            some: {
+              group: {
+                memberships: {
+                  some: {
+                    userId: normalizedUserId,
+                    status: GroupMembershipStatus.ACCEPTED,
+                  },
+                },
+              },
+            },
+          },
+        },
+      ],
+    },
+    select: {
+      ownerId: true,
+      eventGroupSetLists: {
+        where: {
+          group: {
+            memberships: {
+              some: {
+                userId: normalizedUserId,
+                status: GroupMembershipStatus.ACCEPTED,
+              },
+            },
+          },
+        },
+        select: {
+          eventSetList: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!access) {
+    return null;
+  }
+
+  const accessibleEventSetListIds = access.eventGroupSetLists.map(
+    (assignment) => assignment.eventSetList.id,
+  );
+
+  return prisma.event.findFirst({
+    where: {
+      id: normalizedEventId,
+    },
+    select: {
+      ...eventDetailSelect,
+      eventSetLists: {
+        ...eventDetailSelect.eventSetLists,
+        where:
+          access.ownerId === normalizedUserId
+            ? undefined
+            : {
+                id: {
+                  in: accessibleEventSetListIds,
+                },
+              },
+      },
+    },
+  });
+}
+
+export async function getStagePlaylistForUser(input: {
+  userId: string;
   eventId: string;
   eventSetListId: string;
 }): Promise<EventStagePlaylistRecord | null> {
-  const ownerId = requireId(input.ownerId, "ownerId");
+  const userId = requireId(input.userId, "userId");
 
   return prisma.eventSetList.findFirst({
     where: {
       id: requireId(input.eventSetListId, "eventSetListId"),
       eventId: requireId(input.eventId, "eventId"),
-      event: {
-        ownerId,
-      },
-      setList: {
-        ownerId,
-      },
+      OR: [
+        {
+          event: {
+            ownerId: userId,
+          },
+          eventGroupSetLists: {
+            none: {},
+          },
+        },
+        {
+          eventGroupSetLists: {
+            some: {
+              group: {
+                memberships: {
+                  some: {
+                    userId,
+                    status: GroupMembershipStatus.ACCEPTED,
+                  },
+                },
+              },
+            },
+          },
+        },
+      ],
     },
     select: eventStagePlaylistSelect,
   });
+}
+
+export async function getStageAccessForUser(input: {
+  userId: string;
+  eventId: string;
+  setListId: string;
+  bandId: string;
+}): Promise<EventStageAccessRecord | null> {
+  const userId = requireId(input.userId, "userId");
+  const eventId = requireId(input.eventId, "eventId");
+  const setListId = requireId(input.setListId, "setListId");
+  const bandId = requireId(input.bandId, "bandId");
+
+  const eventSetList = await prisma.eventSetList.findFirst({
+    where: {
+      eventId,
+      setListId,
+      eventGroupSetLists: {
+        some: {
+          eventId,
+          groupId: bandId,
+          setListId,
+          group: {
+            memberships: {
+              some: {
+                userId,
+                status: GroupMembershipStatus.ACCEPTED,
+              },
+            },
+          },
+        },
+      },
+    },
+    select: {
+      id: true,
+      eventId: true,
+      setListId: true,
+      eventGroupSetLists: {
+        where: {
+          eventId,
+          groupId: bandId,
+          setListId,
+        },
+        take: 1,
+        select: {
+          groupId: true,
+          group: {
+            select: {
+              memberships: {
+                where: {
+                  userId,
+                  status: GroupMembershipStatus.ACCEPTED,
+                },
+                take: 1,
+                select: {
+                  role: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const role =
+    eventSetList?.eventGroupSetLists[0]?.group.memberships[0]?.role ?? null;
+
+  if (!eventSetList || !role) {
+    return null;
+  }
+
+  return {
+    bandId,
+    canLead: canLeadStage(role),
+    eventId: eventSetList.eventId,
+    eventSetListId: eventSetList.id,
+    role,
+    setListId: eventSetList.setListId,
+  };
+}
+
+export function canLeadStage(role: GroupRole | null): boolean {
+  return role === GroupRole.OWNER || role === GroupRole.MODERATOR;
 }
 
 export function canViewStageTrack(
@@ -666,10 +861,13 @@ function hasErrorCode(error: unknown, code: string): boolean {
 export const EventService = {
   addSetListToEvent,
   assignGroupToEventSetList,
+  canLeadStage,
   createEvent,
   getEventDetailForOwner,
+  getEventDetailForUser,
   getEventForOwner,
-  getStagePlaylistForOwner,
+  getStageAccessForUser,
+  getStagePlaylistForUser,
   listEventsForUser,
   removeSetListFromEvent,
   reorderEventSetLists,

@@ -26,6 +26,14 @@ enum GroupMembershipStatus {
   ACCEPTED
 }
 
+enum GroupInstrument {
+  GUITAR
+  DRUMS
+  VOCALS
+  KEYS
+  BASS
+}
+
 enum UserRole {
   USER
   ADMIN
@@ -72,6 +80,7 @@ model GroupMembership {
   groupId     String
   userId      String
   role        GroupRole             @default(MEMBER)
+  instrument  GroupInstrument?
   status      GroupMembershipStatus @default(ACCEPTED)
   invitedById String?
   invitedAt   DateTime              @default(now())
