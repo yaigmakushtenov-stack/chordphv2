@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Roboto_Mono } from "next/font/google";
 import {
   forwardRef,
   useCallback,
@@ -39,12 +38,6 @@ import type {
   StageTrackTransposes,
   StageTrackData,
 } from "@/types/stage";
-
-const stageFont = Roboto_Mono({
-  display: "swap",
-  subsets: ["latin"],
-  variable: "--font-stage",
-});
 
 const AUTO_SCROLL_PIXELS_PER_SECOND = 34;
 const MANUAL_SCROLL_PAUSE_MS = 700;
@@ -722,7 +715,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
 
   return (
     <main
-      className={`${stageFont.variable} grid h-dvh min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden font-[family:var(--font-stage)] ${
+      className={`grid h-dvh min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden font-mono ${
         isDark ? "bg-[#08090b] text-[#f5f3ed]" : "bg-[#f8f7f3] text-[#151515]"
       }`}
     >
@@ -784,7 +777,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                             </h2>
                           </div>
                           <div
-                            className={`overflow-x-auto rounded-lg px-3 py-4 font-[family:var(--font-stage)] text-[10px] leading-[1.4] [tab-size:4] sm:text-[24px] sm:leading-[1.5] md:text-[28px] md:leading-[1.52] ${
+                            className={`overflow-x-auto rounded-lg px-3 py-4 font-mono text-[10px] leading-[1.4] [tab-size:4] sm:text-[24px] sm:leading-[1.5] md:text-[28px] md:leading-[1.52] ${
                               appearance.sectionSurfaceClassName
                             }`}
                           >
@@ -1308,16 +1301,14 @@ function StageTrackHeader({
 }) {
   return (
     <header
-      className={`mx-3 flex min-w-0 items-center justify-center gap-2 rounded-md px-3 py-2 text-center sm:mx-0 sm:justify-start sm:gap-4 sm:bg-transparent sm:px-1 ${
-        isDark ? "bg-[#18191f]" : "bg-[#27272a]"
-      }`}
+      className={`flex min-w-0 items-left justify-left gap-2 rounded-md px-3 py-2 text-center sm:mx-0 sm:justify-start sm:gap-4 sm:bg-transparent sm:px-1`}
     >
       {track.displayKey ? (
         <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#ed1746] text-[11px] font-black text-white shadow-[0_10px_24px_rgba(237,23,70,0.2)] sm:size-14 sm:text-[18px]">
           {track.displayKey}
         </span>
       ) : null}
-      <h2 className="min-w-0 truncate text-[16px] font-black leading-tight text-[#f5f3ed] sm:text-[36px] sm:text-inherit">
+      <h2 className="min-w-0 truncate text-[16px] font-black leading-tight my-auto sm:text-[36px] sm:text-inherit">
         {track.title}
       </h2>
     </header>
@@ -1450,7 +1441,7 @@ const StageChordLine = forwardRef<HTMLParagraphElement, {
                 onClick={() =>
                   onChordSelect({ reference: chordReference, value: part.value })
                 }
-                className={`inline-flex items-center justify-center rounded-sm font-[family:var(--font-stage)] text-[1em] font-black leading-none transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}
+                className={`inline-flex items-center justify-center rounded-sm font-mono text-[1em] font-black leading-none transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}
                 style={{ width: `${part.sourceLength}ch` }}
               >
                 {part.value}
@@ -1464,7 +1455,7 @@ const StageChordLine = forwardRef<HTMLParagraphElement, {
         return (
           <strong
             key={index}
-            className={`inline-flex items-center justify-center rounded-sm font-[family:var(--font-stage)] text-[1em] font-black leading-none ${
+            className={`inline-flex items-center justify-center rounded-sm font-mono text-[1em] font-black leading-none ${
               part.kind === "chord"
                 ? `${appearance.chordClassName} ${appearance.chordSurfaceClassName}`
                 : appearance.labelClassName
