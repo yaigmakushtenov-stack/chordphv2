@@ -191,10 +191,30 @@ export class EventServiceError extends Error {
 }
 
 export async function listEventsForUser(
-  ownerId: string,
+  userId: string,
 ): Promise<EventSummaryRecord[]> {
+  const normalizedUserId = requireText(userId, "userId", 255);
+
   return prisma.event.findMany({
-    where: { ownerId: requireText(ownerId, "ownerId", 255) },
+    where: {
+      OR: [
+        { ownerId: normalizedUserId },
+        {
+          eventGroupSetLists: {
+            some: {
+              group: {
+                memberships: {
+                  some: {
+                    userId: normalizedUserId,
+                    status: GroupMembershipStatus.ACCEPTED,
+                  },
+                },
+              },
+            },
+          },
+        },
+      ],
+    },
     select: eventSummarySelect,
     orderBy: [{ startDate: "asc" }, { id: "asc" }],
     take: 100,
