@@ -77,8 +77,29 @@ type StageAnchor = {
   sectionTitle: string;
 };
 
+type StageInstrumentId = "guitar" | "piano" | "ukulele" | "vocals";
+
+const STAGE_INSTRUMENT_CONFIG: Array<{
+  displayMode: StageDisplayMode;
+  id: StageInstrumentId;
+  label: string;
+  shortLabel: string;
+}> = [
+  { displayMode: "default", id: "guitar", label: "Guitar", shortLabel: "Gtr" },
+  { displayMode: "default", id: "piano", label: "Piano", shortLabel: "Pno" },
+  {
+    displayMode: "default",
+    id: "ukulele",
+    label: "Ukulele",
+    shortLabel: "Uku",
+  },
+  { displayMode: "vocals", id: "vocals", label: "Vocals", shortLabel: "Vox" },
+];
+
 export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   const [theme, setTheme] = useState<StageTheme>("dark");
+  const [stageInstrument, setStageInstrument] =
+    useState<StageInstrumentId>("guitar");
   const [trackTransposes, setTrackTransposes] = useState<StageTrackTransposes>(
     {},
   );
@@ -86,6 +107,8 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     useState<AccidentalPreference>("sharps");
   const [scrollSpeed, setScrollSpeed] = useState(0);
   const [isNavigatorOpen, setIsNavigatorOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isInstrumentMenuOpen, setIsInstrumentMenuOpen] = useState(false);
   const [syncMode, setSyncMode] = useState<StageSyncMode>("synced");
   const [lockState, setLockState] = useState<StageSyncLockState>("free");
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -96,6 +119,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   const lastPublishedStateKeyRef = useRef("");
   const remoteScrollFrameRef = useRef<number | null>(null);
   const scrollEndTimerRef = useRef<number | null>(null);
+  const lastSpeedDownAtRef = useRef(0);
   const manualScrollPauseUntilRef = useRef(0);
   const programmaticScrollIgnoreUntilRef = useRef(0);
   const isUserScrollingRef = useRef(false);
@@ -141,7 +165,10 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     [tracks],
   );
   const isDark = theme === "dark";
-  const stageDisplayMode: StageDisplayMode = "default";
+  const selectedStageInstrument =
+    STAGE_INSTRUMENT_CONFIG.find((item) => item.id === stageInstrument) ??
+    STAGE_INSTRUMENT_CONFIG[0];
+  const stageDisplayMode = selectedStageInstrument.displayMode;
   const appearance = getStageAppearance(stageDisplayMode, isDark);
   const [stageState, setStageState] = useState<StageRuntimeState>(() =>
     createStageRuntimeState({
@@ -463,6 +490,24 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     });
   }
 
+  function decreaseScrollSpeed(): void {
+    const now = performance.now();
+
+    if (now - lastSpeedDownAtRef.current <= 360) {
+      lastSpeedDownAtRef.current = 0;
+      updateScrollSpeed(() => 0);
+      return;
+    }
+
+    lastSpeedDownAtRef.current = now;
+    updateScrollSpeed((speed) => Math.max(0, speed - 1));
+  }
+
+  function toggleSyncMode(): void {
+    setSyncMode((current) => (current === "synced" ? "unsynced" : "synced"));
+    setLockState("free");
+  }
+
   function updateActiveTrackTranspose(offset: -1 | 1): void {
     if (!activeSetListTrackId) {
       return;
@@ -562,7 +607,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           onTouchStart={handleLocalScrollIntent}
           onWheel={handleLocalScrollIntent}
           tabIndex={-1}
-          className="min-h-0 overflow-y-auto px-4 pb-[42vh] pt-6 sm:px-8 lg:px-12"
+          className="min-h-0 overflow-y-auto px-0 pb-[42vh] pt-6 sm:px-8 lg:px-12"
         >
           <div className="mx-auto grid max-w-[980px] gap-12">
             {tracks.length ? (
@@ -610,7 +655,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                             </h2>
                           </div>
                           <div
-                            className={`rounded-lg px-3 py-4 font-[family:var(--font-stage)] text-[20px] leading-[1.45] sm:text-[24px] sm:leading-[1.5] md:text-[28px] md:leading-[1.52] ${
+                            className={`overflow-x-auto rounded-lg px-3 py-4 font-[family:var(--font-stage)] text-[16px] leading-[1.4] sm:text-[24px] sm:leading-[1.5] md:text-[28px] md:leading-[1.52] ${
                               appearance.sectionSurfaceClassName
                             }`}
                           >
@@ -679,13 +724,263 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
       </div>
 
       <footer
-        className={`grid gap-2 border-t px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-4 ${
+        className={`relative border-t px-3 py-2 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-2 sm:px-4 ${
           isDark
             ? "border-[#23252a] bg-[#111216]"
             : "border-[#dedbd2] bg-[#fffdf8]"
         }`}
       >
-        <div className="min-w-0">
+        {isMobileMenuOpen ? (
+          <div
+            className={`absolute bottom-full left-3 right-3 z-40 mb-2 grid gap-3 rounded-lg border p-3 shadow-2xl sm:hidden ${
+              isDark
+                ? "border-[#343740] bg-[#111216] text-[#f5f3ed]"
+                : "border-[#d8d3c8] bg-[#fffdf8] text-[#151515]"
+            }`}
+          >
+            <div className="min-w-0">
+              <p className="truncate text-[12px] font-bold text-[#ed1746]">
+                {playlist.eventTitle}
+              </p>
+              <p className="truncate text-[15px] font-black">
+                {activeAnchor
+                  ? `${activeAnchor.trackTitle} / ${activeAnchor.sectionTitle}`
+                  : playlist.setListTitle}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Link
+                href={`/events/${playlist.eventId}`}
+                className={stageButtonClass(isDark)}
+              >
+                Back
+              </Link>
+              <button
+                type="button"
+                onClick={() => setIsNavigatorOpen((current) => !current)}
+                className={stageButtonClass(isDark)}
+              >
+                Sections
+              </button>
+              <button
+                type="button"
+                onClick={() => jumpByOffset(-1)}
+                disabled={!activeAnchor || anchors[0]?.id === activeAnchor.id}
+                className={stageButtonClass(isDark)}
+              >
+                Prev
+              </button>
+              <button
+                type="button"
+                onClick={() => jumpByOffset(1)}
+                disabled={
+                  !activeAnchor ||
+                  anchors[anchors.length - 1]?.id === activeAnchor.id
+                }
+                className={stageButtonClass(isDark)}
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme(isDark ? "light" : "dark")}
+                className={stageButtonClass(isDark)}
+              >
+                {isDark ? "Light" : "Dark"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void enterFullscreen()}
+                className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-4 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+              >
+                Fullscreen
+              </button>
+            </div>
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
+              <div
+                className={`inline-flex h-10 items-center overflow-hidden rounded-full border ${
+                  isDark
+                    ? "border-[#343740] bg-[#17191f]"
+                    : "border-[#d8d3c8] bg-white"
+                }`}
+              >
+                <button
+                  type="button"
+                  disabled={!activeSetListTrackId || activeTrackTranspose <= -12}
+                  onClick={() => updateActiveTrackTranspose(-1)}
+                  className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#ed1746] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Transpose down one semitone"
+                >
+                  -
+                </button>
+                <span className="min-w-8 text-center text-[12px] font-black tabular-nums">
+                  {activeTrackTranspose}
+                </span>
+                <button
+                  type="button"
+                  disabled={!activeSetListTrackId || activeTrackTranspose >= 12}
+                  onClick={() => updateActiveTrackTranspose(1)}
+                  className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#ed1746] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Transpose up one semitone"
+                >
+                  +
+                </button>
+              </div>
+              <select
+                aria-label="Accidental preference"
+                value={accidentals}
+                onChange={(event) =>
+                  setAccidentals(event.target.value as AccidentalPreference)
+                }
+                className={`h-10 min-w-0 rounded-full border px-3 text-[12px] font-bold outline-none focus:border-[#ed1746] ${
+                  isDark
+                    ? "border-[#343740] bg-[#17191f] text-[#f5f3ed]"
+                    : "border-[#d8d3c8] bg-white text-[#151515]"
+                }`}
+              >
+                <option value="sharps">Sharps</option>
+                <option value="flats">Flats</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div
+                className={`flex h-10 items-center justify-center rounded-full border px-3 text-[12px] font-black ${
+                  isDark
+                    ? "border-[#343740] bg-[#17191f] text-[#f5f3ed]"
+                    : "border-[#d8d3c8] bg-white text-[#151515]"
+                }`}
+              >
+                {getStageSyncLabel({
+                  isSyncAvailable: stageSync.isSyncAvailable,
+                  lockState,
+                  status: stageSync.status,
+                  syncMode,
+                })}
+              </div>
+              {stageSync.lastControllerLabel ? (
+                <div
+                  className={`flex h-10 items-center justify-center rounded-full px-3 text-[12px] font-black ${
+                    isDark ? "bg-[#23252a]" : "bg-[#ebe7dd]"
+                  }`}
+                >
+                  By {stageSync.lastControllerLabel}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+        <div className="flex min-w-0 items-center justify-between gap-2 sm:hidden">
+          <div
+            className={`inline-flex h-11 shrink-0 items-center overflow-hidden rounded-full border ${
+              isDark
+                ? "border-[#343740] bg-[#17191f]"
+                : "border-[#d8d3c8] bg-white"
+            }`}
+            aria-label="Auto-scroll speed controls"
+          >
+            <button
+              type="button"
+              onClick={decreaseScrollSpeed}
+              className="flex h-full w-11 items-center justify-center text-[18px] font-black transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+              aria-label="Decrease auto-scroll speed. Double tap to stop."
+            >
+              -
+            </button>
+            <span className="flex h-full min-w-20 items-center justify-center px-2 text-[12px] font-black tabular-nums">
+              {scrollSpeed === 0 ? "Off" : `Speed ${scrollSpeed}`}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                updateScrollSpeed((speed) => Math.min(12, speed + 1))
+              }
+              className="flex h-full w-11 items-center justify-center bg-[#ed1746] text-[18px] font-black text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+              aria-label="Increase auto-scroll speed"
+            >
+              +
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={toggleSyncMode}
+            className={`flex size-11 shrink-0 items-center justify-center rounded-full border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+              syncMode === "synced"
+                ? "border-[#ed1746] bg-[#ed1746] text-white"
+                : isDark
+                  ? "border-[#343740] bg-[#17191f] text-[#f5f3ed]"
+                  : "border-[#d8d3c8] bg-white text-[#151515]"
+            }`}
+            aria-label={syncMode === "synced" ? "Unsync stage" : "Sync stage"}
+            aria-pressed={syncMode === "synced"}
+          >
+            <StageSyncIcon synced={syncMode === "synced"} />
+          </button>
+          <div className="relative shrink-0">
+            {isInstrumentMenuOpen ? (
+              <div
+                className={`absolute bottom-full right-0 z-50 mb-2 grid min-w-36 gap-1 rounded-lg border p-1.5 shadow-2xl ${
+                  isDark
+                    ? "border-[#343740] bg-[#111216] text-[#f5f3ed]"
+                    : "border-[#d8d3c8] bg-[#fffdf8] text-[#151515]"
+                }`}
+              >
+                {STAGE_INSTRUMENT_CONFIG.map((instrument) => (
+                  <button
+                    key={instrument.id}
+                    type="button"
+                    onClick={() => {
+                      setStageInstrument(instrument.id);
+                      setIsInstrumentMenuOpen(false);
+                    }}
+                    className={`flex h-9 items-center justify-between rounded-md px-3 text-left text-[12px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+                      stageInstrument === instrument.id
+                        ? "bg-[#ed1746] text-white"
+                        : isDark
+                          ? "hover:bg-[#202229]"
+                          : "hover:bg-[#f0ede5]"
+                    }`}
+                  >
+                    <span>{instrument.label}</span>
+                    <span className="text-[10px] uppercase opacity-70">
+                      {instrument.shortLabel}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setIsInstrumentMenuOpen((current) => !current);
+              }}
+              className={stageIconButtonClass(isDark)}
+              aria-label="Select stage instrument"
+              aria-expanded={isInstrumentMenuOpen}
+            >
+              <span className="text-[11px] font-black" aria-hidden="true">
+                {selectedStageInstrument.shortLabel}
+              </span>
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setIsInstrumentMenuOpen(false);
+              setIsMobileMenuOpen((current) => !current);
+            }}
+            className={stageIconButtonClass(isDark)}
+            aria-label="Open stage options"
+            aria-expanded={isMobileMenuOpen}
+          >
+            <span className="grid gap-0.5" aria-hidden="true">
+              <span className="size-1 rounded-full bg-current" />
+              <span className="size-1 rounded-full bg-current" />
+              <span className="size-1 rounded-full bg-current" />
+            </span>
+          </button>
+        </div>
+        <div className="hidden min-w-0 sm:block">
           <p className="truncate text-[12px] font-bold text-[#ed1746]">
             {playlist.eventTitle}
           </p>
@@ -699,7 +994,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
               : playlist.setListTitle}
           </p>
         </div>
-        <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-0.5 sm:justify-end sm:pb-0">
+        <div className="hidden min-w-0 items-center gap-2 overflow-x-auto pb-0.5 sm:flex sm:justify-end sm:pb-0">
           <Link
             href={`/events/${playlist.eventId}`}
             className={stageButtonClass(isDark)}
@@ -731,12 +1026,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           ) : null}
           <button
             type="button"
-            onClick={() => {
-              setSyncMode((current) =>
-                current === "synced" ? "unsynced" : "synced",
-              );
-              setLockState("free");
-            }}
+            onClick={toggleSyncMode}
             className={stageButtonClass(isDark)}
           >
             {syncMode === "synced" ? "Unsync" : "Sync"}
@@ -758,9 +1048,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           </button>
           <button
             type="button"
-            onClick={() =>
-              updateScrollSpeed((speed) => Math.max(0, speed - 1))
-            }
+            onClick={decreaseScrollSpeed}
             className={stageButtonClass(isDark)}
           >
             -
@@ -972,7 +1260,10 @@ const StageChordLine = forwardRef<HTMLParagraphElement, {
   }
 
   return (
-    <p ref={ref} className={`whitespace-pre-wrap ${appearance.lyricClassName}`}>
+    <p
+      ref={ref}
+      className={`whitespace-pre sm:whitespace-pre-wrap ${appearance.lyricClassName}`}
+    >
       {parts.map((part, index) => {
         if (part.kind === "space") {
           return <FragmentText key={index}>{part.value}</FragmentText>;
@@ -1001,6 +1292,43 @@ const StageChordLine = forwardRef<HTMLParagraphElement, {
 
 function FragmentText({ children }: { children: ReactNode }) {
   return <>{children}</>;
+}
+
+function StageSyncIcon({ synced }: { synced: boolean }) {
+  if (!synced) {
+    return (
+      <svg
+        aria-hidden="true"
+        className="size-5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2.4"
+        viewBox="0 0 24 24"
+      >
+        <path d="m18 6-12 12" />
+        <path d="M8.5 8.5 7.2 9.8a4 4 0 0 0 5.7 5.7l1.3-1.3" />
+        <path d="m15.5 15.5 1.3-1.3a4 4 0 0 0-5.7-5.7L9.8 9.8" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      aria-hidden="true"
+      className="size-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2.4"
+      viewBox="0 0 24 24"
+    >
+      <path d="M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1L11 4.9" />
+      <path d="M14 11a5 5 0 0 0-7.1 0l-2.1 2.1a5 5 0 0 0 7.1 7.1l1.1-1.1" />
+    </svg>
+  );
 }
 
 type StageLinePart =
@@ -1300,6 +1628,14 @@ function getSectionProgressRatio(
 
 function stageButtonClass(isDark: boolean): string {
   return `inline-flex h-10 shrink-0 items-center justify-center rounded-full border px-4 text-[12px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-40 ${
+    isDark
+      ? "border-[#343740] bg-[#17191f] text-[#f5f3ed] hover:border-[#ed1746]"
+      : "border-[#d8d3c8] bg-white text-[#151515] hover:border-[#ed1746]"
+  }`;
+}
+
+function stageIconButtonClass(isDark: boolean): string {
+  return `flex size-11 shrink-0 items-center justify-center rounded-full border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
     isDark
       ? "border-[#343740] bg-[#17191f] text-[#f5f3ed] hover:border-[#ed1746]"
       : "border-[#d8d3c8] bg-white text-[#151515] hover:border-[#ed1746]"
