@@ -206,7 +206,11 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   }, [stageState]);
 
   const publishStageState = useCallback(
-    (position: StageRuntimePosition | null, nextScrollSpeed = scrollSpeed) => {
+    (
+      position: StageRuntimePosition | null,
+      nextScrollSpeed = scrollSpeed,
+      options: { render: boolean } = { render: true },
+    ) => {
       const activeTrackId = position?.setListTrackId ?? activeSetListTrackId;
       const nextState = createStageRuntimeState({
         accidentals,
@@ -220,6 +224,10 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
       const stateKey = getStageRuntimeStateKey(nextState);
 
       stageStateRef.current = nextState;
+
+      if (!options.render) {
+        return;
+      }
 
       if (lastPublishedStateKeyRef.current === stateKey) {
         return;
@@ -290,10 +298,20 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     ],
   );
 
+  const getStageSyncSnapshot = useCallback(
+    () => ({
+      position: stageStateRef.current?.position ?? stageState.position,
+      speed: scrollSpeed,
+      trackTransposes,
+    }),
+    [scrollSpeed, stageState.position, trackTransposes],
+  );
+
   const stageSync = useStageSync({
     bandId: playlist.band?.id ?? null,
     canPublish: playlist.currentUser.canLead,
     eventId: playlist.eventId,
+    getSnapshot: getStageSyncSnapshot,
     lockState,
     onSnapshot: (event: StageSyncSnapshot) => {
       setTrackTransposes(event.trackTransposes);
@@ -366,12 +384,12 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     );
   }, [tracks]);
 
-  const updateStagePosition = useCallback(() => {
+  const updateStagePosition = useCallback((options?: { render: boolean }) => {
     const scroller = scrollerRef.current;
     const sectionMetrics = layoutMetricsRef.current;
 
     if (!scroller || sectionMetrics.length === 0) {
-      publishStageState(null);
+      publishStageState(null, scrollSpeed, options);
       return;
     }
 
@@ -396,24 +414,28 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
       anchorLine,
     );
 
-    publishStageState({
-      lineId: activeLine?.id ?? null,
-      lineIndex: activeLine?.index ?? null,
-      lineNumber: activeLine ? activeLine.index + 1 : null,
-      lineOffsetFromViewportTopPx: activeLine
-        ? Math.round(activeLine.top - viewportTop)
-        : null,
-      sectionId: nextActiveSection.id,
-      sectionNumber: nextActiveSection.number,
-      sectionProgressRatio,
-      sectionTitle: nextActiveSection.title,
-      sectionTopOffsetPx: Math.round(nextActiveSection.top - viewportTop),
-      setListTrackId: nextActiveSection.setListTrackId,
-      trackId: nextActiveSection.trackId,
-      trackTitle: nextActiveSection.trackTitle,
-      viewportHeight: scroller.clientHeight,
-    });
-  }, [publishStageState]);
+    publishStageState(
+      {
+        lineId: activeLine?.id ?? null,
+        lineIndex: activeLine?.index ?? null,
+        lineNumber: activeLine ? activeLine.index + 1 : null,
+        lineOffsetFromViewportTopPx: activeLine
+          ? Math.round(activeLine.top - viewportTop)
+          : null,
+        sectionId: nextActiveSection.id,
+        sectionNumber: nextActiveSection.number,
+        sectionProgressRatio,
+        sectionTitle: nextActiveSection.title,
+        sectionTopOffsetPx: Math.round(nextActiveSection.top - viewportTop),
+        setListTrackId: nextActiveSection.setListTrackId,
+        trackId: nextActiveSection.trackId,
+        trackTitle: nextActiveSection.trackTitle,
+        viewportHeight: scroller.clientHeight,
+      },
+      scrollSpeed,
+      options,
+    );
+  }, [publishStageState, scrollSpeed]);
 
   useEffect(() => {
     rebuildStageLayoutMetrics();
@@ -482,7 +504,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           markProgrammaticScroll(programmaticScrollIgnoreUntilRef);
           scroller.scrollTop +=
             elapsedSeconds * scrollSpeed * AUTO_SCROLL_PIXELS_PER_SECOND;
-          updateStagePosition();
+          updateStagePosition({ render: false });
         }
       }
 
@@ -609,8 +631,6 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   }
 
   function handleStageScroll(): void {
-    updateStagePosition();
-
     if (
       !isUserScrollingRef.current &&
       (isApplyingRemoteScrollRef.current ||
@@ -618,6 +638,8 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     ) {
       return;
     }
+
+    updateStagePosition();
 
     if (!isUserScrollingRef.current) {
       return;
@@ -1647,7 +1669,6 @@ function getStageRuntimeStateKey(state: StageRuntimeState): string {
     playback: state.playback,
     position: state.position
       ? {
-          lineId: state.position.lineId,
           sectionId: state.position.sectionId,
           setListTrackId: state.position.setListTrackId,
           trackId: state.position.trackId,

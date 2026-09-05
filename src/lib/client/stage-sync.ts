@@ -55,6 +55,7 @@ type UseStageSyncInput = {
   bandId: string | null;
   canPublish: boolean;
   eventId: string;
+  getSnapshot?: () => StageSyncSnapshotData;
   lockState: StageSyncLockState;
   onSnapshot: (event: StageSyncSnapshot) => void;
   onTrackTranspose: (event: Extract<StageSyncEvent, { type: "track-transpose" }>) => void;
@@ -144,10 +145,13 @@ export function useStageSync(input: UseStageSyncInput): UseStageSyncResult {
   );
 
   const publishSnapshot = useCallback(() => {
+    const snapshot =
+      inputRef.current.getSnapshot?.() ?? inputRef.current.snapshot;
+
     publishEvent({
-      position: inputRef.current.snapshot.position,
-      speed: inputRef.current.snapshot.speed,
-      trackTransposes: inputRef.current.snapshot.trackTransposes,
+      position: snapshot.position,
+      speed: snapshot.speed,
+      trackTransposes: snapshot.trackTransposes,
       type: "snapshot",
     });
   }, [publishEvent]);
