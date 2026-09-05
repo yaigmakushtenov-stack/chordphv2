@@ -38,6 +38,7 @@ const stageFont = Roboto_Mono({
 const AUTO_SCROLL_PIXELS_PER_SECOND = 34;
 const MANUAL_SCROLL_PAUSE_MS = 700;
 const PROGRAMMATIC_SCROLL_IGNORE_MS = 80;
+const MAX_SYNC_LATENCY_COMPENSATION_MS = 1200;
 
 type StageAppearance = {
   activeSectionBorderClassName: string;
@@ -250,7 +251,11 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   );
 
   const applyViewportState = useCallback(
-    (position: StageRuntimePosition | null, nextScrollSpeed: number) => {
+    (
+      position: StageRuntimePosition | null,
+      nextScrollSpeed: number,
+      sentAt: number,
+    ) => {
       const nextState = createStageRuntimeState({
         accidentals,
         displayMode: stageDisplayMode,
@@ -280,6 +285,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           position,
           sectionRefs.current,
           scrollerRef.current,
+          getLatencyCompensationPx(nextScrollSpeed, sentAt),
         );
         setScrollSpeed(nextScrollSpeed);
         window.setTimeout(() => {
@@ -320,7 +326,11 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
         return;
       }
 
-      applyViewportState(event.position, clampScrollSpeed(event.speed));
+      applyViewportState(
+        event.position,
+        clampScrollSpeed(event.speed),
+        event.sentAt,
+      );
       setLockState("locked");
     },
     onTrackTranspose: (event) => {
@@ -338,7 +348,11 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
         return;
       }
 
-      applyViewportState(event.position, clampScrollSpeed(event.speed));
+      applyViewportState(
+        event.position,
+        clampScrollSpeed(event.speed),
+        event.sentAt,
+      );
       setLockState("locked");
     },
     role: playlist.currentUser.role,
@@ -1551,6 +1565,7 @@ function scrollToStagePosition(
   position: StageRuntimePosition | null,
   sectionElements: Map<string, HTMLElement>,
   scroller: HTMLDivElement | null,
+  leadOffsetPx = 0,
 ): void {
   if (!position || !scroller) {
     return;
@@ -1568,9 +1583,23 @@ function scrollToStagePosition(
       0,
       section.offsetTop +
         section.offsetHeight * position.sectionProgressRatio -
-        scroller.clientHeight * 0.32,
+        scroller.clientHeight * 0.32 +
+        leadOffsetPx,
     ),
   });
+}
+
+function getLatencyCompensationPx(speed: number, sentAt: number): number {
+  if (speed <= 0 || !Number.isFinite(sentAt)) {
+    return 0;
+  }
+
+  const elapsedMs = Math.min(
+    Math.max(0, Date.now() - sentAt),
+    MAX_SYNC_LATENCY_COMPENSATION_MS,
+  );
+
+  return (elapsedMs / 1000) * speed * AUTO_SCROLL_PIXELS_PER_SECOND;
 }
 
 function getStageSyncLabel(sync: {
