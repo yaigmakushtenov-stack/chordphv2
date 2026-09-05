@@ -77,6 +77,16 @@ type StageAnchor = {
   sectionTitle: string;
 };
 
+type StageLineMetric = StageLine & {
+  top: number;
+};
+
+type StageSectionMetric = StageSection & {
+  height: number;
+  lines: StageLineMetric[];
+  top: number;
+};
+
 type StageInstrumentId = "guitar" | "piano" | "ukulele" | "vocals";
 
 const STAGE_INSTRUMENT_CONFIG: Array<{
@@ -114,6 +124,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
   const lineRefs = useRef(new Map<string, HTMLParagraphElement>());
+  const layoutMetricsRef = useRef<StageSectionMetric[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
   const lastPublishedStateKeyRef = useRef("");
@@ -323,75 +334,131 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     userId: playlist.currentUser.id,
   });
 
+  const rebuildStageLayoutMetrics = useCallback(() => {
+    layoutMetricsRef.current = tracks.flatMap((track) =>
+      track.sections.flatMap<StageSectionMetric>((section) => {
+        const sectionElement = sectionRefs.current.get(section.id);
+
+        if (!sectionElement) {
+          return [];
+        }
+
+        const lineMetrics = section.lines.flatMap<StageLineMetric>((line) => {
+          const lineElement = lineRefs.current.get(line.id);
+
+          if (!lineElement) {
+            return [];
+          }
+
+          return {
+            ...line,
+            top: lineElement.offsetTop,
+          };
+        });
+
+        return {
+          ...section,
+          height: Math.max(sectionElement.offsetHeight, 1),
+          lines: lineMetrics,
+          top: sectionElement.offsetTop,
+        };
+      }),
+    );
+  }, [tracks]);
+
   const updateStagePosition = useCallback(() => {
     const scroller = scrollerRef.current;
+    const sectionMetrics = layoutMetricsRef.current;
 
-    if (!scroller || anchors.length === 0) {
+    if (!scroller || sectionMetrics.length === 0) {
       publishStageState(null);
       return;
     }
 
+    const viewportTop = scroller.scrollTop;
     const anchorLine = scroller.scrollTop + scroller.clientHeight * 0.32;
-    let nextActiveSection = anchors[0];
+    let nextActiveSection = sectionMetrics[0];
 
-    for (const anchor of anchors) {
-      const element = sectionRefs.current.get(anchor.id);
-
-      if (!element) {
-        continue;
-      }
-
-      if (element.offsetTop <= anchorLine) {
-        nextActiveSection = anchor;
+    for (const section of sectionMetrics) {
+      if (section.top <= anchorLine) {
+        nextActiveSection = section;
       } else {
         break;
       }
     }
 
-    const section = tracks
-      .flatMap((track) => track.sections)
-      .find((item) => item.id === nextActiveSection.id);
-    const sectionElement = sectionRefs.current.get(nextActiveSection.id);
-
-    if (!section || !sectionElement) {
-      publishStageState(null);
-      return;
-    }
-
-    const sectionTopOffsetPx =
-      sectionElement.getBoundingClientRect().top -
-      scroller.getBoundingClientRect().top;
-    const sectionProgressRatio = getSectionProgressRatio(
-      sectionElement,
-      scroller,
+    const sectionProgressRatio = getSectionProgressRatioFromMetrics(
+      nextActiveSection,
+      anchorLine,
     );
-    const activeLine = findActiveLine(section, anchorLine, lineRefs.current);
+    const activeLine = findActiveLineFromMetrics(
+      nextActiveSection.lines,
+      anchorLine,
+    );
 
     publishStageState({
       lineId: activeLine?.id ?? null,
       lineIndex: activeLine?.index ?? null,
       lineNumber: activeLine ? activeLine.index + 1 : null,
       lineOffsetFromViewportTopPx: activeLine
-        ? Math.round(
-            (lineRefs.current.get(activeLine.id)?.getBoundingClientRect().top ??
-              0) - scroller.getBoundingClientRect().top,
-          )
+        ? Math.round(activeLine.top - viewportTop)
         : null,
-      sectionId: section.id,
-      sectionNumber: section.number,
+      sectionId: nextActiveSection.id,
+      sectionNumber: nextActiveSection.number,
       sectionProgressRatio,
-      sectionTitle: section.title,
-      sectionTopOffsetPx: Math.round(sectionTopOffsetPx),
-      setListTrackId: section.setListTrackId,
-      trackId: section.trackId,
-      trackTitle: section.trackTitle,
+      sectionTitle: nextActiveSection.title,
+      sectionTopOffsetPx: Math.round(nextActiveSection.top - viewportTop),
+      setListTrackId: nextActiveSection.setListTrackId,
+      trackId: nextActiveSection.trackId,
+      trackTitle: nextActiveSection.trackTitle,
       viewportHeight: scroller.clientHeight,
     });
-  }, [anchors, publishStageState, tracks]);
+  }, [publishStageState]);
 
   useEffect(() => {
+    rebuildStageLayoutMetrics();
     updateStagePosition();
-  }, [tracks, updateStagePosition]);
+  }, [rebuildStageLayoutMetrics, stageDisplayMode, updateStagePosition]);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+
+    if (!scroller) {
+      return;
+    }
+
+    let frameId: number | null = null;
+    const scheduleMetricsRebuild = () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+
+      frameId = requestAnimationFrame(() => {
+        frameId = null;
+        rebuildStageLayoutMetrics();
+        updateStagePosition();
+      });
+    };
+    const resizeObserver = new ResizeObserver(scheduleMetricsRebuild);
+
+    resizeObserver.observe(scroller);
+
+    for (const sectionElement of sectionRefs.current.values()) {
+      resizeObserver.observe(sectionElement);
+    }
+
+    window.addEventListener("resize", scheduleMetricsRebuild);
+    scheduleMetricsRebuild();
+
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", scheduleMetricsRebuild);
+    };
+  }, [rebuildStageLayoutMetrics, stageDisplayMode, updateStagePosition]);
 
   useEffect(() => {
     if (scrollSpeed <= 0) {
@@ -655,7 +722,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                             </h2>
                           </div>
                           <div
-                            className={`overflow-x-auto rounded-lg px-3 py-4 font-[family:var(--font-stage)] text-[16px] leading-[1.4] sm:text-[24px] sm:leading-[1.5] md:text-[28px] md:leading-[1.52] ${
+                            className={`overflow-x-auto rounded-lg px-3 py-4 font-[family:var(--font-stage)] text-[10px] leading-[1.4] sm:text-[24px] sm:leading-[1.5] md:text-[28px] md:leading-[1.52] ${
                               appearance.sectionSurfaceClassName
                             }`}
                           >
@@ -1448,7 +1515,7 @@ function getStageAppearance(
   if (mode === "vocals") {
     return {
       ...base,
-      chordClassName: isDark ? "text-[#71717a]" : "text-[#a1a1aa]",
+      chordClassName: isDark ? "text-[#4b4b52]" : "text-[#c4c4cc]",
     };
   }
 
@@ -1589,21 +1656,14 @@ function getStageRuntimeStateKey(state: StageRuntimeState): string {
   });
 }
 
-function findActiveLine(
-  section: StageSection,
+function findActiveLineFromMetrics(
+  lines: StageLineMetric[],
   anchorLine: number,
-  lineElements: Map<string, HTMLParagraphElement>,
-): StageLine | null {
-  let activeLine: StageLine | null = null;
+): StageLineMetric | null {
+  let activeLine: StageLineMetric | null = null;
 
-  for (const line of section.lines) {
-    const lineElement = lineElements.get(line.id);
-
-    if (!lineElement) {
-      continue;
-    }
-
-    if (lineElement.offsetTop <= anchorLine) {
+  for (const line of lines) {
+    if (line.top <= anchorLine) {
       activeLine = line;
     } else {
       break;
@@ -1613,15 +1673,11 @@ function findActiveLine(
   return activeLine;
 }
 
-function getSectionProgressRatio(
-  sectionElement: HTMLElement,
-  scroller: HTMLElement,
+function getSectionProgressRatioFromMetrics(
+  section: StageSectionMetric,
+  anchorLine: number,
 ): number {
-  const sectionStart = sectionElement.offsetTop;
-  const sectionHeight = Math.max(sectionElement.offsetHeight, 1);
-  const rawProgress =
-    (scroller.scrollTop + scroller.clientHeight * 0.32 - sectionStart) /
-    sectionHeight;
+  const rawProgress = (anchorLine - section.top) / section.height;
 
   return Math.min(1, Math.max(0, rawProgress));
 }
