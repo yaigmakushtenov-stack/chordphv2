@@ -738,10 +738,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                   className="grid gap-2"
                   data-stage-track-id={track.setListTrackId}
                 >
-                  <StageTrackHeader
-                    isDark={isDark}
-                    track={track}
-                  />
+                  <StageTrackHeader track={track} />
                   {track.isAvailable && track.sections.length ? (
                     <div className="grid gap-0 sm:gap-8">
                       {track.sections.map((section) => (
@@ -1293,10 +1290,8 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
 }
 
 function StageTrackHeader({
-  isDark,
   track,
 }: {
-  isDark: boolean;
   track: StageTrackDocument;
 }) {
   return (
@@ -1441,7 +1436,7 @@ const StageChordLine = forwardRef<HTMLParagraphElement, {
                 onClick={() =>
                   onChordSelect({ reference: chordReference, value: part.value })
                 }
-                className={`inline-flex items-center justify-center rounded-sm font-sans text-[1em] font-black leading-none transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}
+                className={`inline-flex items-center justify-center rounded-sm py-1.5 font-mono text-[1em] font-black leading-none transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}
                 style={{ width: `${part.sourceLength}ch` }}
               >
                 {part.value}
