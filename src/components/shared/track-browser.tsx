@@ -83,7 +83,7 @@ export function TrackBrowser({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex flex-1 flex-col lg:min-h-0">
       <header className="shrink-0 border-b border-[#ececec] px-4 pb-3 pt-4 sm:px-6 dark:border-[#29292c]">
         {setList ? (
           <div className="mb-4">
@@ -148,7 +148,7 @@ export function TrackBrowser({
         </div>
       </header>
 
-      <section className="min-h-0 flex-1 overflow-y-auto px-2 py-3 sm:px-4">
+      <section className="flex-1 px-2 py-3 sm:px-4 lg:min-h-0 lg:overflow-y-auto">
         <div className="flex items-center justify-between gap-3 px-2 pb-2">
           <div className="min-w-0">
             <h2 className="truncate text-[13px] font-bold">

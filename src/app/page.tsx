@@ -51,8 +51,9 @@ export default async function Home() {
   const newestSongs = libraryItems.filter(isNewestSong);
 
   return (
-    <AppShell>
+    <AppShell mobileDocumentScroll autoHideMobileHeader>
       <Dashboard
+        mobileDocumentScroll
         eyebrow="CHORDPH - MADE IN THE PHILIPPINES"
         title="Dashboard"
         description="Create track annotations and keep your chords, lyrics, references, and practice library in one workspace."

@@ -134,6 +134,9 @@ const EMPTY_VOICE_GUIDE_DEBUG_STATE: VoiceGuideDebugState = {
   pendingBatch: null,
   queueStatus: "idle",
 };
+const MIN_CHART_ZOOM = 0.25;
+const MAX_CHART_ZOOM = 1.75;
+const CHART_ZOOM_STEP = 0.125;
 
 export function ChordFullscreenPerformanceLauncher({
   chordInstrument = "guitar",
@@ -214,6 +217,7 @@ export function ChordFullscreenPerformanceView({
   const [voiceGuideDebug, setVoiceGuideDebug] =
     useState<VoiceGuideDebugState>(EMPTY_VOICE_GUIDE_DEBUG_STATE);
   const [scrollSpeed, setScrollSpeed] = useState(0);
+  const [chartZoom, setChartZoom] = useState(1);
   const [visibleSectionIds, setVisibleSectionIds] = useState<string[]>([]);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
@@ -1223,12 +1227,36 @@ export function ChordFullscreenPerformanceView({
           />
         ) : null}
         <div
-          className={`absolute right-5 top-5 z-10 flex items-center gap-1 rounded-full border p-1 shadow-sm backdrop-blur ${
+          className={`absolute right-5 top-5 z-10 flex max-w-[calc(100vw-2.5rem)] items-center gap-1 overflow-x-auto rounded-full border p-1 shadow-sm backdrop-blur ${
             isDarkMode
               ? "border-[#34363a] bg-[#202124]/95 text-[#f3f0e8]"
               : "border-[#d8cfc0] bg-[#fbf7ef]/95 text-[#171412]"
           }`}
         >
+          <ToolbarButton
+            ariaLabel="Zoom chart out"
+            disabled={chartZoom <= MIN_CHART_ZOOM}
+            isDarkMode={isDarkMode}
+            onClick={() =>
+              setChartZoom((value) =>
+                Math.max(MIN_CHART_ZOOM, value - CHART_ZOOM_STEP),
+              )
+            }
+          >
+            <MagnifyIcon sign="minus" />
+          </ToolbarButton>
+          <ToolbarButton
+            ariaLabel="Zoom chart in"
+            disabled={chartZoom >= MAX_CHART_ZOOM}
+            isDarkMode={isDarkMode}
+            onClick={() =>
+              setChartZoom((value) =>
+                Math.min(MAX_CHART_ZOOM, value + CHART_ZOOM_STEP),
+              )
+            }
+          >
+            <MagnifyIcon sign="plus" />
+          </ToolbarButton>
           <ToolbarButton
             ariaLabel="Open alternate track view"
             isDarkMode={isDarkMode}
@@ -1273,7 +1301,7 @@ export function ChordFullscreenPerformanceView({
         <div
           ref={scrollerRef}
           onScroll={handleScrollerScroll}
-          className="h-screen overflow-y-auto px-10 pb-[75vh] pt-[75vh]"
+          className="h-screen overflow-x-auto overflow-y-auto px-4 pb-[75vh] pt-[75vh] sm:px-10"
         >
           <div className="mx-auto max-w-[980px]">
             {sections.length ? (
@@ -1311,7 +1339,10 @@ export function ChordFullscreenPerformanceView({
                         isDarkMode ? "bg-[#34363a]" : "bg-[#d6d6dc]"
                       }`}
                     />
-                    <div className="space-y-0 font-mono text-[19px] leading-[1.18]">
+                    <div
+                      className="min-w-max space-y-0 font-mono leading-[1.18]"
+                      style={{ fontSize: `${19 * chartZoom}px` }}
+                    >
                     {section.lines.length ? (
                       section.lines.map((line) => (
                         <ChordPerformanceLine
@@ -1905,7 +1936,7 @@ const ChordPerformanceLine = forwardRef<HTMLParagraphElement, {
   const parts = getChordPerformanceLineParts(line);
 
   return (
-    <p ref={ref} className="whitespace-pre-wrap">
+    <p ref={ref} className="whitespace-pre">
       {parts.map((part, index) => {
         if (part.kind === "space") {
           return part.value;
@@ -2942,12 +2973,14 @@ function ToolbarButton({
   active = false,
   ariaLabel,
   children,
+  disabled = false,
   isDarkMode,
   onClick,
 }: {
   active?: boolean;
   ariaLabel: string;
   children: ReactNode;
+  disabled?: boolean;
   isDarkMode: boolean;
   onClick: () => void;
 }) {
@@ -2956,8 +2989,9 @@ function ToolbarButton({
       type="button"
       aria-label={ariaLabel}
       aria-pressed={active}
+      disabled={disabled}
       onClick={onClick}
-      className={`flex size-10 items-center justify-center rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+      className={`flex size-10 items-center justify-center rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-40 ${
         active
           ? "bg-[#ed1746] text-white hover:bg-[#d90f3b]"
           : isDarkMode
@@ -2984,6 +3018,25 @@ function CloseIcon() {
     >
       <path d="m18 6-12 12" />
       <path d="m6 6 12 12" />
+    </svg>
+  );
+}
+
+function MagnifyIcon({ sign }: { sign: "minus" | "plus" }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="2"
+    >
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m15.5 15.5 5 5" />
+      <path d="M7.5 10.5h6" />
+      {sign === "plus" ? <path d="M10.5 7.5v6" /> : null}
     </svg>
   );
 }

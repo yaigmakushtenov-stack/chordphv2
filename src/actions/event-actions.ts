@@ -36,6 +36,11 @@ export type AssignEventSetListGroupInput = {
   groupId: string | null;
 };
 
+export type UpdateEventDetailsInput = {
+  eventId: string;
+  title: string;
+};
+
 export async function createNew(
   input: CreateEventActionInput,
 ): Promise<ActionResult<EventIdData>> {
@@ -186,6 +191,57 @@ export async function assignSetListGroup(
       groupId: input.groupId,
     });
     revalidateEvent(input.eventId);
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleEventServiceError(error);
+  }
+}
+
+export async function saveDetails(
+  input: UpdateEventDetailsInput,
+): Promise<ActionResult<null>> {
+  const userId = await getAuthenticatedUserId();
+
+  if (!userId) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to update this event.");
+  }
+
+  if (
+    !isRecord(input) ||
+    !isId(input.eventId) ||
+    typeof input.title !== "string"
+  ) {
+    return actionFailure("VALIDATION_ERROR", "The event details are invalid.");
+  }
+
+  try {
+    await EventService.updateEventDetails({
+      eventId: input.eventId,
+      ownerId: userId,
+      title: input.title,
+    });
+    revalidateEvent(input.eventId);
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleEventServiceError(error);
+  }
+}
+
+export async function deleteEvent(eventId: string): Promise<ActionResult<null>> {
+  const userId = await getAuthenticatedUserId();
+
+  if (!userId) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to delete this event.");
+  }
+
+  if (!isId(eventId)) {
+    return actionFailure("VALIDATION_ERROR", "The selected event is invalid.");
+  }
+
+  try {
+    await EventService.deleteEvent({ eventId, ownerId: userId });
+    revalidatePath("/events");
+    revalidatePath("/bands");
     return actionSuccess(null);
   } catch (error: unknown) {
     return handleEventServiceError(error);

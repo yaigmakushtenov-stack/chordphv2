@@ -39,7 +39,7 @@ export default async function BrowseSetListTracksPage({
 
   return (
     <AppShell>
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-white text-[#111] shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:bg-[#121214] dark:text-[#f5f5f5]">
+      <section className="flex flex-1 flex-col rounded-xl bg-white text-[#111] shadow-[0_1px_0_rgba(0,0,0,0.04)] lg:min-h-0 lg:overflow-hidden dark:bg-[#121214] dark:text-[#f5f5f5]">
         <SetListTrackBrowser
           initialQuery={query}
           setListId={result.setList.id}

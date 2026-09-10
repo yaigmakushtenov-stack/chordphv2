@@ -6,6 +6,7 @@ import { EventPlaylistEditor } from "@/app/events/_components/event-playlist-edi
 import { AppShell } from "@/components/shared/app-shell";
 import { BackLink } from "@/components/shared/back-link";
 import { Dashboard } from "@/components/shared/dashboard";
+import { NameDetailsDrawer } from "@/components/shared/name-details-drawer";
 import { auth } from "@/lib/auth";
 import {
   EventService,
@@ -63,6 +64,11 @@ export default async function EventDetailPage({
     <AppShell mobileDocumentScroll>
       <Dashboard
         mobileDocumentScroll
+        actions={
+          canManageEvent ? (
+            <NameDetailsDrawer entity="event" id={event.id} name={event.title} />
+          ) : null
+        }
         headerNavigation={<BackLink href="/events">Events</BackLink>}
         eyebrow={`EVENT · ${formatDateTime(event.startDate)}`}
         title={event.title}

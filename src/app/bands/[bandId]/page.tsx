@@ -10,6 +10,7 @@ import { AppShell } from "@/components/shared/app-shell";
 import { BackLink } from "@/components/shared/back-link";
 import { Dashboard } from "@/components/shared/dashboard";
 import { GroupMembershipPageGuard } from "@/components/shared/membership-page-guard";
+import { NameDetailsDrawer } from "@/components/shared/name-details-drawer";
 import { auth } from "@/lib/auth";
 import {
   GroupService,
@@ -52,6 +53,11 @@ export default async function BandDetailPage({
       <AppShell mobileDocumentScroll>
         <Dashboard
           mobileDocumentScroll
+          actions={
+            currentMembership?.role === "OWNER" ? (
+              <NameDetailsDrawer entity="band" id={band.id} name={band.name} />
+            ) : null
+          }
           headerNavigation={<BackLink href="/bands">Bands</BackLink>}
           eyebrow="BAND"
           title={band.name}

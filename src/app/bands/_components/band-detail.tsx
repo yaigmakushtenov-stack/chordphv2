@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState, useTransition } from "react";
+import {
+  type FormEvent,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import * as GroupActions from "@/actions/group-actions";
 import type {
@@ -153,7 +159,34 @@ function AddMemberForm({ groupId }: { groupId: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [instrument, setInstrument] = useState<GroupInstrument | "">("");
+  const [suggestions, setSuggestions] = useState<
+    { email: string; name: string }[]
+  >([]);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const searchSequence = useRef(0);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const query = email.trim().toLowerCase();
+    const sequence = searchSequence.current + 1;
+    searchSequence.current = sequence;
+
+    if (query.length < 3 || !isSuggestionsOpen) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      const result = await GroupActions.searchMemberEmails(groupId, query);
+
+      if (searchSequence.current !== sequence) {
+        return;
+      }
+
+      setSuggestions(result.ok ? result.data : []);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [email, groupId, isSuggestionsOpen]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -176,6 +209,8 @@ function AddMemberForm({ groupId }: { groupId: string }) {
 
       setEmail("");
       setInstrument("");
+      setSuggestions([]);
+      setIsSuggestionsOpen(false);
       showToast({ title: "Member added", tone: "success" });
       router.refresh();
     });
@@ -186,15 +221,62 @@ function AddMemberForm({ groupId }: { groupId: string }) {
       onSubmit={handleSubmit}
       className="grid gap-2 sm:grid-cols-[minmax(180px,240px)_minmax(150px,200px)_auto]"
     >
-      <input
-        required
-        maxLength={320}
-        type="email"
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-        placeholder="member@example.com"
-        className="h-10 rounded-full border border-[#d9d9d9] bg-white px-4 text-[12px] font-medium outline-none transition focus:border-[#ed1746] focus:ring-3 focus:ring-[#ed1746]/10 dark:border-[#3a3a3f] dark:bg-[#202023] dark:focus:border-[#ed1746]"
-      />
+      <div className="relative">
+        <input
+          required
+          maxLength={320}
+          type="email"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-controls="member-email-suggestions"
+          aria-expanded={isSuggestionsOpen && suggestions.length > 0}
+          value={email}
+          onFocus={() => setIsSuggestionsOpen(true)}
+          onBlur={() => {
+            window.setTimeout(() => setIsSuggestionsOpen(false), 100);
+          }}
+          onChange={(event) => {
+            const nextEmail = event.target.value;
+            setEmail(nextEmail);
+            if (nextEmail.trim().length < 3) {
+              setSuggestions([]);
+            }
+            setIsSuggestionsOpen(true);
+          }}
+          placeholder="member@example.com"
+          className="h-10 w-full rounded-full border border-[#d9d9d9] bg-white px-4 text-[12px] font-medium outline-none transition focus:border-[#ed1746] focus:ring-3 focus:ring-[#ed1746]/10 dark:border-[#3a3a3f] dark:bg-[#202023] dark:focus:border-[#ed1746]"
+        />
+        {isSuggestionsOpen && suggestions.length > 0 ? (
+          <div
+            id="member-email-suggestions"
+            role="listbox"
+            className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-2xl border border-[#dedede] bg-white p-1 shadow-[0_14px_35px_rgba(0,0,0,0.16)] dark:border-[#3a3a3f] dark:bg-[#202023]"
+          >
+            {suggestions.map((suggestion) => (
+              <button
+                key={suggestion.email}
+                type="button"
+                role="option"
+                aria-selected={email === suggestion.email}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setEmail(suggestion.email);
+                  setSuggestions([]);
+                  setIsSuggestionsOpen(false);
+                }}
+                className="block w-full rounded-xl px-3 py-2 text-left transition hover:bg-[#f4f4f4] focus-visible:outline-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#2a2a2e]"
+              >
+                <span className="block truncate text-[12px] font-bold">
+                  {suggestion.name}
+                </span>
+                <span className="mt-0.5 block truncate text-[11px] text-[#666] dark:text-[#b4b4bc]">
+                  {suggestion.email}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <InstrumentSelector
         disabled={isPending}
         value={instrument}

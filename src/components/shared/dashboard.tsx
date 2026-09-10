@@ -19,7 +19,7 @@ export function Dashboard({
   description,
   children,
   documentScroll = false,
-  mobileDocumentScroll = false,
+  mobileDocumentScroll = true,
 }: DashboardProps) {
   return (
     <section

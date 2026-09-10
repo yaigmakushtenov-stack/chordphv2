@@ -112,6 +112,11 @@ export type AddGroupMemberInput = {
   invitedById: string;
 };
 
+export type GroupMemberSuggestion = {
+  email: string;
+  name: string;
+};
+
 export class GroupServiceError extends Error {
   constructor(
     public readonly code:
@@ -275,6 +280,104 @@ export async function addGroupMember(input: AddGroupMemberInput): Promise<void> 
   });
 }
 
+export async function searchGroupMemberSuggestions(input: {
+  groupId: string;
+  query: string;
+  userId: string;
+}): Promise<GroupMemberSuggestion[]> {
+  const groupId = requireText(input.groupId, "groupId", 255);
+  const userId = requireText(input.userId, "userId", 255);
+  const query = input.query.trim().toLowerCase();
+
+  if (query.length < 3 || query.length > MAX_EMAIL_LENGTH) {
+    return [];
+  }
+
+  const canInvite = await userHasGroupPermission(
+    userId,
+    groupId,
+    GroupPermission.INVITE_MEMBERS,
+  );
+
+  if (!canInvite) {
+    throw new GroupServiceError(
+      "FORBIDDEN",
+      "You cannot add members to this band.",
+    );
+  }
+
+  return prisma.betterAuthUser.findMany({
+    where: {
+      email: { startsWith: query },
+      groupMemberships: { none: { groupId } },
+    },
+    orderBy: { email: "asc" },
+    select: {
+      email: true,
+      name: true,
+    },
+    take: 6,
+  });
+}
+
+export async function updateGroupDetails(input: {
+  groupId: string;
+  name: string;
+  userId: string;
+}): Promise<void> {
+  const groupId = requireText(input.groupId, "groupId", 255);
+  const userId = requireText(input.userId, "userId", 255);
+  const canUpdate = await userHasGroupPermission(
+    userId,
+    groupId,
+    GroupPermission.UPDATE_GROUP,
+  );
+
+  if (!canUpdate) {
+    throw new GroupServiceError(
+      "FORBIDDEN",
+      "Only the band owner can edit this band.",
+    );
+  }
+
+  const result = await prisma.group.updateMany({
+    where: { id: groupId },
+    data: { name: requireText(input.name, "name", MAX_GROUP_NAME_LENGTH) },
+  });
+
+  if (result.count === 0) {
+    throw new GroupServiceError("NOT_FOUND", "Band not found.");
+  }
+}
+
+export async function deleteGroup(input: {
+  groupId: string;
+  userId: string;
+}): Promise<void> {
+  const groupId = requireText(input.groupId, "groupId", 255);
+  const userId = requireText(input.userId, "userId", 255);
+  const canDelete = await userHasGroupPermission(
+    userId,
+    groupId,
+    GroupPermission.DELETE_GROUP,
+  );
+
+  if (!canDelete) {
+    throw new GroupServiceError(
+      "FORBIDDEN",
+      "Only the band owner can delete this band.",
+    );
+  }
+
+  const result = await prisma.group.deleteMany({
+    where: { id: groupId },
+  });
+
+  if (result.count === 0) {
+    throw new GroupServiceError("NOT_FOUND", "Band not found.");
+  }
+}
+
 export async function userHasGroupPermission(
   userId: string,
   groupId: string,
@@ -291,10 +394,14 @@ export async function userHasGroupPermission(
     },
     select: {
       role: true,
+      status: true,
     },
   });
 
-  return hasGroupPermission(membership?.role, permission);
+  return (
+    membership?.status === GroupMembershipStatus.ACCEPTED &&
+    hasGroupPermission(membership.role, permission)
+  );
 }
 
 function requireText(value: string, field: string, maxLength: number): string {
@@ -358,6 +465,9 @@ function isGroupInstrument(value: string): value is GroupInstrument {
 export const GroupService = {
   addGroupMember,
   createGroup,
+  deleteGroup,
   getGroupDetailForUser,
   listGroupsForUser,
+  searchGroupMemberSuggestions,
+  updateGroupDetails,
 };

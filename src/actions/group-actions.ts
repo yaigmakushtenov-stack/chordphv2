@@ -12,7 +12,11 @@ import {
   type ActionResult,
 } from "@/lib/actions";
 import { auth } from "@/lib/auth";
-import { GroupService, GroupServiceError } from "@/services/group-service";
+import {
+  GroupService,
+  GroupServiceError,
+  type GroupMemberSuggestion,
+} from "@/services/group-service";
 
 export type CreateGroupActionInput = {
   name: string;
@@ -22,6 +26,11 @@ export type AddGroupMemberActionInput = {
   email: string;
   groupId: string;
   instrument: string;
+};
+
+export type UpdateGroupDetailsActionInput = {
+  groupId: string;
+  name: string;
 };
 
 export type GroupActionData = {
@@ -141,6 +150,108 @@ export async function addMember(
       },
     });
   }
+}
+
+export async function searchMemberEmails(
+  groupId: string,
+  query: string,
+): Promise<ActionResult<GroupMemberSuggestion[]>> {
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  if (!session?.user?.id) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to search for members.");
+  }
+
+  if (
+    typeof groupId !== "string" ||
+    typeof query !== "string" ||
+    query.length > 320
+  ) {
+    return actionFailure("VALIDATION_ERROR", "The member search is invalid.");
+  }
+
+  try {
+    const suggestions = await GroupService.searchGroupMemberSuggestions({
+      groupId,
+      query,
+      userId: session.user.id,
+    });
+    return actionSuccess(suggestions);
+  } catch (error: unknown) {
+    return handleGroupServiceError(error);
+  }
+}
+
+export async function saveDetails(
+  input: UpdateGroupDetailsActionInput,
+): Promise<ActionResult<null>> {
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  if (!session?.user?.id) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to update this band.");
+  }
+
+  if (
+    !isRecord(input) ||
+    typeof input.groupId !== "string" ||
+    typeof input.name !== "string"
+  ) {
+    return actionFailure("VALIDATION_ERROR", "The band details are invalid.");
+  }
+
+  try {
+    await GroupService.updateGroupDetails({
+      groupId: input.groupId,
+      name: input.name,
+      userId: session.user.id,
+    });
+    revalidatePath("/bands");
+    revalidatePath(`/bands/${input.groupId}`);
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleGroupServiceError(error);
+  }
+}
+
+export async function deleteGroup(groupId: string): Promise<ActionResult<null>> {
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  if (!session?.user?.id) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to delete this band.");
+  }
+
+  if (typeof groupId !== "string" || !groupId.trim()) {
+    return actionFailure("VALIDATION_ERROR", "The selected band is invalid.");
+  }
+
+  try {
+    await GroupService.deleteGroup({ groupId, userId: session.user.id });
+    revalidatePath("/bands");
+    revalidatePath("/events");
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleGroupServiceError(error);
+  }
+}
+
+function handleGroupServiceError<T>(error: unknown): ActionResult<T> {
+  if (!(error instanceof GroupServiceError)) {
+    throw error;
+  }
+
+  if (error.code === "FORBIDDEN") {
+    return actionFailure("FORBIDDEN", error.message);
+  }
+
+  if (error.code === "NOT_FOUND") {
+    return actionFailure("NOT_FOUND", error.message);
+  }
+
+  if (error.code === "CONFLICT") {
+    return actionFailure("CONFLICT", error.message);
+  }
+
+  return actionFailure("VALIDATION_ERROR", error.message);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

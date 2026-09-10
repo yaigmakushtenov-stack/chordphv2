@@ -8,6 +8,7 @@ import {
   MobileMenuButton,
 } from "@/components/shared/app-shell/left-library-panel";
 import { StickyMusicPlayer } from "@/components/shared/app-shell/sticky-music-player";
+import { MobileAutoHideHeader } from "@/components/shared/app-shell/mobile-auto-hide-header";
 import { ToastProvider } from "@/components/shared/toast";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { auth } from "@/lib/auth";
@@ -18,6 +19,7 @@ type AppShellProps = {
   documentScroll?: boolean;
   focusMode?: boolean;
   mobileDocumentScroll?: boolean;
+  autoHideMobileHeader?: boolean;
 };
 
 type AppShellUser = {
@@ -61,7 +63,8 @@ export async function AppShell({
   children,
   documentScroll = false,
   focusMode = false,
-  mobileDocumentScroll = false,
+  mobileDocumentScroll = true,
+  autoHideMobileHeader = true,
 }: AppShellProps) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -94,55 +97,58 @@ export async function AppShell({
         }
       >
         <ToastProvider />
-        <header className="shrink-0 border-b border-[#e5e5e5] bg-white px-3 py-2 dark:border-[#151515] dark:bg-black">
-        <div className="flex flex-col gap-2">
-          <div className="flex min-h-14 min-w-0 items-center gap-2">
-            <MobileMenuButton />
-            <Link
-              href="/"
-              aria-label="ChordPH home"
-              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#111] text-[#ed1746] transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#111] dark:text-[#ed1746] dark:hover:bg-[#1f1f1f]"
-            >
-              <MusicLogoIcon />
-            </Link>
-            <form action="/browse" className="hidden min-w-0 flex-1 md:block md:max-w-[620px]">
-              <label className="flex h-11 min-w-0 items-center gap-3 rounded-full border border-[#dedede] bg-white px-4 text-[#696969] transition focus-within:border-[#b8b8b8] focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(237,23,70,0.08)] dark:border-[#2a2a2a] dark:bg-[#1f1f1f] dark:text-[#b4b4bc] dark:focus-within:border-[#494949] dark:focus-within:bg-[#252525]">
-                <span className="sr-only">Search tracks</span>
-                <SearchIcon />
-                <input
-                  type="search"
-                  name="q"
-                  maxLength={100}
-                  placeholder="What do you want to play?"
-                  className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-medium text-[#171717] outline-none placeholder:text-[#777] dark:text-[#f5f5f5] dark:placeholder:text-[#a1a1aa]"
-                />
-              </label>
-            </form>
-            <nav
-              aria-label="Account navigation"
-              className="ml-auto flex min-w-0 items-center justify-end gap-2"
-            >
-              {!user ? (
-                <>
-                  <Link
-                    href="/signup"
-                    className="inline-flex h-9 items-center rounded-full px-3 text-[13px] font-bold text-[#5f5f5f] transition hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#b4b4bc] dark:hover:text-white"
-                  >
-                    Sign up
-                  </Link>
-                  <Link
-                    href="/login"
-                    className="inline-flex h-10 items-center rounded-full bg-[#111] px-5 text-[13px] font-bold text-white transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
-                  >
-                    Log in
-                  </Link>
-                </>
-              ) : null}
-              <ThemeToggle className="size-10" />
-            </nav>
+        <MobileAutoHideHeader enabled={autoHideMobileHeader}>
+          <div className="flex flex-col gap-2">
+            <div className="flex min-h-14 min-w-0 items-center gap-2">
+              <MobileMenuButton />
+              <Link
+                href="/"
+                aria-label="ChordPH home"
+                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#111] text-[#ed1746] transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#111] dark:text-[#ed1746] dark:hover:bg-[#1f1f1f]"
+              >
+                <MusicLogoIcon />
+              </Link>
+              <form
+                action="/browse"
+                className="hidden min-w-0 flex-1 md:block md:max-w-[620px]"
+              >
+                <label className="flex h-11 min-w-0 items-center gap-3 rounded-full border border-[#dedede] bg-white px-4 text-[#696969] transition focus-within:border-[#b8b8b8] focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(237,23,70,0.08)] dark:border-[#2a2a2a] dark:bg-[#1f1f1f] dark:text-[#b4b4bc] dark:focus-within:border-[#494949] dark:focus-within:bg-[#252525]">
+                  <span className="sr-only">Search tracks</span>
+                  <SearchIcon />
+                  <input
+                    type="search"
+                    name="q"
+                    maxLength={100}
+                    placeholder="What do you want to play?"
+                    className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-medium text-[#171717] outline-none placeholder:text-[#777] dark:text-[#f5f5f5] dark:placeholder:text-[#a1a1aa]"
+                  />
+                </label>
+              </form>
+              <nav
+                aria-label="Account navigation"
+                className="ml-auto flex min-w-0 items-center justify-end gap-2"
+              >
+                {!user ? (
+                  <>
+                    <Link
+                      href="/signup"
+                      className="inline-flex h-9 items-center rounded-full px-3 text-[13px] font-bold text-[#5f5f5f] transition hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#b4b4bc] dark:hover:text-white"
+                    >
+                      Sign up
+                    </Link>
+                    <Link
+                      href="/login"
+                      className="inline-flex h-10 items-center rounded-full bg-[#111] px-5 text-[13px] font-bold text-white transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
+                    >
+                      Log in
+                    </Link>
+                  </>
+                ) : null}
+                <ThemeToggle className="size-10" />
+              </nav>
+            </div>
           </div>
-        </div>
-        </header>
+        </MobileAutoHideHeader>
 
         <div
           className={

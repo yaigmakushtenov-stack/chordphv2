@@ -504,6 +504,40 @@ export async function createEvent(
   });
 }
 
+export async function updateEventDetails(input: {
+  eventId: string;
+  ownerId: string;
+  title: string;
+}): Promise<void> {
+  const result = await prisma.event.updateMany({
+    where: {
+      id: requireId(input.eventId, "eventId"),
+      ownerId: requireId(input.ownerId, "ownerId"),
+    },
+    data: { title: requireText(input.title, "title", MAX_EVENT_TITLE_LENGTH) },
+  });
+
+  if (result.count === 0) {
+    throw new EventServiceError("NOT_FOUND", "Event not found.");
+  }
+}
+
+export async function deleteEvent(input: {
+  eventId: string;
+  ownerId: string;
+}): Promise<void> {
+  const result = await prisma.event.deleteMany({
+    where: {
+      id: requireId(input.eventId, "eventId"),
+      ownerId: requireId(input.ownerId, "ownerId"),
+    },
+  });
+
+  if (result.count === 0) {
+    throw new EventServiceError("NOT_FOUND", "Event not found.");
+  }
+}
+
 export async function addSetListToEvent(input: {
   ownerId: string;
   eventId: string;
@@ -883,6 +917,7 @@ export const EventService = {
   assignGroupToEventSetList,
   canLeadStage,
   createEvent,
+  deleteEvent,
   getEventDetailForOwner,
   getEventDetailForUser,
   getEventForOwner,
@@ -891,4 +926,5 @@ export const EventService = {
   listEventsForUser,
   removeSetListFromEvent,
   reorderEventSetLists,
+  updateEventDetails,
 };

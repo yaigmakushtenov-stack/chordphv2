@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 
@@ -43,6 +44,9 @@ const AUTO_SCROLL_PIXELS_PER_SECOND = 34;
 const MANUAL_SCROLL_PAUSE_MS = 700;
 const PROGRAMMATIC_SCROLL_IGNORE_MS = 80;
 const MAX_SYNC_LATENCY_COMPENSATION_MS = 1200;
+const MIN_STAGE_ZOOM = 0.25;
+const MAX_STAGE_ZOOM = 1.75;
+const STAGE_ZOOM_STEP = 0.125;
 
 type StageAppearance = {
   activeSectionBorderClassName: string;
@@ -127,6 +131,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   const [accidentals, setAccidentals] =
     useState<AccidentalPreference>("sharps");
   const [scrollSpeed, setScrollSpeed] = useState(0);
+  const [chartZoom, setChartZoom] = useState(1);
   const [isNavigatorOpen, setIsNavigatorOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isInstrumentMenuOpen, setIsInstrumentMenuOpen] = useState(false);
@@ -774,26 +779,31 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                             </h2>
                           </div>
                           <div
-                            className={`overflow-x-auto rounded-lg px-3 py-4 text-[12px] leading-[1.4] [tab-size:4] sm:text-[24px] sm:leading-[1.5] md:text-[28px] md:leading-[1.52] ${
+                            className={`overflow-x-auto rounded-lg px-3 py-4 text-[calc(12px*var(--stage-zoom))] leading-[1.4] [tab-size:4] sm:text-[calc(24px*var(--stage-zoom))] sm:leading-[1.5] md:text-[calc(28px*var(--stage-zoom))] md:leading-[1.52] ${
                               appearance.sectionSurfaceClassName
                             }`}
+                            style={
+                              { "--stage-zoom": chartZoom } as CSSProperties
+                            }
                           >
-                            {section.lines.map((line) => (
-                              <StageChordLine
-                                key={line.id}
-                                ref={(element) => {
-                                  if (element) {
-                                    lineRefs.current.set(line.id, element);
-                                  } else {
-                                    lineRefs.current.delete(line.id);
-                                  }
-                                }}
-                                appearance={appearance}
-                                onChordSelect={setSelectedChord}
-                                stageInstrument={stageInstrument}
-                                line={line}
-                              />
-                            ))}
+                            <div className="min-w-max">
+                              {section.lines.map((line) => (
+                                <StageChordLine
+                                  key={line.id}
+                                  ref={(element) => {
+                                    if (element) {
+                                      lineRefs.current.set(line.id, element);
+                                    } else {
+                                      lineRefs.current.delete(line.id);
+                                    }
+                                  }}
+                                  appearance={appearance}
+                                  onChordSelect={setSelectedChord}
+                                  stageInstrument={stageInstrument}
+                                  line={line}
+                                />
+                              ))}
+                            </div>
                           </div>
                         </section>
                       ))}
@@ -838,6 +848,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           activeSectionId={effectiveActiveSectionId}
           isDark={isDark}
           isOpen={isNavigatorOpen}
+          onClose={() => setIsNavigatorOpen(false)}
           onJump={jumpToSection}
           playlist={playlist}
           tracks={tracks}
@@ -877,6 +888,14 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
         }`}
       >
         {isMobileMenuOpen ? (
+          <button
+            type="button"
+            aria-label="Close stage options"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="fixed inset-0 z-30 sm:hidden"
+          />
+        ) : null}
+        {isMobileMenuOpen ? (
           <div
             className={`absolute bottom-full left-3 right-3 z-40 mb-2 grid gap-3 rounded-lg border p-3 shadow-2xl sm:hidden ${
               isDark
@@ -903,7 +922,10 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
               </Link>
               <button
                 type="button"
-                onClick={() => setIsNavigatorOpen((current) => !current)}
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsNavigatorOpen(true);
+                }}
                 className={stageButtonClass(isDark)}
               >
                 Sections
@@ -942,6 +964,20 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                 Fullscreen
               </button>
             </div>
+            <StageZoomControls
+              isDark={isDark}
+              value={chartZoom}
+              onZoomOut={() =>
+                setChartZoom((value) =>
+                  Math.max(MIN_STAGE_ZOOM, value - STAGE_ZOOM_STEP),
+                )
+              }
+              onZoomIn={() =>
+                setChartZoom((value) =>
+                  Math.min(MAX_STAGE_ZOOM, value + STAGE_ZOOM_STEP),
+                )
+              }
+            />
             <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
               <div
                 className={`inline-flex h-10 items-center overflow-hidden rounded-full border ${
@@ -1063,6 +1099,14 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           </button>
           <div className="relative shrink-0">
             {isInstrumentMenuOpen ? (
+              <button
+                type="button"
+                aria-label="Close instrument menu"
+                onClick={() => setIsInstrumentMenuOpen(false)}
+                className="fixed inset-0 z-40 sm:hidden"
+              />
+            ) : null}
+            {isInstrumentMenuOpen ? (
               <div
                 className={`absolute bottom-full right-0 z-50 mb-2 grid min-w-36 gap-1 rounded-lg border p-1.5 shadow-2xl ${
                   isDark
@@ -1179,7 +1223,11 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           </button>
           <button
             type="button"
-            onClick={() => setIsNavigatorOpen((current) => !current)}
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              setIsInstrumentMenuOpen(false);
+              setIsNavigatorOpen((current) => !current);
+            }}
             className={stageButtonClass(isDark)}
           >
             Sections
@@ -1232,6 +1280,20 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           >
             {isDark ? "Light" : "Dark"}
           </button>
+          <StageZoomControls
+            isDark={isDark}
+            value={chartZoom}
+            onZoomOut={() =>
+              setChartZoom((value) =>
+                Math.max(MIN_STAGE_ZOOM, value - STAGE_ZOOM_STEP),
+              )
+            }
+            onZoomIn={() =>
+              setChartZoom((value) =>
+                Math.min(MAX_STAGE_ZOOM, value + STAGE_ZOOM_STEP),
+              )
+            }
+          />
           <button
             type="button"
             onClick={() => void enterFullscreen()}
@@ -1314,6 +1376,7 @@ function StageNavigator({
   activeSectionId,
   isDark,
   isOpen,
+  onClose,
   onJump,
   playlist,
   tracks,
@@ -1321,6 +1384,7 @@ function StageNavigator({
   activeSectionId: string | null;
   isDark: boolean;
   isOpen: boolean;
+  onClose: () => void;
   onJump: (sectionId: string) => void;
   playlist: StagePlaylistData;
   tracks: StageTrackDocument[];
@@ -1330,22 +1394,43 @@ function StageNavigator({
   }
 
   return (
-    <aside
-      className={`fixed inset-y-0 right-0 z-30 grid w-[min(86vw,340px)] grid-rows-[auto_minmax(0,1fr)] border-l shadow-2xl lg:static lg:z-auto lg:w-auto lg:shadow-none ${
+    <>
+      <button
+        type="button"
+        aria-label="Close sections"
+        onClick={onClose}
+        className="fixed inset-0 z-60 bg-black/35 lg:hidden"
+      />
+      <aside
+      className={`fixed inset-y-0 right-0 z-70 grid w-[min(86vw,340px)] grid-rows-[auto_minmax(0,1fr)] border-l shadow-2xl lg:static lg:z-auto lg:w-auto lg:shadow-none ${
         isDark
           ? "border-[#23252a] bg-[#111216]"
           : "border-[#dedbd2] bg-[#fffdf8]"
       }`}
     >
       <div
-        className={`border-b px-4 py-4 ${
+        className={`flex items-start justify-between gap-3 border-b px-4 py-4 ${
           isDark ? "border-[#23252a]" : "border-[#dedbd2]"
         }`}
       >
-        <p className="text-[12px] font-bold text-[#ed1746]">
-          {playlist.band?.name ?? "No band linked"}
-        </p>
-        <h2 className="mt-1 text-[16px] font-black">Sections</h2>
+        <div className="min-w-0">
+          <p className="truncate text-[12px] font-bold text-[#ed1746]">
+            {playlist.band?.name ?? "No band linked"}
+          </p>
+          <h2 className="mt-1 text-[16px] font-black">Sections</h2>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close sections"
+          className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xl transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+            isDark
+              ? "bg-[#23252a] hover:bg-[#30333a]"
+              : "bg-[#ebe7dd] hover:bg-[#ddd8cc]"
+          }`}
+        >
+          ×
+        </button>
       </div>
       <nav className="min-h-0 overflow-y-auto px-3 py-3" aria-label="Stage sections">
         <div className="grid gap-4">
@@ -1390,7 +1475,8 @@ function StageNavigator({
           ))}
         </div>
       </nav>
-    </aside>
+      </aside>
+    </>
   );
 }
 
@@ -1467,6 +1553,70 @@ const StageChordLine = forwardRef<HTMLParagraphElement, {
 
 function FragmentText({ children }: { children: ReactNode }) {
   return <>{children}</>;
+}
+
+function StageZoomControls({
+  isDark,
+  onZoomIn,
+  onZoomOut,
+  value,
+}: {
+  isDark: boolean;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  value: number;
+}) {
+  return (
+    <div
+      className={`inline-flex h-10 w-fit items-center overflow-hidden rounded-full border ${
+        isDark
+          ? "border-[#343740] bg-[#17191f]"
+          : "border-[#d8d3c8] bg-white"
+      }`}
+      aria-label="Chart zoom controls"
+    >
+      <button
+        type="button"
+        disabled={value <= MIN_STAGE_ZOOM}
+        onClick={onZoomOut}
+        className="flex h-full w-10 items-center justify-center transition hover:bg-[#ed1746] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+        aria-label="Zoom chart out"
+      >
+        <StageZoomIcon sign="minus" />
+      </button>
+      <span className="min-w-12 text-center text-[11px] font-black tabular-nums">
+        {Math.round(value * 100)}%
+      </span>
+      <button
+        type="button"
+        disabled={value >= MAX_STAGE_ZOOM}
+        onClick={onZoomIn}
+        className="flex h-full w-10 items-center justify-center transition hover:bg-[#ed1746] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+        aria-label="Zoom chart in"
+      >
+        <StageZoomIcon sign="plus" />
+      </button>
+    </div>
+  );
+}
+
+function StageZoomIcon({ sign }: { sign: "minus" | "plus" }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m15.5 15.5 5 5" />
+      <path d="M7.5 10.5h6" />
+      {sign === "plus" ? <path d="M10.5 7.5v6" /> : null}
+    </svg>
+  );
 }
 
 function StageChordPopoverContent({
