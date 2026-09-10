@@ -8,6 +8,7 @@ import type { ChordDefinition } from "@/data/chords";
 type ChordCardProps = {
   chord: ChordDefinition;
   compact?: boolean;
+  displaySymbol?: string;
   instrumentLabel?: string;
   initialVariationIndex?: number;
   selectedVariationIndex?: number;
@@ -20,6 +21,7 @@ type ChordCardProps = {
 export function ChordCard({
   chord,
   compact = false,
+  displaySymbol,
   instrumentLabel = "guitar",
   initialVariationIndex = 0,
   selectedVariationIndex,
@@ -91,7 +93,7 @@ export function ChordCard({
           }
         >
           <ChordDiagram
-            symbol={chord.symbol}
+            symbol={displaySymbol ?? chord.symbol}
             variation={variation}
             instrumentLabel={instrumentLabel}
             variationLabel={variationLabel}

@@ -11,6 +11,7 @@ import { StickyMusicPlayer } from "@/components/shared/app-shell/sticky-music-pl
 import { ToastProvider } from "@/components/shared/toast";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { auth } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 
 type AppShellProps = {
   children: ReactNode;
@@ -21,7 +22,9 @@ type AppShellProps = {
 
 type AppShellUser = {
   email: string;
+  image: string | null;
   name: string;
+  role: "Admin" | "User";
 };
 
 function MusicLogoIcon() {
@@ -54,58 +57,6 @@ function SearchIcon() {
   );
 }
 
-function DownloadIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="size-4"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 3v12" />
-      <path d="m7 10 5 5 5-5" />
-      <path d="M5 21h14" />
-    </svg>
-  );
-}
-
-function PixelAvatar({ email, name }: AppShellUser) {
-  const hash = hashText(email);
-  const primaryColor = `hsl(${hash % 360} 78% 46%)`;
-  const secondaryColor = `hsl(${(hash * 7) % 360} 68% 62%)`;
-  const cells = Array.from({ length: 25 }, (_, index) => {
-    const row = Math.floor(index / 5);
-    const column = index % 5;
-    const mirroredColumn = column > 2 ? 4 - column : column;
-    const bitIndex = row * 3 + mirroredColumn;
-
-    return (hash >> bitIndex) & 1;
-  });
-
-  return (
-    <span
-      aria-label={`${name} profile`}
-      title={name}
-      className="grid size-11 shrink-0 grid-cols-5 overflow-hidden rounded-full border border-[#dedede] bg-white dark:border-[#36363a] dark:bg-[#19191b]"
-    >
-      {cells.map((active, index) => (
-        <span
-          key={`${email}-${index}`}
-          aria-hidden="true"
-          style={{
-            backgroundColor: active ? primaryColor : secondaryColor,
-            opacity: active ? 1 : 0.3,
-          }}
-        />
-      ))}
-    </span>
-  );
-}
-
 export async function AppShell({
   children,
   documentScroll = false,
@@ -115,11 +66,19 @@ export async function AppShell({
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  const user =
+  const userRecord = session?.user?.id
+    ? await prisma.betterAuthUser.findUnique({
+        where: { id: session.user.id },
+        select: { role: true },
+      })
+    : null;
+  const user: AppShellUser | null =
     session?.user?.email && session.user.name
       ? {
           email: session.user.email,
+          image: session.user.image ?? null,
           name: session.user.name,
+          role: userRecord?.role === "ADMIN" ? "Admin" : "User",
         }
       : null;
 
@@ -163,16 +122,7 @@ export async function AppShell({
               aria-label="Account navigation"
               className="ml-auto flex min-w-0 items-center justify-end gap-2"
             >
-              <Link
-                href="/"
-                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-[#ed1746] px-5 text-[13px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#ed1746] dark:hover:bg-[#d90f3b]"
-              >
-                <DownloadIcon />
-                Install App
-              </Link>
-              {user ? (
-                <PixelAvatar email={user.email} name={user.name} />
-              ) : (
+              {!user ? (
                 <>
                   <Link
                     href="/signup"
@@ -187,7 +137,7 @@ export async function AppShell({
                     Log in
                   </Link>
                 </>
-              )}
+              ) : null}
               <ThemeToggle className="size-10" />
             </nav>
           </div>
@@ -208,7 +158,7 @@ export async function AppShell({
           }
         >
           <LeftLibraryPanel
-            isAuthenticated={Boolean(user)}
+            user={user}
             showDesktop={!focusMode}
           />
           <main
@@ -228,15 +178,4 @@ export async function AppShell({
       </div>
     </AppMenuProvider>
   );
-}
-
-function hashText(value: string) {
-  let hash = 0;
-
-  for (const character of value) {
-    hash = (hash << 5) - hash + character.charCodeAt(0);
-    hash |= 0;
-  }
-
-  return Math.abs(hash);
 }

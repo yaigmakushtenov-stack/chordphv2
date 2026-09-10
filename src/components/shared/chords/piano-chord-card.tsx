@@ -8,6 +8,7 @@ import type { PianoChordDefinition } from "@/data/chords";
 type PianoChordCardProps = {
   chord: PianoChordDefinition;
   compact?: boolean;
+  displaySymbol?: string;
   initialVariationIndex?: number;
   selectedVariationIndex?: number;
   onVariationIndexChange?: (variationIndex: number) => void;
@@ -19,6 +20,7 @@ type PianoChordCardProps = {
 export function PianoChordCard({
   chord,
   compact = false,
+  displaySymbol,
   initialVariationIndex = 0,
   selectedVariationIndex,
   onVariationIndexChange,
@@ -89,7 +91,7 @@ export function PianoChordCard({
           }
         >
           <PianoChordDiagram
-            symbol={variation.symbol}
+            symbol={displaySymbol ?? variation.symbol}
             variation={variation}
             variationLabel={variationLabel}
             className={compact ? "mt-2" : ""}

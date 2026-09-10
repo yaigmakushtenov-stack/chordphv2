@@ -7,6 +7,7 @@ import { AppShell } from "@/components/shared/app-shell";
 import { AnnotationEditor } from "@/app/track/_components/annotation-editor";
 import { BackButton } from "@/components/shared/back-button";
 import { auth } from "@/lib/auth";
+import { TrackService } from "@/services/track-service";
 
 export const metadata: Metadata = {
   title: "Create Annotation | ChordPH",
@@ -20,6 +21,8 @@ export default async function NewTrackAnnotationPage() {
     redirect("/login");
   }
 
+  const artistNames = await TrackService.listArtistNames();
+
   return (
     <AppShell documentScroll focusMode>
       <Dashboard
@@ -31,6 +34,7 @@ export default async function NewTrackAnnotationPage() {
       >
         <AnnotationEditor
           mode="create"
+          initialArtistNames={artistNames}
           initialData={{
             trackId: null,
             title: "",
@@ -49,6 +53,7 @@ export default async function NewTrackAnnotationPage() {
             audio: null,
             detailsUpdatedAt: null,
             annotationUpdatedAt: null,
+            canPublishDirectly: false,
           }}
         />
       </Dashboard>

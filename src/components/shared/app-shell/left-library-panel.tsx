@@ -8,6 +8,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -25,6 +26,13 @@ type MenuItem = {
   icon: MenuIconName;
   label: string;
   note?: string;
+};
+
+type SidebarUser = {
+  email: string;
+  image: string | null;
+  name: string;
+  role: "Admin" | "User";
 };
 
 type MenuIconName =
@@ -127,10 +135,10 @@ export function MobileMenuButton() {
 }
 
 export function LeftLibraryPanel({
-  isAuthenticated = false,
+  user = null,
   showDesktop = true,
 }: {
-  isAuthenticated?: boolean;
+  user?: SidebarUser | null;
   showDesktop?: boolean;
 }) {
   const menu = useAppMenu();
@@ -145,7 +153,7 @@ export function LeftLibraryPanel({
         }
       >
         <MenuHeading />
-        <MenuContent isAuthenticated={isAuthenticated} />
+        <MenuContent user={user} />
       </aside>
 
       <div
@@ -189,7 +197,7 @@ export function LeftLibraryPanel({
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             <MenuContent
-              isAuthenticated={isAuthenticated}
+              user={user}
               onNavigate={menu.closeMenu}
             />
           </div>
@@ -219,10 +227,10 @@ function MenuHeading() {
 }
 
 function MenuContent({
-  isAuthenticated,
+  user,
   onNavigate,
 }: {
-  isAuthenticated: boolean;
+  user: SidebarUser | null;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -287,13 +295,126 @@ function MenuContent({
           );
         })}
       </nav>
-      {isAuthenticated ? (
+      {user ? (
         <div className="mt-auto border-t border-[#e8e8e8] pt-4 dark:border-[#29292d]">
-          <LogoutButton variant="menu" />
+          <SidebarUserMenu user={user} />
         </div>
       ) : null}
     </div>
   );
+}
+
+function SidebarUserMenu({ user }: { user: SidebarUser }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (
+        event.target instanceof Node &&
+        !containerRef.current?.contains(event.target)
+      ) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      {isOpen ? (
+        <div
+          role="dialog"
+          aria-label="User account"
+          className="absolute bottom-full left-0 right-0 z-20 mb-2 overflow-hidden rounded-2xl border border-[#dedede] bg-white p-3 shadow-[0_18px_45px_rgba(0,0,0,0.18)] dark:border-[#38383c] dark:bg-[#202023]"
+        >
+          <div className="min-w-0 px-2 py-1">
+            <p className="truncate text-[13px] font-black">{user.name}</p>
+            <p className="mt-1 truncate text-[11px] text-[#717171] dark:text-[#a1a1aa]">
+              {user.email}
+            </p>
+            <span className="mt-2 inline-flex rounded-full bg-[#fff0f3] px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-[#c90f39] dark:bg-[#3a111d] dark:text-[#fb7185]">
+              {user.role}
+            </span>
+          </div>
+          <div className="mt-3 border-t border-[#e8e8e8] pt-2 dark:border-[#38383c]">
+            <LogoutButton variant="menu" />
+          </div>
+        </div>
+      ) : null}
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        onClick={() => setIsOpen((current) => !current)}
+        className="flex w-full min-w-0 items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-[#f5f5f5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#1f1f22]"
+      >
+        <SidebarAvatar user={user} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13px] font-bold">{user.name}</span>
+          <span className="mt-0.5 block text-[10px] font-semibold text-[#717171] dark:text-[#a1a1aa]">
+            {user.role}
+          </span>
+        </span>
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          className={`size-4 shrink-0 text-[#777] transition ${isOpen ? "rotate-180" : ""}`}
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m7 14 5-5 5 5" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function SidebarAvatar({ user }: { user: SidebarUser }) {
+  if (user.image) {
+    return (
+      <span
+        aria-hidden="true"
+        className="size-10 shrink-0 rounded-full border border-[#dedede] bg-cover bg-center bg-no-repeat dark:border-[#38383c]"
+        style={{ backgroundImage: `url(${JSON.stringify(user.image)})` }}
+      />
+    );
+  }
+
+  return (
+    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] text-[13px] font-black text-white">
+      {getUserInitials(user.name)}
+    </span>
+  );
+}
+
+function getUserInitials(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "U";
 }
 
 function MenuIcon({ name }: { name: MenuIconName }) {

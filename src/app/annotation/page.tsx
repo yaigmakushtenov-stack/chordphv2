@@ -52,6 +52,8 @@ function toPersonalTrackListItem(
     tuning: track.tuning,
     tags: track.tags,
     hasAudio: Boolean(track.musicFileId),
+    visibilityStatus: track.visibilityStatus,
+    publicityStatus: track.publicityStatus,
     updatedAt: track.updatedAt.toISOString(),
   };
 }

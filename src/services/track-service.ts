@@ -52,6 +52,9 @@ const annotationTrackSelect = {
   metadata: true,
   visibilityStatus: true,
   publicityStatus: true,
+  owner: {
+    select: { role: true },
+  },
   updatedAt: true,
   musicFile: {
     select: {
@@ -72,6 +75,8 @@ const personalTrackSelect = {
   key: true,
   tuning: true,
   tags: true,
+  visibilityStatus: true,
+  publicityStatus: true,
   updatedAt: true,
   musicFileId: true,
 } satisfies Prisma.TrackSelect;
@@ -168,7 +173,7 @@ export type CreateTrackWithAnnotationInput = Omit<
 
 export class TrackAnnotationServiceError extends Error {
   constructor(
-    public readonly code: "INVALID_INPUT" | "NOT_FOUND",
+    public readonly code: "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND",
     message: string,
   ) {
     super(message);
@@ -214,11 +219,24 @@ export async function createTrackWithAnnotation(
     }
 
     const isAdmin = owner.role === UserRole.ADMIN;
+    const [primaryArtist, additionalArtists] = isAdmin
+      ? await Promise.all([
+          findOrCreateArtist(transaction, details.artistName),
+          Promise.all(
+            details.additionalArtists.map(async (artist) => ({
+              artistId: (await findOrCreateArtist(transaction, artist.artistName))
+                .id,
+              joinPhrase: artist.joinPhrase,
+            })),
+          ),
+        ])
+      : [null, []];
 
     return transaction.track.create({
       data: {
         ownerId,
         musicFileId,
+        artistId: primaryArtist?.id,
         title: details.title,
         artistName: details.artistName,
         key: details.key,
@@ -238,6 +256,11 @@ export async function createTrackWithAnnotation(
         publicityStatus: isAdmin
           ? PublicityStatus.APPROVED
           : PublicityStatus.PRIVATE,
+        additionalArtists: isAdmin
+          ? {
+              create: additionalArtists,
+            }
+          : undefined,
         annotation: {
           create: {
             type: TrackAnnotationType.CHORDS,
@@ -249,6 +272,30 @@ export async function createTrackWithAnnotation(
       select: annotationTrackSelect,
     });
   });
+}
+
+async function findOrCreateArtist(
+  transaction: Prisma.TransactionClient,
+  name: string,
+): Promise<{ id: string }> {
+  const artist = await transaction.artist.findFirst({
+    where: {
+      name: {
+        equals: name,
+        mode: Prisma.QueryMode.insensitive,
+      },
+    },
+    select: { id: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+
+  return (
+    artist ??
+    transaction.artist.create({
+      data: { name },
+      select: { id: true },
+    })
+  );
 }
 
 export async function getAnnotationTrack(
@@ -374,6 +421,25 @@ export async function searchViewableTracks(
   });
 }
 
+export async function listArtistNames(): Promise<string[]> {
+  const artists = await prisma.artist.findMany({
+    select: { name: true },
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    take: 2_000,
+  });
+  const uniqueNames = new Map<string, string>();
+
+  for (const artist of artists) {
+    const normalizedName = artist.name.toLowerCase();
+
+    if (!uniqueNames.has(normalizedName)) {
+      uniqueNames.set(normalizedName, artist.name);
+    }
+  }
+
+  return [...uniqueNames.values()];
+}
+
 export async function submitTrackForPublicReview(
   ownerId: string,
   trackId: string,
@@ -488,6 +554,11 @@ export async function saveTrackDetails(
       select: {
         id: true,
         metadata: true,
+        visibilityStatus: true,
+        publicityStatus: true,
+        owner: {
+          select: { role: true },
+        },
       },
     });
 
@@ -496,6 +567,22 @@ export async function saveTrackDetails(
     }
 
     const metadata = toMetadataObject(currentTrack.metadata);
+    const remainsAdminApproved =
+      currentTrack.owner.role === UserRole.ADMIN &&
+      currentTrack.visibilityStatus === VisibilityStatus.PUBLIC &&
+      currentTrack.publicityStatus === PublicityStatus.APPROVED;
+    const [primaryArtist, additionalArtists] = remainsAdminApproved
+      ? await Promise.all([
+          findOrCreateArtist(transaction, values.artistName),
+          Promise.all(
+            values.additionalArtists.map(async (artist) => ({
+              artistId: (await findOrCreateArtist(transaction, artist.artistName))
+                .id,
+              joinPhrase: artist.joinPhrase,
+            })),
+          ),
+        ])
+      : [null, []];
 
     return transaction.track.update({
       where: { id: currentTrack.id },
@@ -510,6 +597,14 @@ export async function saveTrackDetails(
         youtubeLink: values.youtubeLink,
         spotifyLink: values.spotifyLink,
         tags: values.tags,
+        ...getPublicationUpdateAfterEdit(currentTrack),
+        artistId: remainsAdminApproved ? primaryArtist?.id : undefined,
+        additionalArtists: remainsAdminApproved
+          ? {
+              deleteMany: {},
+              create: additionalArtists,
+            }
+          : undefined,
         metadata: {
           ...metadata,
           additionalArtists: values.additionalArtists,
@@ -530,7 +625,14 @@ export async function saveTrackAnnotation(
   return prisma.$transaction(async (transaction) => {
     const track = await transaction.track.findFirst({
       where: { id: trackId, ownerId },
-      select: { id: true },
+      select: {
+        id: true,
+        visibilityStatus: true,
+        publicityStatus: true,
+        owner: {
+          select: { role: true },
+        },
+      },
     });
 
     if (!track) {
@@ -552,6 +654,16 @@ export async function saveTrackAnnotation(
       select: { id: true },
     });
 
+    const publicationUpdate = getPublicationUpdateAfterEdit(track);
+
+    if (publicationUpdate) {
+      await transaction.track.update({
+        where: { id: track.id },
+        data: publicationUpdate,
+        select: { id: true },
+      });
+    }
+
     const updatedTrack = await transaction.track.findUnique({
       where: { id: track.id },
       select: annotationTrackSelect,
@@ -563,6 +675,86 @@ export async function saveTrackAnnotation(
 
     return updatedTrack;
   });
+}
+
+export async function publishAdminTrack(
+  ownerId: string,
+  trackId: string,
+): Promise<AnnotationTrack> {
+  const normalizedOwnerId = requireText(ownerId, "ownerId", 255);
+  const normalizedTrackId = requireText(trackId, "trackId", 255);
+
+  return prisma.$transaction(async (transaction) => {
+    const track = await transaction.track.findFirst({
+      where: {
+        id: normalizedTrackId,
+        ownerId: normalizedOwnerId,
+        annotation: { isNot: null },
+      },
+      select: {
+        artistName: true,
+        metadata: true,
+        owner: {
+          select: { role: true },
+        },
+      },
+    });
+
+    if (!track) {
+      throw new TrackAnnotationServiceError("NOT_FOUND", "Track not found.");
+    }
+
+    if (track.owner.role !== UserRole.ADMIN) {
+      throw new TrackAnnotationServiceError(
+        "FORBIDDEN",
+        "Only an admin can publish this track directly.",
+      );
+    }
+
+    const temporaryArtists = getTemporaryTrackArtists(track.metadata);
+    const [primaryArtist, additionalArtists] = await Promise.all([
+      findOrCreateArtist(transaction, track.artistName),
+      Promise.all(
+        temporaryArtists.map(async (artist) => ({
+          artistId: (await findOrCreateArtist(transaction, artist.artistName)).id,
+          joinPhrase: artist.joinPhrase,
+        })),
+      ),
+    ]);
+
+    return transaction.track.update({
+      where: { id: normalizedTrackId },
+      data: {
+        artistId: primaryArtist.id,
+        visibilityStatus: VisibilityStatus.PUBLIC,
+        publicityStatus: PublicityStatus.APPROVED,
+        additionalArtists: {
+          deleteMany: {},
+          create: additionalArtists,
+        },
+      },
+      select: annotationTrackSelect,
+    });
+  });
+}
+
+function getPublicationUpdateAfterEdit(track: {
+  owner: { role: UserRole };
+  visibilityStatus: VisibilityStatus;
+  publicityStatus: PublicityStatus;
+}) {
+  if (
+    track.owner.role !== UserRole.ADMIN &&
+    track.visibilityStatus === VisibilityStatus.PUBLIC &&
+    track.publicityStatus === PublicityStatus.APPROVED
+  ) {
+    return {
+      visibilityStatus: VisibilityStatus.PRIVATE,
+      publicityStatus: PublicityStatus.PENDING,
+    };
+  }
+
+  return undefined;
 }
 
 export function getTemporaryTrackArtists(
@@ -814,6 +1006,8 @@ export const TrackService = {
   getViewableAnnotationTrack,
   listDashboardPublicTracks,
   listPersonalAnnotationTracks,
+  publishAdminTrack,
+  listArtistNames,
   searchViewableTracks,
   saveTrackAnnotation,
   saveTrackDetails,

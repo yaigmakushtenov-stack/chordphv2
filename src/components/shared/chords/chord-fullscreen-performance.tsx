@@ -163,7 +163,7 @@ export function ChordFullscreenPerformanceLauncher({
         type="button"
         aria-label="Open fullscreen chord performance view"
         onClick={handleOpen}
-        className="fixed bottom-24 right-5 z-40 flex size-14 items-center justify-center rounded-full bg-[#ed1746] text-white shadow-[0_16px_40px_rgba(237,23,70,0.35)] transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed1746] dark:shadow-[0_16px_40px_rgba(0,0,0,0.45)]"
+        className="fixed bottom-5 right-5 z-40 flex size-14 items-center justify-center rounded-full bg-[#ed1746] text-white shadow-[0_16px_40px_rgba(237,23,70,0.35)] transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed1746] dark:shadow-[0_16px_40px_rgba(0,0,0,0.45)]"
       >
         <PlayIcon />
       </button>

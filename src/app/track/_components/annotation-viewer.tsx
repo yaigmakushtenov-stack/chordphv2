@@ -655,6 +655,7 @@ export function ChordLine({
             <PianoChordCard
               key={`${pianoReference.chord.symbol}-${pianoReference.variationIndex}`}
               chord={pianoReference.chord}
+              displaySymbol={chordReference.displaySymbol}
               compact
               initialVariationIndex={pianoReference.variationIndex}
               selectedVariationIndex={getSelectedVariationIndex(
@@ -676,6 +677,7 @@ export function ChordLine({
             <ChordCard
               key={`${ukuleleReference.chord.symbol}-${ukuleleReference.variationIndex}`}
               chord={ukuleleReference.chord}
+              displaySymbol={chordReference.displaySymbol}
               compact
               instrumentLabel="ukulele"
               initialVariationIndex={ukuleleReference.variationIndex}
@@ -698,6 +700,7 @@ export function ChordLine({
             <ChordCard
               key={`${chordReference.chord.symbol}-${chordReference.variationIndex}`}
               chord={chordReference.chord}
+              displaySymbol={chordReference.displaySymbol}
               compact
               initialVariationIndex={chordReference.variationIndex}
               selectedVariationIndex={getSelectedVariationIndex(
@@ -820,6 +823,7 @@ export function TrackChordSection({
               >
                 <ChordCard
                   chord={chordReference.chord}
+                  displaySymbol={chordReference.displaySymbol}
                   initialVariationIndex={chordReference.variationIndex}
                   selectedVariationIndex={getSelectedVariationIndex(
                     "guitar",
@@ -847,6 +851,7 @@ export function TrackChordSection({
               >
                 <ChordCard
                   chord={chordReference.chord}
+                  displaySymbol={chords[index].displaySymbol}
                   instrumentLabel="ukulele"
                   initialVariationIndex={chordReference.variationIndex}
                   selectedVariationIndex={getSelectedVariationIndex(
@@ -874,6 +879,7 @@ export function TrackChordSection({
               >
                 <PianoChordCard
                   chord={chordReference.chord}
+                  displaySymbol={chords[index].displaySymbol}
                   initialVariationIndex={chordReference.variationIndex}
                   selectedVariationIndex={getSelectedVariationIndex(
                     "piano",
@@ -914,16 +920,7 @@ function PreferredChordSymbolLabel({
   trackPreference: TrackPreference;
 }) {
   if (chordInstrument === "piano" && pianoReference) {
-    const selectedVariationIndex = getSelectedVariationIndex(
-      "piano",
-      chordReference,
-      pianoReference.variationIndex,
-      trackPreference,
-    );
-    const selectedVariation =
-      pianoReference.chord.variations[selectedVariationIndex];
-
-    return <>{selectedVariation?.symbol ?? chordReference.displaySymbol}</>;
+    return <>{chordReference.displaySymbol}</>;
   }
 
   if (chordInstrument === "ukulele" && ukuleleReference) {
@@ -1055,7 +1052,7 @@ function getGuitarChordReference(value: string): GuitarChordReference | null {
   return {
     key: `${chord.symbol}-${parsedChord.variationNumber ?? 1}`,
     chord,
-    displaySymbol: chord.symbol,
+    displaySymbol: parsedChord.symbol,
     hasExplicitVariation: parsedChord.variationNumber !== null,
     variationIndex: parsedChord.variationNumber
       ? parsedChord.variationNumber - 1

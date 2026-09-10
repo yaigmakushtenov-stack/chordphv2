@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useId, useMemo, useState, useTransition } from "react";
 
 import * as TrackActions from "@/actions/track-actions";
 import { AudioUpload } from "@/app/track/_components/audio/audio-upload";
@@ -34,6 +34,7 @@ import type {
 import type { TrackPreference } from "@/types/track-preference";
 
 type AnnotationEditorProps = {
+  initialArtistNames: string[];
   initialData: AnnotationEditorData;
   mode?: "create" | "edit";
 };
@@ -63,12 +64,14 @@ const labelClassName =
   "text-[12px] font-semibold text-[#555] dark:text-[#c4c4cc]";
 
 export function AnnotationEditor({
+  initialArtistNames,
   initialData,
   mode = "edit",
 }: AnnotationEditorProps) {
   const router = useRouter();
   const isCreateMode = mode === "create";
   const [currentStep, setCurrentStep] = useState(1);
+  const [artistNames, setArtistNames] = useState(initialArtistNames);
   const [details, setDetails] = useState<TrackDetailsDraft>({
     title: initialData.title,
     artistName: initialData.artistName,
@@ -92,9 +95,6 @@ export function AnnotationEditor({
   const [detailsSavedAt, setDetailsSavedAt] = useState(
     initialData.detailsUpdatedAt,
   );
-  const [annotationSavedAt, setAnnotationSavedAt] = useState(
-    initialData.annotationUpdatedAt,
-  );
   const [transposeBy, setTransposeBy] = useState(0);
   const [accidentals, setAccidentals] =
     useState<AccidentalPreference>("sharps");
@@ -105,6 +105,7 @@ export function AnnotationEditor({
   });
   const [isDetailsPending, startDetailsTransition] = useTransition();
   const [isAnnotationPending, startAnnotationTransition] = useTransition();
+  const [isPublishPending, startPublishTransition] = useTransition();
   const [isDraftReady, setIsDraftReady] = useState(!isCreateMode);
   const [draftStorageAvailable, setDraftStorageAvailable] = useState(true);
   const preview = useMemo(
@@ -230,6 +231,10 @@ export function AnnotationEditor({
   };
 
   function saveDetails() {
+    saveDetailsAndThen();
+  }
+
+  function saveDetailsAndThen(onSuccess?: () => void) {
     const trackId = initialData.trackId;
 
     if (!trackId) {
@@ -252,11 +257,18 @@ export function AnnotationEditor({
       }
 
       setDetailsSavedAt(result.data.updatedAt);
+      setArtistNames((current) =>
+        mergeArtistNames(current, [
+          details.artistName,
+          ...details.additionalArtists.map((artist) => artist.artistName),
+        ]),
+      );
       showToast({
         title: "Track details saved",
         description: "Song and collaborator details are up to date.",
         tone: "success",
       });
+      onSuccess?.();
     });
   }
 
@@ -310,12 +322,12 @@ export function AnnotationEditor({
         return;
       }
 
-      setAnnotationSavedAt(result.data.updatedAt);
       showToast({
         title: "Annotation saved",
         description: "Your lyrics, chords, and notes are up to date.",
         tone: "success",
       });
+      router.replace(`/track/${initialData.trackId}`);
     });
   }
 
@@ -368,8 +380,17 @@ export function AnnotationEditor({
       return;
     }
 
-    setCurrentStep((step) => Math.min(3, step + 1));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const advance = () => {
+      setCurrentStep((step) => Math.min(3, step + 1));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    if (!isCreateMode) {
+      saveDetailsAndThen(advance);
+      return;
+    }
+
+    advance();
   }
 
   function goToPreviousStep() {
@@ -393,35 +414,83 @@ export function AnnotationEditor({
     });
   }
 
+  function publishTrack() {
+    const trackId = initialData.trackId;
+
+    if (!trackId) {
+      return;
+    }
+
+    startPublishTransition(async () => {
+      const saveResult = await TrackActions.saveAnnotation({
+        trackId,
+        ...annotation,
+      });
+
+      if (!saveResult.ok) {
+        showToast({
+          title: "Could not save annotation",
+          description: saveResult.error.message,
+          tone: "error",
+        });
+        return;
+      }
+
+      const result = await TrackActions.publishAsAdmin(trackId);
+
+      if (!result.ok) {
+        showToast({
+          title: "Could not publish track",
+          description: result.error.message,
+          tone: "error",
+        });
+        return;
+      }
+
+      showToast({
+        title: "Track published",
+        description: "The track is now approved and publicly available.",
+        tone: "success",
+      });
+      router.replace(`/track/${result.data.trackId}`);
+    });
+  }
+
   return (
     <div className="grid gap-4">
-      {isCreateMode ? (
-        <CreationProgress
-          currentStep={currentStep}
-          draftStatus={
-            !isDraftReady
+      <CreationProgress
+        currentStep={currentStep}
+        draftStatus={
+          isCreateMode
+            ? !isDraftReady
               ? "Restoring draft…"
               : draftStorageAvailable
                 ? "Draft saved in this browser"
                 : "Browser draft storage is unavailable"
-          }
-        />
-      ) : null}
+            : "Changes are saved as you continue"
+        }
+        footerDescription={
+          isCreateMode
+            ? "The Track and annotation are created together on the final step."
+            : "Track details save when you continue. Save the annotation on the final step."
+        }
+      />
 
       <div
         className={
-          !isCreateMode || currentStep === 3
+          currentStep === 3
             ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]"
             : "grid gap-4"
         }
       >
       <div className="grid min-w-0 gap-4">
-        {!isCreateMode ? (
+        {!isCreateMode && currentStep === 2 ? (
           <AudioPanel title={details.title} audio={initialData.audio} />
         ) : null}
 
-        {(!isCreateMode || currentStep === 1) ? (
+        {currentStep === 1 ? (
           <SongArtistsSection
+            artistNames={artistNames}
             details={details}
             isCreateMode={isCreateMode}
             isDetailsPending={isDetailsPending}
@@ -434,7 +503,7 @@ export function AnnotationEditor({
           />
         ) : null}
 
-        {(!isCreateMode || currentStep === 2) ? (
+        {currentStep === 2 ? (
           <>
             <MusicDetailsSection
               details={details}
@@ -455,7 +524,7 @@ export function AnnotationEditor({
           </>
         ) : null}
 
-        {(!isCreateMode || currentStep === 3) ? (
+        {currentStep === 3 ? (
           <>
             <section className="rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]">
               <div className="flex items-start justify-between gap-3">
@@ -513,7 +582,7 @@ export function AnnotationEditor({
         ) : null}
       </div>
 
-      {(!isCreateMode || currentStep === 3) ? (
+      {currentStep === 3 ? (
         <aside className="min-w-0 xl:sticky xl:top-4 xl:self-start">
           <section className="rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -544,37 +613,21 @@ export function AnnotationEditor({
               onVariationChange={handleVariationChange}
             />
           </section>
-          {!isCreateMode ? (
-            <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]">
-              <button
-                type="button"
-                disabled={isAnnotationPending}
-                onClick={saveAnnotation}
-                className="h-11 rounded-full bg-[#ed1746] px-5 text-[13px] font-bold text-white transition hover:bg-[#d90f3b] disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-              >
-                {isAnnotationPending ? "Saving…" : "Save annotation"}
-              </button>
-              <p className="text-center text-[11px] text-[#717171] dark:text-[#a1a1aa]">
-                {annotationSavedAt
-                  ? `Annotation last saved ${formatSavedAt(annotationSavedAt)}`
-                  : "Annotation not saved yet"}
-              </p>
-            </div>
-          ) : null}
         </aside>
       ) : null}
       </div>
 
-      {isCreateMode ? (
-        <CreationNavigation
-          currentStep={currentStep}
-          isPending={isAnnotationPending}
-          draftReady={isDraftReady}
-          onBack={goToPreviousStep}
-          onNext={goToNextStep}
-          onCreate={saveAnnotation}
-        />
-      ) : null}
+      <CreationNavigation
+        currentStep={currentStep}
+        isCreateMode={isCreateMode}
+        isPending={isDetailsPending || isAnnotationPending || isPublishPending}
+        draftReady={isDraftReady}
+        canPublishDirectly={initialData.canPublishDirectly}
+        onBack={goToPreviousStep}
+        onNext={goToNextStep}
+        onCreate={saveAnnotation}
+        onPublish={publishTrack}
+      />
     </div>
   );
 }
@@ -585,6 +638,7 @@ type DetailsUpdate = <Key extends keyof TrackDetailsDraft>(
 ) => void;
 
 function SongArtistsSection({
+  artistNames,
   details,
   isCreateMode,
   isDetailsPending,
@@ -595,6 +649,7 @@ function SongArtistsSection({
   onSave,
   savedAt,
 }: {
+  artistNames: string[];
   details: TrackDetailsDraft;
   isCreateMode: boolean;
   isDetailsPending: boolean;
@@ -628,12 +683,11 @@ function SongArtistsSection({
           />
         </Field>
         <Field label="Primary artist">
-          <input
+          <ArtistNameInput
+            artistNames={artistNames}
             required
-            maxLength={200}
             value={details.artistName}
-            onChange={(event) => onUpdate("artistName", event.target.value)}
-            className={fieldClassName}
+            onChange={(value) => onUpdate("artistName", value)}
           />
         </Field>
       </div>
@@ -642,7 +696,7 @@ function SongArtistsSection({
           <div>
             <h3 className="text-[14px] font-bold">Additional artists</h3>
             <p className="mt-1 text-[12px] text-[#717171] dark:text-[#a1a1aa]">
-              Optional collaborators are kept as private draft metadata.
+              Add featured artists and collaborators in their credited order.
             </p>
           </div>
           <button
@@ -680,17 +734,16 @@ function SongArtistsSection({
                   </select>
                 </Field>
                 <Field label="Artist name">
-                  <input
+                  <ArtistNameInput
+                    artistNames={artistNames}
                     required
-                    maxLength={200}
                     value={artist.artistName}
-                    onChange={(event) =>
+                    onChange={(value) =>
                       onUpdateAdditionalArtist(index, {
                         ...artist,
-                        artistName: event.target.value,
+                        artistName: value,
                       })
                     }
-                    className={fieldClassName}
                   />
                 </Field>
                 <button
@@ -709,6 +762,49 @@ function SongArtistsSection({
         <SavedAt value={savedAt} label="Details" />
       ) : null}
     </section>
+  );
+}
+
+function ArtistNameInput({
+  artistNames,
+  value,
+  onChange,
+  required = false,
+}: {
+  artistNames: string[];
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+}) {
+  const suggestionListId = useId();
+  const query = value.trim().toLowerCase();
+  const suggestions = useMemo(
+    () =>
+      query.length < 2
+        ? []
+        : artistNames
+            .filter((artistName) => artistName.toLowerCase().includes(query))
+            .slice(0, 8),
+    [artistNames, query],
+  );
+
+  return (
+    <>
+      <input
+        required={required}
+        maxLength={200}
+        autoComplete="off"
+        list={suggestionListId}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={fieldClassName}
+      />
+      <datalist id={suggestionListId}>
+        {suggestions.map((suggestion) => (
+          <option key={suggestion} value={suggestion} />
+        ))}
+      </datalist>
+    </>
   );
 }
 
@@ -1013,9 +1109,11 @@ function SavedAt({ value, label }: { value: string; label: string }) {
 function CreationProgress({
   currentStep,
   draftStatus,
+  footerDescription,
 }: {
   currentStep: number;
   draftStatus: string;
+  footerDescription: string;
 }) {
   const steps = ["Song & artists", "Music details", "Annotation"];
 
@@ -1049,7 +1147,7 @@ function CreationProgress({
         })}
       </div>
       <p className="mt-4 border-t border-[#ececec] pt-3 text-[11px] text-[#717171] dark:border-[#303034] dark:text-[#a1a1aa]">
-        {draftStatus} · The Track and annotation are created together on the final step.
+        {draftStatus} · {footerDescription}
       </p>
     </section>
   );
@@ -1057,18 +1155,24 @@ function CreationProgress({
 
 function CreationNavigation({
   currentStep,
+  isCreateMode,
   isPending,
   draftReady,
+  canPublishDirectly,
   onBack,
   onNext,
   onCreate,
+  onPublish,
 }: {
   currentStep: number;
+  isCreateMode: boolean;
   isPending: boolean;
   draftReady: boolean;
+  canPublishDirectly: boolean;
   onBack: () => void;
   onNext: () => void;
   onCreate: () => void;
+  onPublish: () => void;
 }) {
   return (
     <footer className="flex items-center justify-between gap-3 rounded-2xl border border-[#e4e4e4] bg-white p-3 dark:border-[#303034] dark:bg-[#171719]">
@@ -1097,14 +1201,32 @@ function CreationNavigation({
           Next
         </button>
       ) : (
-        <button
-          type="button"
-          disabled={isPending || !draftReady}
-          onClick={onCreate}
-          className="h-10 rounded-full bg-[#ed1746] px-6 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] disabled:cursor-wait disabled:opacity-60"
-        >
-          {isPending ? "Creating…" : "Create track & save annotation"}
-        </button>
+        <div className="flex items-center gap-2">
+          {!isCreateMode && canPublishDirectly ? (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={onPublish}
+              className="h-10 rounded-full border border-[#ed1746] px-5 text-[12px] font-bold text-[#ed1746] transition hover:bg-[#fff0f3] disabled:cursor-wait disabled:opacity-60 dark:hover:bg-[#35141c]"
+            >
+              Publish
+            </button>
+          ) : null}
+          <button
+            type="button"
+            disabled={isPending || !draftReady}
+            onClick={onCreate}
+            className="h-10 rounded-full bg-[#ed1746] px-6 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] disabled:cursor-wait disabled:opacity-60"
+          >
+            {isPending
+              ? isCreateMode
+                ? "Creating…"
+                : "Saving…"
+              : isCreateMode
+                ? "Create track & save annotation"
+                : "Save annotation"}
+          </button>
+        </div>
       )}
     </footer>
   );
@@ -1467,6 +1589,22 @@ function ChordPreview({
       </div>
     </div>
   );
+}
+
+function mergeArtistNames(current: string[], additions: string[]): string[] {
+  const names = new Map(
+    current.map((artistName) => [artistName.toLowerCase(), artistName]),
+  );
+
+  for (const addition of additions) {
+    const artistName = addition.trim();
+
+    if (artistName) {
+      names.set(artistName.toLowerCase(), artistName);
+    }
+  }
+
+  return [...names.values()].sort((left, right) => left.localeCompare(right));
 }
 
 function parseOptionalNumber(value: string): number | null {

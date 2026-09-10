@@ -30,15 +30,19 @@ export default async function AnnotateTrackPage({
   }
 
   const { trackId } = await params;
-  const track = await TrackService.getAnnotationTrack(session.user.id, trackId);
+  const [track, artistNames] = await Promise.all([
+    TrackService.getAnnotationTrack(session.user.id, trackId),
+    TrackService.listArtistNames(),
+  ]);
 
   if (!track) {
     notFound();
   }
 
   return (
-    <AppShell>
+    <AppShell documentScroll focusMode>
       <Dashboard
+        documentScroll
         headerNavigation={
           <BackLink href="/">Back to dashboard</BackLink>
         }
@@ -46,7 +50,10 @@ export default async function AnnotateTrackPage({
         title="Annotate track"
         description="Add song details, collaborators, lyrics, chords, and rehearsal notes. Preview transposition without changing the saved source."
       >
-        <AnnotationEditor initialData={toAnnotationEditorData(track)} />
+        <AnnotationEditor
+          initialArtistNames={artistNames}
+          initialData={toAnnotationEditorData(track)}
+        />
       </Dashboard>
     </AppShell>
   );
@@ -77,6 +84,12 @@ function toAnnotationEditorData(track: AnnotationTrack): AnnotationEditorData {
       : null,
     detailsUpdatedAt: track.updatedAt.toISOString(),
     annotationUpdatedAt: track.annotation?.updatedAt.toISOString() ?? null,
+    canPublishDirectly:
+      track.owner.role === "ADMIN" &&
+      !(
+        track.visibilityStatus === "PUBLIC" &&
+        track.publicityStatus === "APPROVED"
+      ),
   };
 }
 

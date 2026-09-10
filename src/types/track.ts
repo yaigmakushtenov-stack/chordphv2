@@ -64,6 +64,7 @@ export type AnnotationEditorData = {
   } | null;
   detailsUpdatedAt: string | null;
   annotationUpdatedAt: string | null;
+  canPublishDirectly: boolean;
 };
 
 export type AnnotationViewerData = {
@@ -95,6 +96,8 @@ export type PersonalTrackListItem = {
   tuning: string;
   tags: string[];
   hasAudio: boolean;
+  visibilityStatus: "DRAFT" | "PRIVATE" | "PUBLIC";
+  publicityStatus: "PRIVATE" | "PENDING" | "REJECTED" | "APPROVED";
   updatedAt: string;
 };
 

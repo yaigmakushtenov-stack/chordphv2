@@ -168,6 +168,27 @@ export async function submitForReview(
   }
 }
 
+export async function publishAsAdmin(
+  trackId: string,
+): Promise<ActionResult<TrackActionData>> {
+  const userId = await getAuthenticatedUserId();
+
+  if (!userId) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to publish this track.");
+  }
+
+  if (!isTrackId(trackId)) {
+    return actionFailure("VALIDATION_ERROR", "The track is invalid.");
+  }
+
+  try {
+    const track = await TrackService.publishAdminTrack(userId, trackId);
+    return actionSuccess({ trackId: track.id });
+  } catch (error: unknown) {
+    return handleTrackServiceError(error, "Track not found.");
+  }
+}
+
 async function getAuthenticatedUserId(): Promise<string | null> {
   const session = await auth.api.getSession({ headers: await headers() });
   return session?.user?.id ?? null;
@@ -183,6 +204,10 @@ function handleTrackServiceError<T>(
 
   if (error.code === "NOT_FOUND") {
     return actionFailure("NOT_FOUND", notFoundMessage);
+  }
+
+  if (error.code === "FORBIDDEN") {
+    return actionFailure("FORBIDDEN", "You cannot publish this track.");
   }
 
   return actionFailure("VALIDATION_ERROR", error.message);
