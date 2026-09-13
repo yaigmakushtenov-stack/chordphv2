@@ -165,7 +165,7 @@ export function AnnotationViewer({
         }}
         trackPreference={trackPreference}
       />
-      <section className="min-w-0 p-5 sm:p-6 xl:min-h-0 xl:overflow-y-auto">
+      <section className="min-w-0 p-3 sm:p-6 xl:min-h-0 xl:overflow-y-auto">
         <div className="mb-4">
           {setListContext ? (
             <BackLink href={`/setlists/${setListContext.setListId}`}>
@@ -282,7 +282,7 @@ export function AnnotationViewer({
         ) : null}
 
         {source.trim() ? (
-          <div className="overflow-x-auto rounded-xl bg-[#fafafa] p-4 font-mono text-[13px] leading-6 [tab-size:4] dark:bg-[#202023] sm:p-6">
+          <div className="-mx-3 w-[calc(100%+1.5rem)] overflow-x-auto bg-[#fafafa] px-2 py-4 font-mono text-[12px] leading-5 [tab-size:4] dark:bg-[#202023] sm:mx-0 sm:w-auto sm:rounded-xl sm:p-6 sm:text-[13px] sm:leading-6">
             {source.split("\n").map((line, index) => (
               <ChordLine
                 key={index}
