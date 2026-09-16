@@ -13,6 +13,12 @@ import { ChordCard } from "@/components/shared/chords/chord-card";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
 import { SongChart } from "@/components/shared/chords/song-chart";
 import {
+  AUTO_SCROLL_PIXELS_PER_SECOND,
+  AUTO_SCROLL_SPEED_STEP,
+  AutoScrollSpeedControls,
+  MAX_AUTO_SCROLL_SPEED,
+} from "@/components/shared/auto-scroll-speed-controls";
+import {
   GUITAR_CHORDS,
   PIANO_CHORDS,
   UKELELE_CHORDS,
@@ -38,7 +44,6 @@ import type {
   StageTrackData,
 } from "@/types/stage";
 
-const AUTO_SCROLL_PIXELS_PER_SECOND = 18;
 const MANUAL_SCROLL_PAUSE_MS = 700;
 const PROGRAMMATIC_SCROLL_IGNORE_MS = 80;
 const MAX_SYNC_LATENCY_COMPENSATION_MS = 1200;
@@ -643,7 +648,13 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     }
 
     lastSpeedDownAtRef.current = now;
-    updateScrollSpeed((speed) => Math.max(0, speed - 0.5));
+    updateScrollSpeed((speed) => Math.max(0, speed - AUTO_SCROLL_SPEED_STEP));
+  }
+
+  function increaseScrollSpeed(): void {
+    updateScrollSpeed((speed) =>
+      Math.min(MAX_AUTO_SCROLL_SPEED, speed + AUTO_SCROLL_SPEED_STEP),
+    );
   }
 
   function toggleAutoScroll(): void {
@@ -1117,39 +1128,14 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           >
             <StagePlaybackIcon playing={scrollSpeed > 0} />
           </button>
-          <div
-            className={`inline-flex h-10 shrink-0 items-center overflow-hidden rounded-full border ${
-              isDark
-                ? "border-[#343740] bg-[#17191f]"
-                : "border-[#d8d3c8] bg-white"
-            }`}
-            aria-label="Auto-scroll speed controls"
-          >
-            <button
-              type="button"
-              onClick={decreaseScrollSpeed}
-              className="flex h-full w-8 items-center justify-center text-[18px] font-black transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-              aria-label="Decrease auto-scroll speed. Double tap to stop."
-            >
-              -
-            </button>
-            <span className="min-w-6 text-center text-[11px] font-black tabular-nums">
-              {scrollSpeed}
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                updateScrollSpeed((speed) => Math.min(6, speed + 0.5))
-              }
-              className="flex h-full w-8 items-center justify-center bg-[#ed1746] text-[18px] font-black text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-              aria-label="Increase auto-scroll speed"
-            >
-              +
-            </button>
-          </div>
-          <span className="sr-only" aria-live="polite">
-            {scrollSpeed === 0 ? "Auto-scroll off" : `Auto-scroll level ${scrollSpeed}`}
-          </span>
+          <AutoScrollSpeedControls
+            compact
+            speed={scrollSpeed}
+            isDark={isDark}
+            onDecrease={decreaseScrollSpeed}
+            onIncrease={increaseScrollSpeed}
+            decreaseLabel="Decrease auto-scroll speed. Double tap to stop."
+          />
           <StageZoomControls
             compact
             isDark={isDark}
@@ -1248,29 +1234,13 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           >
             Prev
           </button>
-          <button
-            type="button"
-            onClick={decreaseScrollSpeed}
-            className={stageButtonClass(isDark)}
-          >
-            -
-          </button>
-          <div
-            className={`flex h-10 min-w-24 items-center justify-center rounded-full px-3 text-center text-[12px] font-black ${
-              isDark ? "bg-[#23252a]" : "bg-[#ebe7dd]"
-            }`}
-          >
-            {scrollSpeed === 0 ? "Scroll off" : `Speed ${scrollSpeed}`}
-          </div>
-          <button
-            type="button"
-            onClick={() =>
-              updateScrollSpeed((speed) => Math.min(6, speed + 0.5))
-            }
-            className="inline-flex h-10 shrink-0 items-center rounded-full bg-[#ed1746] px-4 text-[16px] font-black text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-          >
-            +
-          </button>
+          <AutoScrollSpeedControls
+            speed={scrollSpeed}
+            isDark={isDark}
+            onDecrease={decreaseScrollSpeed}
+            onIncrease={increaseScrollSpeed}
+            decreaseLabel="Decrease auto-scroll speed. Double tap to stop."
+          />
           <button
             type="button"
             onClick={() => jumpByOffset(1)}

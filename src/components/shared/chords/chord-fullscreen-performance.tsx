@@ -9,6 +9,12 @@ import {
   type BrowserSpeechStatus,
   type BrowserSpeechTranscript,
 } from "@/components/shared/browser-speech-text-listener";
+import {
+  AUTO_SCROLL_PIXELS_PER_SECOND,
+  AUTO_SCROLL_SPEED_STEP,
+  AutoScrollSpeedControls,
+  MAX_AUTO_SCROLL_SPEED,
+} from "@/components/shared/auto-scroll-speed-controls";
 import { ChordCard } from "@/components/shared/chords/chord-card";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
 import { SongChart } from "@/components/shared/chords/song-chart";
@@ -109,7 +115,6 @@ type VoiceGuideToast = {
 
 const SECTION_ANCHOR_RATIO = 0.75;
 const SECTION_VISIBILITY_CUTOFF_RATIO = 0.25;
-const AUTO_SCROLL_PIXELS_PER_SECOND = 18;
 const VOICE_GUIDE_HIGHLIGHT_CLASS = "text-stone-300";
 const VOICE_GUIDE_SCROLL_ANCHOR_RATIO = 0.25;
 const VOICE_GUIDE_SCROLL_DURATION_MS = 1400;
@@ -268,7 +273,12 @@ export function ChordFullscreenPerformanceView({
   );
   const increaseScrollSpeed = useCallback(() => {
     setIsVoiceGuideEnabled(false);
-    setScrollSpeed((speed) => Math.min(6, speed + 0.5));
+    setScrollSpeed((speed) =>
+      Math.min(MAX_AUTO_SCROLL_SPEED, speed + AUTO_SCROLL_SPEED_STEP),
+    );
+  }, []);
+  const decreaseScrollSpeed = useCallback(() => {
+    setScrollSpeed((speed) => Math.max(0, speed - AUTO_SCROLL_SPEED_STEP));
   }, []);
   const lyricLines = useMemo(
     () =>
@@ -437,13 +447,13 @@ export function ChordFullscreenPerformanceView({
 
       if (event.key === "-" || event.key === "_") {
         event.preventDefault();
-        setScrollSpeed((speed) => Math.max(0, speed - 0.5));
+        decreaseScrollSpeed();
       }
     }
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [increaseScrollSpeed]);
+  }, [decreaseScrollSpeed, increaseScrollSpeed]);
 
   useEffect(() => {
     if (scrollSpeed <= 0 || isVoiceGuideEnabled) {
@@ -1377,38 +1387,12 @@ export function ChordFullscreenPerformanceView({
               : "border-[#d8cfc0] bg-[#fbf7ef]/95"
           }`}
         >
-          <button
-            type="button"
-            aria-label="Decrease auto-scroll speed"
-            onClick={() => setScrollSpeed((speed) => Math.max(0, speed - 0.5))}
-            className={`flex size-10 items-center justify-center rounded-full text-xl font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
-              isDarkMode
-                ? "bg-[#303036] text-white hover:bg-[#3a3a40]"
-                : "bg-[#eeeeef] text-[#111] hover:bg-[#e2e2e4]"
-            }`}
-          >
-            -
-          </button>
-          <div className="min-w-28 text-center">
-            <p
-              className={`text-[10px] font-black uppercase tracking-[0.12em] ${
-                isDarkMode ? "text-[#a1a1aa]" : "text-[#71717a]"
-              }`}
-            >
-              Auto Scroll
-            </p>
-            <p className="text-[14px] font-black tabular-nums">
-              {scrollSpeed === 0 ? "Off" : `Speed ${scrollSpeed}`}
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-label="Increase auto-scroll speed"
-            onClick={increaseScrollSpeed}
-            className="flex size-10 items-center justify-center rounded-full bg-[#ed1746] text-xl font-black text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-          >
-            +
-          </button>
+          <AutoScrollSpeedControls
+            speed={scrollSpeed}
+            isDark={isDarkMode}
+            onDecrease={decreaseScrollSpeed}
+            onIncrease={increaseScrollSpeed}
+          />
         </div>
       </main>
     </div>
