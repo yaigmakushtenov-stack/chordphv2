@@ -204,7 +204,7 @@ function ChordAtColumn({ value, offset, renderChord }: {
   renderChord: SongChartProps["renderChord"];
 }) {
   return (
-    <div className="absolute top-0 z-10 inline-block [&>div]:min-h-0" style={{ left: `${offset}ch` }}>
+    <div className="absolute top-0 z-10 inline-block w-max whitespace-nowrap [&>div]:min-h-0" style={{ left: `${offset}ch` }}>
       {renderChord(value)}
     </div>
   );

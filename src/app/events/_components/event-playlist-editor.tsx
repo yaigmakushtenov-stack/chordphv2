@@ -38,9 +38,12 @@ export function EventPlaylistEditor({
 }: EventPlaylistEditorProps) {
   const router = useRouter();
   const [playlists, setPlaylists] = useState(event.playlists);
-  const [selectedSetListId, setSelectedSetListId] = useState("");
+  const [isAddPlaylistOpen, setIsAddPlaylistOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draggedPlaylistId, setDraggedPlaylistId] = useState<string | null>(null);
+  const addPlaylistRef = useRef<HTMLDivElement>(null);
+  const addPlaylistDialogRef = useRef<HTMLDivElement>(null);
+  const addPlaylistTriggerRef = useRef<HTMLButtonElement>(null);
   const playlistsRef = useRef(event.playlists);
   const dragStartPlaylistsRef = useRef<EventPlaylistData[] | null>(null);
   const draggedPlaylistIdRef = useRef<string | null>(null);
@@ -57,6 +60,35 @@ export function EventPlaylistEditor({
   useEffect(() => {
     return () => dragWindowCleanupRef.current?.();
   }, []);
+
+  useEffect(() => {
+    if (!isAddPlaylistOpen) {
+      return;
+    }
+
+    addPlaylistDialogRef.current?.focus();
+
+    function handlePointerDown(pointerEvent: PointerEvent): void {
+      if (!addPlaylistRef.current?.contains(pointerEvent.target as Node)) {
+        setIsAddPlaylistOpen(false);
+      }
+    }
+
+    function handleKeyDown(keyboardEvent: KeyboardEvent): void {
+      if (keyboardEvent.key === "Escape") {
+        setIsAddPlaylistOpen(false);
+        addPlaylistTriggerRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isAddPlaylistOpen]);
 
   useEffect(() => {
     if (draggedPlaylistIdRef.current) {
@@ -102,17 +134,13 @@ export function EventPlaylistEditor({
     previousPositions.clear();
   }, [playlists]);
 
-  function handleAddPlaylist(): void {
-    if (!canManage) {
-      return;
-    }
-
-    if (!selectedSetListId) {
+  function handleAddPlaylist(setListId: string): void {
+    if (!canManage || isPending) {
       return;
     }
 
     startTransition(async () => {
-      const result = await EventActions.addSetList(event.id, selectedSetListId);
+      const result = await EventActions.addSetList(event.id, setListId);
 
       if (!result.ok) {
         showToast({
@@ -123,7 +151,7 @@ export function EventPlaylistEditor({
         return;
       }
 
-      setSelectedSetListId("");
+      setIsAddPlaylistOpen(false);
       showToast({ title: "Playlist added to event", tone: "success" });
       router.refresh();
     });
@@ -381,73 +409,15 @@ export function EventPlaylistEditor({
 
   return (
     <div className="grid gap-5">
-      {canManage ? (
-        <section className="grid gap-3 rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-          <label className="grid gap-1.5 text-[12px] font-bold">
-            Add playlist
-            <select
-              value={selectedSetListId}
-              onChange={(selectEvent) =>
-                setSelectedSetListId(selectEvent.target.value)
-              }
-              disabled={isPending || availablePlaylistOptions.length === 0}
-              className="h-11 min-w-0 rounded-xl border border-[#d9d9d9] bg-white px-3 text-[13px] font-medium outline-none transition focus:border-[#ed1746] focus:ring-3 focus:ring-[#ed1746]/10 disabled:cursor-not-allowed disabled:opacity-55 dark:border-[#3a3a3f] dark:bg-[#202023] dark:focus:border-[#ed1746]"
-            >
-              <option value="">
-                {availablePlaylistOptions.length
-                  ? "Choose a playlist"
-                  : "No playlists available"}
-              </option>
-              {availablePlaylistOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.title} · {option.trackCount}{" "}
-                  {option.trackCount === 1 ? "track" : "tracks"}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            disabled={isPending || !selectedSetListId}
-            onClick={handleAddPlaylist}
-            className="inline-flex h-11 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-55"
-          >
-            + Add playlist
-          </button>
-        </section>
-      ) : null}
-
-      <section className="overflow-hidden rounded-2xl border border-[#e4e4e4] bg-white dark:border-[#303034] dark:bg-[#171719]">
-        <div className="flex flex-col gap-4 border-b border-[#e4e4e4] px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#303034]">
-          <div>
-            <h2 className="text-[15px] font-bold">Event playlists</h2>
-            <p className="mt-1 text-[12px] text-[#717171] dark:text-[#a1a1aa]">
-              {isEditing
-                ? "Drag the handle to arrange playlists, assign bands, or remove playlists from this event."
-                : canManage
-                  ? "Playlists run from top to bottom. Choose Edit to change the plan."
-                  : "Playlists assigned to your band are available for stage mode."}
-            </p>
-          </div>
+      <section className="rounded-2xl border border-[#e4e4e4] bg-white dark:border-[#303034] dark:bg-[#171719]">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-[#e4e4e4] px-5 py-4 dark:border-[#303034]">
+          <h2 className="min-w-0 text-[15px] font-bold">Event playlists</h2>
           {canManage ? (
-            <div className="flex shrink-0 items-center gap-2">
-            {isEditing ? (
-              <span
-                aria-live="polite"
-                className="inline-flex h-8 items-center rounded-full bg-[#fff0f3] px-3 text-[10px] font-black uppercase tracking-[0.08em] text-[#c90f39] dark:bg-[#3a111d] dark:text-[#fb7185]"
-              >
-                {isPending
-                  ? "Saving..."
-                  : draggedPlaylistId
-                    ? "Release to save"
-                    : "Editing"}
-              </span>
-            ) : null}
             <button
               type="button"
               disabled={isPending}
               onClick={handleEditingToggle}
-              className={`inline-flex h-9 items-center justify-center gap-2 rounded-full px-4 text-[11px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-50 ${
+              className={`inline-flex h-9 items-center justify-center gap-2 justify-self-end rounded-full px-4 text-[11px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-50 ${
                 isEditing
                   ? "bg-[#111] text-white hover:bg-[#2c2c2c] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
                   : "border border-[#d9d9d9] hover:border-[#ed1746] hover:text-[#ed1746] dark:border-[#3a3a3f]"
@@ -456,7 +426,25 @@ export function EventPlaylistEditor({
               {isEditing ? <DoneIcon /> : <PencilIcon />}
               {isEditing ? "Done" : "Edit"}
             </button>
-            </div>
+          ) : null}
+          <p className="col-span-2 text-[12px] text-[#717171] dark:text-[#a1a1aa]">
+            {isEditing
+              ? "Drag the handle to arrange playlists, assign bands, or remove playlists from this event."
+              : canManage
+                ? "Playlists run from top to bottom. Choose Edit to change the plan."
+                : "Playlists assigned to your band are available for stage mode."}
+          </p>
+          {canManage && isEditing ? (
+            <span
+              aria-live="polite"
+              className="col-span-2 inline-flex h-8 w-fit items-center rounded-full bg-[#fff0f3] px-3 text-[10px] font-black uppercase tracking-[0.08em] text-[#c90f39] dark:bg-[#3a111d] dark:text-[#fb7185]"
+            >
+              {isPending
+                ? "Saving..."
+                : draggedPlaylistId
+                  ? "Release to save"
+                  : "Editing"}
+            </span>
           ) : null}
         </div>
 
@@ -604,6 +592,71 @@ export function EventPlaylistEditor({
             </p>
           </div>
         )}
+        {canManage ? (
+          <div ref={addPlaylistRef} className="relative border-t border-[#e4e4e4] p-4 dark:border-[#303034] sm:p-5">
+            <button
+              ref={addPlaylistTriggerRef}
+              type="button"
+              disabled={isPending}
+              aria-haspopup="dialog"
+              aria-expanded={isAddPlaylistOpen}
+              aria-controls={isAddPlaylistOpen ? `event-playlist-options-${event.id}` : undefined}
+              onClick={() => setIsAddPlaylistOpen((open) => !open)}
+              className="flex min-h-24 w-full items-center justify-center rounded-xl border-2 border-dashed border-[#d9d9d9] bg-[#fafafa] text-[14px] font-bold text-[#555] transition hover:border-[#ed1746] hover:bg-[#fff0f3] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-wait disabled:opacity-55 dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-[#d4d4d8] dark:hover:border-[#ed1746] dark:hover:bg-[#3a111d] dark:hover:text-white"
+            >
+              {isPending ? "Adding playlist…" : "+ Add Playlist"}
+            </button>
+            {isAddPlaylistOpen ? (
+              <div
+                ref={addPlaylistDialogRef}
+                id={`event-playlist-options-${event.id}`}
+                role="dialog"
+                aria-label="Choose a playlist"
+                aria-busy={isPending}
+                tabIndex={-1}
+                className="absolute bottom-full left-4 right-4 z-30 mb-2 rounded-xl border border-[#d9d9d9] bg-white p-2 shadow-xl sm:left-auto sm:right-5 sm:w-96 dark:border-[#3a3a3f] dark:bg-[#242427]"
+              >
+                <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                  <span className="text-[12px] font-bold">Choose a playlist</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddPlaylistOpen(false);
+                      addPlaylistTriggerRef.current?.focus();
+                    }}
+                    aria-label="Close playlist selection"
+                    className="flex size-7 items-center justify-center rounded-full text-[18px] text-[#777] hover:bg-[#f2f2f2] hover:text-[#222] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#a1a1aa] dark:hover:bg-[#343438] dark:hover:text-white"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="max-h-56 overflow-y-auto">
+                  {availablePlaylistOptions.length ? (
+                    availablePlaylistOptions.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => handleAddPlaylist(option.id)}
+                        aria-label={`Add ${option.title} to event`}
+                        className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-3 text-left text-[12px] transition hover:bg-[#fff0f3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-wait disabled:opacity-55 dark:hover:bg-[#3a111d]"
+                      >
+                        <span className="min-w-0 truncate font-bold">{option.title}</span>
+                        <span className="shrink-0 text-[#777] dark:text-[#a1a1aa]">
+                          {option.trackCount} {option.trackCount === 1 ? "track" : "tracks"}
+                        </span>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="px-3 py-4 text-center text-[12px] text-[#777] dark:text-[#a1a1aa]">
+                      No playlists available
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </section>
     </div>
   );

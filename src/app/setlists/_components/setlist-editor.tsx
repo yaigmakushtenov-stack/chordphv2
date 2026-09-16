@@ -379,9 +379,10 @@ export function SetListEditor({ setList }: SetListEditorProps) {
                         href={`/setlists/${setList.id}/tracks/${item.id}/edit`}
                         aria-label={`Edit the ${item.title} arrangement`}
                         title="Edit arrangement"
-                        className="inline-flex size-9 items-center justify-center rounded-full border border-[#dedede] text-[#777] transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] dark:text-[#a1a1aa]"
+                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#d9d9d9] px-3.5 text-[11px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
                       >
                         <PencilIcon />
+                        Edit
                       </Link>
                     ) : null}
                     <button

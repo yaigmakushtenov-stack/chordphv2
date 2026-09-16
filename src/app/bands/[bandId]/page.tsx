@@ -53,12 +53,14 @@ export default async function BandDetailPage({
       <AppShell mobileDocumentScroll>
         <Dashboard
           mobileDocumentScroll
-          actions={
-            currentMembership?.role === "OWNER" ? (
-              <NameDetailsDrawer entity="band" id={band.id} name={band.name} />
-            ) : null
+          headerNavigation={
+            <div className="flex items-center justify-between gap-3">
+              <BackLink href="/bands">Bands</BackLink>
+              {currentMembership?.role === "OWNER" ? (
+                <NameDetailsDrawer entity="band" id={band.id} name={band.name} />
+              ) : null}
+            </div>
           }
-          headerNavigation={<BackLink href="/bands">Bands</BackLink>}
           eyebrow="BAND"
           title={band.name}
           description="Manage the players in this band and review the event setlists assigned to them."

@@ -70,12 +70,14 @@ export default async function EventDetailPage({
     <AppShell mobileDocumentScroll>
       <Dashboard
         mobileDocumentScroll
-        actions={
-          canManageEvent ? (
-            <NameDetailsDrawer entity="event" id={event.id} name={event.title} />
-          ) : null
+        headerNavigation={
+          <div className="flex items-center justify-between gap-3">
+            <BackLink href="/events">Events</BackLink>
+            {canManageEvent ? (
+              <NameDetailsDrawer entity="event" id={event.id} name={event.title} />
+            ) : null}
+          </div>
         }
-        headerNavigation={<BackLink href="/events">Events</BackLink>}
         eyebrow={`EVENT · ${formatDateTime(event.startDate)}`}
         title={event.title}
         description={

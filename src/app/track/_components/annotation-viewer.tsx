@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 
 import * as SetListActions from "@/actions/setlist-actions";
 import * as TrackActions from "@/actions/track-actions";
@@ -12,6 +12,7 @@ import { ChordPopover } from "@/app/track/_components/chord-popover";
 import { BackButton } from "@/components/shared/back-button";
 import { BackLink } from "@/components/shared/back-link";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
+import { SongChart, parseSongChartSource } from "@/components/shared/chords/song-chart";
 import { showToast } from "@/components/shared/toast";
 import { MAX_SETLIST_TRANSPOSE } from "@/lib/setlists/setlist-track-settings";
 
@@ -62,6 +63,10 @@ export function AnnotationViewer({
   );
   const [chordInstrument, setChordInstrument] =
     useState<TrackChordInstrument>("guitar");
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const optionsRef = useRef<HTMLDivElement>(null);
+  const optionsPanelRef = useRef<HTMLDivElement>(null);
+  const optionsTriggerRef = useRef<HTMLButtonElement>(null);
   const [trackPreference, setTrackPreference] = useState<TrackPreference>({
     c: {},
   });
@@ -70,8 +75,38 @@ export function AnnotationViewer({
     [track.lyricsAndChords, transpose, accidentals],
   );
   const usedChords = useMemo(() => getUsedGuitarChords(source), [source]);
+  const chartSections = useMemo(() => parseSongChartSource(source), [source]);
   const displayKey =
     transposeChord(track.key, transpose, accidentals) ?? track.key;
+
+  useEffect(() => {
+    if (!isOptionsOpen) {
+      return;
+    }
+
+    optionsPanelRef.current?.focus();
+
+    function handlePointerDown(pointerEvent: PointerEvent): void {
+      if (!optionsRef.current?.contains(pointerEvent.target as Node)) {
+        setIsOptionsOpen(false);
+      }
+    }
+
+    function handleKeyDown(keyboardEvent: KeyboardEvent): void {
+      if (keyboardEvent.key === "Escape") {
+        setIsOptionsOpen(false);
+        optionsTriggerRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOptionsOpen]);
 
   function handleTransposeChange(nextTranspose: number): void {
     if (isPending || nextTranspose === transpose) {
@@ -201,7 +236,7 @@ export function AnnotationViewer({
         trackPreference={trackPreference}
       />
       <section className="min-w-0 p-3 sm:p-6 xl:min-h-0 xl:overflow-y-auto">
-        <div className="mb-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
           {setListContext ? (
             <BackLink href={`/setlists/${setListContext.setListId}`}>
               {setListContext.setListTitle}
@@ -209,6 +244,48 @@ export function AnnotationViewer({
           ) : (
             <BackButton fallbackHref={track.isOwner ? "/annotation" : "/browse"} />
           )}
+          <div ref={optionsRef} className="relative shrink-0">
+            <button
+              ref={optionsTriggerRef}
+              type="button"
+              aria-label="Track options"
+              aria-haspopup="dialog"
+              aria-expanded={isOptionsOpen}
+              aria-controls={isOptionsOpen ? "track-options" : undefined}
+              onClick={() => setIsOptionsOpen((open) => !open)}
+              className="inline-flex size-9 items-center justify-center rounded-full border border-[#d9d9d9] transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
+            >
+              <EllipsisIcon />
+            </button>
+            {isOptionsOpen ? (
+              <div
+                ref={optionsPanelRef}
+                id="track-options"
+                role="dialog"
+                aria-label="Track options"
+                tabIndex={-1}
+                className="absolute right-0 top-full z-40 mt-2 w-56 rounded-xl border border-[#d9d9d9] bg-white p-1.5 shadow-xl dark:border-[#3a3a3f] dark:bg-[#242427]"
+              >
+                {setListContext || track.isOwner ? (
+                  <Link
+                    href={setListContext
+                      ? `/setlists/${setListContext.setListId}/tracks/${setListContext.setListTrackId}/edit`
+                      : `/track/${track.id}/annotate`}
+                    className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold transition hover:bg-[#f2f2f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#343438]"
+                  >
+                    Edit
+                  </Link>
+                ) : null}
+                {setListContext ? (
+                  <CopyArrangementToSetList context={setListContext} setLists={quickAddSetLists} />
+                ) : track.isAuthenticated ? (
+                  <QuickAddToSetList setLists={quickAddSetLists} trackId={track.id} />
+                ) : (
+                  <Link href="/login" className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold transition hover:bg-[#f2f2f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#343438]">Copy to setlist</Link>
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
         <div className="flex flex-col gap-4 border-b border-[#e6e6e6] pb-5 sm:flex-row sm:items-start sm:justify-between dark:border-[#303034]">
           <div className="min-w-0">
@@ -227,68 +304,50 @@ export function AnnotationViewer({
               </p>
             ) : null}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {setListContext ? (
-              <>
-                <CopyArrangementToSetList
-                  context={setListContext}
-                  setLists={quickAddSetLists}
-                />
-                <Link
-                  href={`/setlists/${setListContext.setListId}/tracks/${setListContext.setListTrackId}/edit`}
-                  className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+          {!setListContext ? (
+            <div className="flex flex-wrap gap-2">
+              {track.isOwner ? (
+                <>
+                  {publicityStatus === "APPROVED" ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleCopyLink()}
+                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-[#d9d9d9] px-4 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
+                    >
+                      Copy public link
+                    </button>
+                  ) : null}
+                  {publicityStatus === "PRIVATE" ||
+                  publicityStatus === "REJECTED" ? (
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={handleReviewSubmission}
+                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-[#d9d9d9] px-4 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
+                    >
+                      {isPending ? "Submitting…" : "Submit for review"}
+                    </button>
+                  ) : null}
+                  {publicityStatus === "PENDING" ? (
+                    <span className="inline-flex h-10 items-center rounded-full bg-[#fff4d6] px-4 text-[11px] font-bold text-[#8a5a00] dark:bg-[#3b2b08] dark:text-[#facc15]">
+                      Pending admin review
+                    </span>
+                  ) : null}
+                </>
+              ) : track.isAuthenticated ? (
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={handleCopy}
+                  className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
                 >
-                  Edit arrangement
-                </Link>
-              </>
-            ) : track.isAuthenticated ? (
-              <QuickAddToSetList
-                setLists={quickAddSetLists}
-                trackId={track.id}
-              />
-            ) : null}
-            {!setListContext && track.isOwner ? (
-              <>
-                {publicityStatus === "APPROVED" ? (
-                  <button
-                    type="button"
-                    onClick={() => void handleCopyLink()}
-                    className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-[#d9d9d9] px-4 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
-                  >
-                    Copy public link
-                  </button>
-                ) : null}
-                {publicityStatus === "PRIVATE" ||
-                publicityStatus === "REJECTED" ? (
-                  <button
-                    type="button"
-                    disabled={isPending}
-                    onClick={handleReviewSubmission}
-                    className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-[#d9d9d9] px-4 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
-                  >
-                    {isPending ? "Submitting…" : "Submit for review"}
-                  </button>
-                ) : null}
-                {publicityStatus === "PENDING" ? (
-                  <span className="inline-flex h-10 items-center rounded-full bg-[#fff4d6] px-4 text-[11px] font-bold text-[#8a5a00] dark:bg-[#3b2b08] dark:text-[#facc15]">
-                    Pending admin review
-                  </span>
-                ) : null}
-                <Link href={`/track/${track.id}/annotate`} className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]">Edit annotation</Link>
-              </>
-            ) : !setListContext && track.isAuthenticated ? (
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={handleCopy}
-                className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-              >
-                {isPending ? "Saving…" : "Save as personal copy"}
-              </button>
-            ) : !setListContext ? (
-              <Link href="/login" className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]">Sign in to save a copy</Link>
-            ) : null}
-          </div>
+                  {isPending ? "Saving…" : "Save as personal copy"}
+                </button>
+              ) : (
+                <Link href="/login" className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]">Sign in to save a copy</Link>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 py-4">
@@ -300,16 +359,23 @@ export function AnnotationViewer({
             <button type="button" disabled={isPending || transpose >= MAX_SETLIST_TRANSPOSE} onClick={() => handleTransposeChange(transpose + 1)} className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]" aria-label="Transpose up one semitone">+</button>
           </div>
           <button type="button" disabled={isPending || transpose === 0} onClick={() => handleTransposeChange(0)} className="h-9 rounded-full border border-[#dedede] px-3 text-[11px] font-bold hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] dark:hover:bg-[#28282c]">Reset</button>
-          <select aria-label="Accidental preference" value={accidentals} onChange={(event) => setAccidentals(event.target.value as AccidentalPreference)} className="h-9 rounded-full border border-[#dedede] bg-white px-3 text-[11px] font-bold outline-none focus:border-[#ed1746] dark:border-[#3a3a3f] dark:bg-[#202023]">
-            <option value="sharps">Sharps ♯</option>
-            <option value="flats">Flats ♭</option>
-          </select>
+          <button
+            type="button"
+            aria-label={accidentals === "sharps" ? "Sharps. Switch to flats" : "Flats. Switch to sharps"}
+            title={accidentals === "sharps" ? "Sharps" : "Flats"}
+            onClick={() => setAccidentals((current) => current === "sharps" ? "flats" : "sharps")}
+            className="inline-flex size-9 items-center justify-center rounded-full border border-[#dedede] bg-white text-[19px] font-bold leading-none transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] dark:bg-[#202023]"
+          >
+            {accidentals === "sharps" ? "♯" : "♭"}
+          </button>
         </div>
 
         {usedChords.length ? (
           <TrackChordSection
             chords={usedChords}
+            collapsible
             instrument={chordInstrument}
+            wrapContent
             onInstrumentChange={setChordInstrument}
             trackPreference={trackPreference}
             onVariationChange={handleVariationChange}
@@ -317,16 +383,20 @@ export function AnnotationViewer({
         ) : null}
 
         {source.trim() ? (
-          <div className="-mx-3 w-[calc(100%+1.5rem)] overflow-x-auto bg-[#fafafa] px-2 py-4 font-mono text-[12px] leading-5 [tab-size:4] dark:bg-[#202023] sm:mx-0 sm:w-auto sm:rounded-xl sm:p-6 sm:text-[13px] sm:leading-6">
-            {source.split("\n").map((line, index) => (
-              <ChordLine
-                key={index}
-                line={line}
-                chordInstrument={chordInstrument}
-                trackPreference={trackPreference}
-                onVariationChange={handleVariationChange}
-              />
-            ))}
+          <div className="min-w-0 overflow-x-hidden text-[12px] sm:text-[13px]">
+            <SongChart
+              sections={chartSections}
+              renderChord={(value) => (
+                <ChordLine
+                  line={`[${value}]`}
+                  chordInstrument={chordInstrument}
+                  fitChordToLabel
+                  wrapLine
+                  trackPreference={trackPreference}
+                  onVariationChange={handleVariationChange}
+                />
+              )}
+            />
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-[#d9d9d9] px-5 py-16 text-center dark:border-[#3a3a3f]">
@@ -420,7 +490,7 @@ function CopyArrangementToSetList({
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         onClick={() => setIsOpen((current) => !current)}
-        className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-[#d9d9d9] px-4 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
+        className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold transition hover:bg-[#f2f2f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#343438]"
       >
         Copy to setlist
       </button>
@@ -508,9 +578,9 @@ function QuickAddToSetList({
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         onClick={() => setIsOpen((current) => !current)}
-        className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-[#d9d9d9] px-4 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
+        className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold transition hover:bg-[#f2f2f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#343438]"
       >
-        + Add to setlist
+        Copy to setlist
       </button>
 
       {isOpen ? (
@@ -780,6 +850,7 @@ export function ChordLine({
 
 export function TrackChordSection({
   chords,
+  collapsible = false,
   instrument,
   showVariationLabels = true,
   wrapContent = false,
@@ -788,6 +859,7 @@ export function TrackChordSection({
   onVariationChange,
 }: {
   chords: GuitarChordReference[];
+  collapsible?: boolean;
   instrument: TrackChordInstrument;
   showVariationLabels?: boolean;
   wrapContent?: boolean;
@@ -799,6 +871,8 @@ export function TrackChordSection({
     variationIndex: number,
   ) => void;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const showContent = !collapsible || isExpanded;
   const pianoChords = useMemo(
     () => chords.map(getPianoChordReference),
     [chords],
@@ -812,136 +886,152 @@ export function TrackChordSection({
     <section className="border-t border-[#e6e6e6] py-5 dark:border-[#303034]">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h3 className="text-[20px] font-black uppercase tracking-[0.02em]">
-          Chords
+          {collapsible ? (
+            <button
+              type="button"
+              aria-expanded={isExpanded}
+              onClick={() => setIsExpanded((expanded) => !expanded)}
+              className="inline-flex items-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+            >
+              Chords
+              <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className={`size-5 transition-transform ${isExpanded ? "rotate-180" : ""}`}>
+                <path d="m4 7 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          ) : "Chords"}
         </h3>
-        <div
-          className={`flex gap-5 text-[13px] font-black uppercase ${wrapContent ? "flex-wrap" : "overflow-x-auto"}`}
-          aria-label="Chord instrument"
-        >
-          <button
-            type="button"
-            aria-pressed={instrument === "guitar"}
-            onClick={() => onInstrumentChange("guitar")}
-            className={
-              instrument === "guitar"
-                ? "border-b-2 border-[#111] pb-2 text-[#111] dark:border-white dark:text-white"
-                : "pb-2 text-[#8a8a8a] transition hover:text-[#111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#a1a1aa] dark:hover:text-white"
-            }
+        {showContent ? (
+          <div
+            className={`flex gap-5 text-[13px] font-black uppercase ${wrapContent ? "flex-wrap" : "overflow-x-auto"}`}
+            aria-label="Chord instrument"
           >
-            Guitar
-          </button>
-          <button
-            type="button"
-            aria-pressed={instrument === "ukulele"}
-            onClick={() => onInstrumentChange("ukulele")}
-            className={
-              instrument === "ukulele"
-                ? "border-b-2 border-[#111] pb-2 text-[#111] dark:border-white dark:text-white"
-                : "pb-2 text-[#8a8a8a] transition hover:text-[#111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#a1a1aa] dark:hover:text-white"
-            }
-          >
-            Ukulele
-          </button>
-          <button
-            type="button"
-            aria-pressed={instrument === "piano"}
-            onClick={() => onInstrumentChange("piano")}
-            className={
-              instrument === "piano"
-                ? "border-b-2 border-[#111] pb-2 text-[#111] dark:border-white dark:text-white"
-                : "pb-2 text-[#8a8a8a] transition hover:text-[#111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#a1a1aa] dark:hover:text-white"
-            }
-          >
-            Piano
-          </button>
+            <button
+              type="button"
+              aria-pressed={instrument === "guitar"}
+              onClick={() => onInstrumentChange("guitar")}
+              className={
+                instrument === "guitar"
+                  ? "border-b-2 border-[#111] pb-2 text-[#111] dark:border-white dark:text-white"
+                  : "pb-2 text-[#8a8a8a] transition hover:text-[#111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#a1a1aa] dark:hover:text-white"
+              }
+            >
+              Guitar
+            </button>
+            <button
+              type="button"
+              aria-pressed={instrument === "ukulele"}
+              onClick={() => onInstrumentChange("ukulele")}
+              className={
+                instrument === "ukulele"
+                  ? "border-b-2 border-[#111] pb-2 text-[#111] dark:border-white dark:text-white"
+                  : "pb-2 text-[#8a8a8a] transition hover:text-[#111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#a1a1aa] dark:hover:text-white"
+              }
+            >
+              Ukulele
+            </button>
+            <button
+              type="button"
+              aria-pressed={instrument === "piano"}
+              onClick={() => onInstrumentChange("piano")}
+              className={
+                instrument === "piano"
+                  ? "border-b-2 border-[#111] pb-2 text-[#111] dark:border-white dark:text-white"
+                  : "pb-2 text-[#8a8a8a] transition hover:text-[#111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#a1a1aa] dark:hover:text-white"
+              }
+            >
+              Piano
+            </button>
+          </div>
+        ) : null}
+      </div>
+      {showContent ? (
+        <div className={`mt-4 flex gap-4 pb-2 ${wrapContent ? "flex-wrap" : "overflow-x-auto"}`}>
+          {instrument === "guitar"
+            ? chords.map((chordReference) => (
+                <div
+                  key={chordReference.key}
+                  className="w-[108px] shrink-0 [&_article]:min-h-[156px] [&_article]:px-2 [&_article]:pt-2"
+                >
+                  <ChordCard
+                    chord={chordReference.chord}
+                    displaySymbol={chordReference.displaySymbol}
+                    initialVariationIndex={chordReference.variationIndex}
+                    selectedVariationIndex={getSelectedVariationIndex(
+                      "guitar",
+                      chordReference,
+                      chordReference.variationIndex,
+                      trackPreference,
+                    )}
+                    onVariationIndexChange={(variationIndex) =>
+                      onVariationChange("guitar", chordReference, variationIndex)
+                    }
+                    variationLabel={
+                      showVariationLabels
+                        ? getChordVariationLabel(chordReference)
+                        : null
+                    }
+                    unframed
+                  />
+                </div>
+              ))
+            : instrument === "ukulele"
+            ? ukuleleChords.map((chordReference, index) => (
+                <div
+                  key={chordReference.key}
+                  className="w-[108px] shrink-0 [&_article]:min-h-[156px] [&_article]:px-2 [&_article]:pt-2"
+                >
+                  <ChordCard
+                    chord={chordReference.chord}
+                    displaySymbol={chords[index].displaySymbol}
+                    instrumentLabel="ukulele"
+                    initialVariationIndex={chordReference.variationIndex}
+                    selectedVariationIndex={getSelectedVariationIndex(
+                      "ukulele",
+                      chords[index],
+                      chordReference.variationIndex,
+                      trackPreference,
+                    )}
+                    onVariationIndexChange={(variationIndex) =>
+                      onVariationChange("ukulele", chords[index], variationIndex)
+                    }
+                    variationLabel={
+                      showVariationLabels
+                        ? getUkuleleChordVariationLabel(chordReference)
+                        : null
+                    }
+                    unframed
+                  />
+                </div>
+              ))
+            : pianoChords.map((chordReference, index) => (
+                <div
+                  key={chordReference.key}
+                  className="w-[154px] shrink-0 [&_article]:min-h-[164px] [&_article]:px-2 [&_article]:pt-2"
+                >
+                  <PianoChordCard
+                    chord={chordReference.chord}
+                    displaySymbol={chords[index].displaySymbol}
+                    initialVariationIndex={chordReference.variationIndex}
+                    selectedVariationIndex={getSelectedVariationIndex(
+                      "piano",
+                      chords[index],
+                      chordReference.variationIndex,
+                      trackPreference,
+                    )}
+                    onVariationIndexChange={(variationIndex) =>
+                      onVariationChange("piano", chords[index], variationIndex)
+                    }
+                    variationLabel={
+                      showVariationLabels
+                        ? getPianoChordVariationLabel(chordReference)
+                        : null
+                    }
+                    unframed
+                  />
+                </div>
+              ))}
         </div>
-      </div>
-      <div className={`mt-4 flex gap-4 pb-2 ${wrapContent ? "flex-wrap" : "overflow-x-auto"}`}>
-        {instrument === "guitar"
-          ? chords.map((chordReference) => (
-              <div
-                key={chordReference.key}
-                className="w-[108px] shrink-0 [&_article]:min-h-[156px] [&_article]:px-2 [&_article]:pt-2"
-              >
-                <ChordCard
-                  chord={chordReference.chord}
-                  displaySymbol={chordReference.displaySymbol}
-                  initialVariationIndex={chordReference.variationIndex}
-                  selectedVariationIndex={getSelectedVariationIndex(
-                    "guitar",
-                    chordReference,
-                    chordReference.variationIndex,
-                    trackPreference,
-                  )}
-                  onVariationIndexChange={(variationIndex) =>
-                    onVariationChange("guitar", chordReference, variationIndex)
-                  }
-                  variationLabel={
-                    showVariationLabels
-                      ? getChordVariationLabel(chordReference)
-                      : null
-                  }
-                  unframed
-                />
-              </div>
-            ))
-          : instrument === "ukulele"
-          ? ukuleleChords.map((chordReference, index) => (
-              <div
-                key={chordReference.key}
-                className="w-[108px] shrink-0 [&_article]:min-h-[156px] [&_article]:px-2 [&_article]:pt-2"
-              >
-                <ChordCard
-                  chord={chordReference.chord}
-                  displaySymbol={chords[index].displaySymbol}
-                  instrumentLabel="ukulele"
-                  initialVariationIndex={chordReference.variationIndex}
-                  selectedVariationIndex={getSelectedVariationIndex(
-                    "ukulele",
-                    chords[index],
-                    chordReference.variationIndex,
-                    trackPreference,
-                  )}
-                  onVariationIndexChange={(variationIndex) =>
-                    onVariationChange("ukulele", chords[index], variationIndex)
-                  }
-                  variationLabel={
-                    showVariationLabels
-                      ? getUkuleleChordVariationLabel(chordReference)
-                      : null
-                  }
-                  unframed
-                />
-              </div>
-            ))
-          : pianoChords.map((chordReference, index) => (
-              <div
-                key={chordReference.key}
-                className="w-[154px] shrink-0 [&_article]:min-h-[164px] [&_article]:px-2 [&_article]:pt-2"
-              >
-                <PianoChordCard
-                  chord={chordReference.chord}
-                  displaySymbol={chords[index].displaySymbol}
-                  initialVariationIndex={chordReference.variationIndex}
-                  selectedVariationIndex={getSelectedVariationIndex(
-                    "piano",
-                    chords[index],
-                    chordReference.variationIndex,
-                    trackPreference,
-                  )}
-                  onVariationIndexChange={(variationIndex) =>
-                    onVariationChange("piano", chords[index], variationIndex)
-                  }
-                  variationLabel={
-                    showVariationLabels
-                      ? getPianoChordVariationLabel(chordReference)
-                      : null
-                  }
-                  unframed
-                />
-              </div>
-            ))}
-      </div>
+      ) : null}
     </section>
   );
 }
@@ -1301,4 +1391,14 @@ function parseChordSymbol(symbol: string): {
     quality: match[2],
     ...(match[3] ? { bass: match[3] } : {}),
   };
+}
+
+function EllipsisIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="size-5">
+      <circle cx="12" cy="5" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="12" cy="19" r="1.8" />
+    </svg>
+  );
 }

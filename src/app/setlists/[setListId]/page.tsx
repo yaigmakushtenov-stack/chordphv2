@@ -84,7 +84,16 @@ export default async function SetListPage({
       <Dashboard
         documentScroll
         actions={
-          <>
+          <Link
+            href={`/setlists/${data.id}/tracks`}
+            className="inline-flex h-10 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+          >
+            + Add tracks
+          </Link>
+        }
+        headerNavigation={
+          <div className="flex items-center justify-between gap-3">
+            <BackLink href="/setlists">All setlists</BackLink>
             <SetListDetailsDrawer
               mode="edit"
               setList={{
@@ -93,16 +102,7 @@ export default async function SetListPage({
                 description: data.description,
               }}
             />
-            <Link
-              href={`/setlists/${data.id}/tracks`}
-              className="inline-flex h-10 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-            >
-              + Add tracks
-            </Link>
-          </>
-        }
-        headerNavigation={
-          <BackLink href="/setlists">All setlists</BackLink>
+          </div>
         }
         eyebrow={`SETLIST · ${data.tracks.length} ${
           data.tracks.length === 1 ? "TRACK" : "TRACKS"

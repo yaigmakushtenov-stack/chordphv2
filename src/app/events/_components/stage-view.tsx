@@ -806,13 +806,13 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                       renderChord={(value) => {
                         const chordReference = getGuitarChordReference(value);
                         if (stageInstrument === "vocals" || !chordReference) {
-                          return <strong className={`inline-block max-w-full break-all rounded-sm px-0.5 font-black ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}>{value}</strong>;
+                          return <strong className={`inline-block whitespace-nowrap rounded-sm px-0.5 font-black ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}>{value}</strong>;
                         }
                         return (
                           <button
                             type="button"
                             onClick={() => setSelectedChord({ reference: chordReference, value })}
-                            className={`inline-block max-w-full break-all rounded-sm px-0.5 font-black transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}
+                            className={`inline-block whitespace-nowrap rounded-sm px-0.5 font-black transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}
                           >
                             {value}
                           </button>

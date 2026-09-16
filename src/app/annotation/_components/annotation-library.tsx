@@ -71,7 +71,7 @@ export function AnnotationLibrary({ items }: AnnotationLibraryProps) {
                 </Link>
                 <div className="flex shrink-0 gap-2">
                   <Link href={`/track/${item.id}`} className="inline-flex h-9 items-center justify-center rounded-full bg-[#111] px-4 text-[11px] font-bold text-white transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]">View</Link>
-                  <Link href={`/track/${item.id}/annotate`} className="inline-flex h-9 items-center justify-center rounded-full border border-[#d9d9d9] px-4 text-[11px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]">Edit</Link>
+                  <Link href={`/track/${item.id}/annotate`} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#d9d9d9] px-3.5 text-[11px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"><EditPencilIcon />Edit</Link>
                 </div>
               </article>
               ))}
@@ -138,5 +138,14 @@ function LibraryFilterButton({ active, label, onClick }: { active: boolean; labe
     >
       {label}
     </button>
+  );
+}
+
+function EditPencilIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m4 20 4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16 4 20Z" />
+      <path d="m14.5 6.5 3 3" />
+    </svg>
   );
 }
