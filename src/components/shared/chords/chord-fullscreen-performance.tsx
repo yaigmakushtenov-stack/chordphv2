@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent, ReactNode } from "react";
 
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/shared/browser-speech-text-listener";
 import { ChordCard } from "@/components/shared/chords/chord-card";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
+import { SongChart } from "@/components/shared/chords/song-chart";
 import {
   GUITAR_CHORDS,
   PIANO_CHORDS,
@@ -222,7 +223,7 @@ export function ChordFullscreenPerformanceView({
   const [visibleSectionIds, setVisibleSectionIds] = useState<string[]>([]);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
-  const lineRefs = useRef(new Map<number, HTMLParagraphElement>());
+  const lineRefs = useRef(new Map<number, HTMLElement>());
   const lyricLinesRef = useRef<ChordSectionLine[]>([]);
   const matchedLineIndexRef = useRef<number | null>(null);
   const matchedLineProgressRef = useRef(0);
@@ -253,6 +254,18 @@ export function ChordFullscreenPerformanceView({
     [track.lyricsAndChords, transpose, accidentals],
   );
   const sections = useMemo(() => parseChordSections(source), [source]);
+  const chartSections = useMemo(
+    () => sections.map((section) => ({
+      id: section.id,
+      number: section.number,
+      title: section.title,
+      lines: section.lines.map((line) => ({
+        id: String(line.globalIndex),
+        text: line.raw,
+      })),
+    })),
+    [sections],
+  );
   const increaseScrollSpeed = useCallback(() => {
     setIsVoiceGuideEnabled(false);
     setScrollSpeed((speed) => Math.min(6, speed + 0.5));
@@ -1314,90 +1327,38 @@ export function ChordFullscreenPerformanceView({
         <div
           ref={scrollerRef}
           onScroll={handleScrollerScroll}
-          className="h-screen overflow-x-auto overflow-y-auto px-4 pb-[75vh] pt-[75vh] sm:px-10"
+          className="h-screen overflow-x-hidden overflow-y-auto px-4 pb-[75vh] pt-[75vh] sm:px-10"
         >
           <div className="mx-auto max-w-[980px]">
             {sections.length ? (
-              sections.map((section) => (
-                <section
-                  key={section.id}
-                  ref={(element) => {
-                    if (element) {
-                      sectionRefs.current.set(section.id, element);
-                    } else {
-                      sectionRefs.current.delete(section.id);
-                    }
-                  }}
-                  className="scroll-mt-8 pb-1.5 pt-8 first:pt-0"
-                >
-                  <div className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-x-4">
-                    <div className="flex justify-center">
-                      <SectionNumberBadge
-                        isDarkMode={isDarkMode}
-                        number={section.number}
-                        size="large"
-                      />
-                    </div>
-                    <h2
-                      className={`text-[13px] font-black uppercase tracking-[0.16em] ${
-                        isDarkMode ? "text-[#8a8d92]" : "text-[#ed1746]"
-                      }`}
-                    >
-                      {section.title}
-                    </h2>
-                  </div>
-                  <div className="grid grid-cols-[40px_minmax(0,1fr)] gap-x-4">
-                    <div
-                      className={`mx-auto w-1 rounded-full ${
-                        isDarkMode ? "bg-[#34363a]" : "bg-[#d6d6dc]"
-                      }`}
-                    />
-                    <div
-                      className="min-w-max space-y-0 font-mono leading-[1.18]"
-                      style={{ fontSize: `${19 * chartZoom}px` }}
-                    >
-                    {section.lines.length ? (
-                      section.lines.map((line) => (
-                        <ChordPerformanceLine
-                          key={line.id}
-                          ref={(element) => {
-                            if (element) {
-                              lineRefs.current.set(line.globalIndex, element);
-                            } else {
-                              lineRefs.current.delete(line.globalIndex);
-                            }
-                          }}
-                          highlightedWordEndIndex={
-                            matchedLineIndex === line.globalIndex
-                              ? matchedLineWordEndIndex
-                              : matchedLineIndex !== null &&
-                                  line.globalIndex < matchedLineIndex
-                                ? Number.MAX_SAFE_INTEGER
-                                : null
-                          }
-                          isCurrentMatch={matchedLineIndex === line.globalIndex}
-                          isPassedLine={
-                            matchedLineIndex !== null &&
-                            line.globalIndex < matchedLineIndex
-                          }
-                          isDarkMode={isDarkMode}
-                          line={line.raw}
-                          passedHighlightClass={VOICE_GUIDE_HIGHLIGHT_CLASS}
-                        />
-                      ))
-                    ) : (
-                      <p
-                        className={`text-[18px] font-bold ${
-                          isDarkMode ? "text-[#6f7175]" : "text-[#71717a]"
-                        }`}
-                      >
-                        No lyrics in this section
-                      </p>
-                    )}
-                    </div>
-                  </div>
-                </section>
-              ))
+              <SongChart
+                sections={chartSections}
+                activeSectionIds={visibleSectionIds}
+                fontSize={`${19 * chartZoom}px`}
+                theme={isDarkMode ? "dark" : "light"}
+                onSectionElement={(id, element) => {
+                  if (element) sectionRefs.current.set(id, element);
+                  else sectionRefs.current.delete(id);
+                }}
+                onLineElement={(ids, element) => {
+                  for (const id of ids) {
+                    if (element) lineRefs.current.set(Number(id), element);
+                    else lineRefs.current.delete(Number(id));
+                  }
+                }}
+                renderChord={(value) => (
+                  <span className={`inline-block max-w-full break-all rounded-sm px-0.5 font-black ${isDarkMode ? "bg-[#343438] text-white" : "bg-[#e7e7e9] text-[#111]"}`}>
+                    {value}
+                  </span>
+                )}
+                renderWord={(value, lineId, wordIndex) => {
+                  const lineIndex = Number(lineId);
+                  const highlighted = matchedLineIndex === lineIndex
+                    ? matchedLineWordEndIndex !== null && wordIndex <= matchedLineWordEndIndex
+                    : matchedLineIndex !== null && lineIndex < matchedLineIndex;
+                  return <span className={highlighted ? VOICE_GUIDE_HIGHLIGHT_CLASS : ""}>{value}</span>;
+                }}
+              />
             ) : (
               <div
                 className={`rounded-xl border border-dashed px-5 py-16 text-center ${
@@ -1929,106 +1890,6 @@ function getVoiceRecognizerDiagnosis(
   return debug.lastRecognizerDetail
     ? `Speech recognition failed with "${debug.lastRecognizerDetail}".`
     : "Speech recognition stopped before returning text.";
-}
-
-const ChordPerformanceLine = forwardRef<HTMLParagraphElement, {
-  highlightedWordEndIndex: number | null;
-  isCurrentMatch: boolean;
-  isDarkMode: boolean;
-  isPassedLine: boolean;
-  line: string;
-  passedHighlightClass: string;
-}>(function ChordPerformanceLine({
-  highlightedWordEndIndex,
-  isCurrentMatch,
-  isDarkMode,
-  isPassedLine,
-  line,
-  passedHighlightClass,
-}, ref) {
-  const parts = getChordPerformanceLineParts(line);
-
-  return (
-    <p ref={ref} className="whitespace-pre">
-      {parts.map((part, index) => {
-        if (part.kind === "space") {
-          return part.value;
-        }
-
-        if (part.kind === "word") {
-          const isHighlighted =
-            highlightedWordEndIndex !== null &&
-            part.wordIndex <= highlightedWordEndIndex;
-
-          return (
-            <span
-              key={index}
-              className={isHighlighted ? passedHighlightClass : ""}
-            >
-              {part.value}
-            </span>
-          );
-        }
-
-        return part.kind === "chord" ? (
-          <span
-            key={index}
-            className={`mr-1.5 inline-block font-sans text-[14px] font-black leading-none ${
-              isDarkMode ? "text-[#f3f0e8]" : "text-[#111]"
-            }`}
-          >
-            {part.value}
-          </span>
-        ) : (
-          <strong
-            key={index}
-            className={`mr-1.5 inline-block font-sans text-[14px] font-black ${
-              isCurrentMatch || isPassedLine
-                ? passedHighlightClass
-                : isDarkMode
-                  ? "text-[#9a9da3]"
-                  : "text-[#555]"
-            }`}
-          >
-            {part.value}
-          </strong>
-        );
-      })}
-    </p>
-  );
-});
-
-type ChordPerformanceLinePart =
-  | { kind: "chord" | "label" | "space"; value: string }
-  | { kind: "word"; value: string; wordIndex: number };
-
-function getChordPerformanceLineParts(line: string): ChordPerformanceLinePart[] {
-  const lineParts = line.split(/(\[[^\]\r\n]+\])/g).filter(Boolean);
-  const renderedParts: ChordPerformanceLinePart[] = [];
-  let wordIndex = 0;
-
-  for (const linePart of lineParts) {
-    if (linePart.startsWith("[") && linePart.endsWith("]")) {
-      const value = linePart.slice(1, -1).trim();
-      renderedParts.push({
-        kind: transposeChord(value, 0, "sharps") ? "chord" : "label",
-        value,
-      });
-      continue;
-    }
-
-    for (const token of linePart.split(/(\s+)/)) {
-      if (!token.trim()) {
-        renderedParts.push({ kind: "space", value: token });
-        continue;
-      }
-
-      renderedParts.push({ kind: "word", value: token, wordIndex });
-      wordIndex += 1;
-    }
-  }
-
-  return renderedParts;
 }
 
 function SectionNumberBadge({

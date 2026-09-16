@@ -10,6 +10,7 @@ import {
   TrackChordSection,
   getUsedGuitarChords,
 } from "@/app/track/_components/annotation-viewer";
+import { PairedChordPreview } from "@/app/track/_components/paired-chord-preview";
 import { showToast } from "@/components/shared/toast";
 import {
   MUSICAL_KEYS,
@@ -604,7 +605,7 @@ export function AnnotationEditor({
               onValueChange={setTransposeBy}
               onAccidentalsChange={setAccidentals}
             />
-            <ChordPreview
+            <PairedChordPreview
               source={preview}
               chords={previewChords}
               chordInstrument={chordInstrument}
@@ -1538,7 +1539,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function ChordPreview({
+export function ChordPreview({
   source,
   chords,
   chordInstrument,

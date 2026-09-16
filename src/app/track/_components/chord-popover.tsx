@@ -12,11 +12,13 @@ import {
 type ChordPopoverProps = {
   content: ReactNode;
   children: ReactNode;
+  constrainWidth?: boolean;
 };
 
 export function ChordPopover({
   content,
   children,
+  constrainWidth = false,
 }: ChordPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLSpanElement>(null);
@@ -87,7 +89,7 @@ export function ChordPopover({
   return (
     <span
       ref={rootRef}
-      className="relative inline-flex"
+      className={constrainWidth ? "relative inline-flex max-w-full" : "relative inline-flex"}
       onBlur={handleBlur}
       onMouseEnter={openPopover}
       onMouseLeave={scheduleClose}

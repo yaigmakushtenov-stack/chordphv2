@@ -646,12 +646,16 @@ function SetListPickerSurface({
 export function ChordLine({
   line,
   chordInstrument,
+  fitChordToLabel = false,
+  wrapLine = false,
   showVariationLabels = true,
   trackPreference,
   onVariationChange,
 }: {
   line: string;
   chordInstrument: TrackChordInstrument;
+  fitChordToLabel?: boolean;
+  wrapLine?: boolean;
   showVariationLabels?: boolean;
   trackPreference: TrackPreference;
   onVariationChange: (
@@ -666,7 +670,7 @@ export function ChordLine({
   }
 
   const parts = line.split(/(\[[^\]\r\n]+\])/g).filter(Boolean);
-  return <div className="min-h-6 whitespace-pre">{parts.map((part, index) => {
+  return <div className={wrapLine ? "min-h-6 whitespace-pre-wrap [overflow-wrap:anywhere]" : "min-h-6 whitespace-pre"}>{parts.map((part, index) => {
     if (!part.startsWith("[") || !part.endsWith("]")) return <span key={index}>{part}</span>;
     const value = part.slice(1, -1).trim();
     const isChord = Boolean(transposeChord(value, 0, "sharps"));
@@ -679,12 +683,13 @@ export function ChordLine({
       : null;
 
     if (!chordReference) {
-      return <strong key={index} className={isChord ? "inline-flex items-center justify-center rounded-sm text-[1em] font-black leading-none text-[#ed1746]" : "inline-flex items-center justify-center rounded-sm text-[1em] font-bold leading-none text-[#666] dark:text-[#b4b4bc]"} style={{ width: `${part.length}ch` }}>{value}</strong>;
+      return <strong key={index} className={`${isChord ? "inline-flex items-center justify-center rounded-sm text-[1em] font-black leading-none text-[#ed1746]" : "inline-flex items-center justify-center rounded-sm text-[1em] font-bold leading-none text-[#666] dark:text-[#b4b4bc]"} ${wrapLine ? "max-w-full break-all" : ""}`} style={{ width: `${part.length}ch` }}>{value}</strong>;
     }
 
     return (
       <ChordPopover
         key={index}
+        constrainWidth={wrapLine}
         content={
           chordInstrument === "piano" && pianoReference ? (
             <PianoChordCard
@@ -756,8 +761,8 @@ export function ChordLine({
       >
         <button
           type="button"
-          className="inline-flex items-center justify-center rounded-sm bg-[#e7e7e9] text-[1em] font-black leading-none text-[#111] transition hover:bg-[#ffdce4] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#343438] dark:text-white dark:hover:bg-[#4a1c28]"
-          style={{ width: `${part.length}ch` }}
+          className={`inline-flex items-center justify-center rounded-sm bg-[#e7e7e9] text-[1em] font-black leading-none text-[#111] transition hover:bg-[#ffdce4] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#343438] dark:text-white dark:hover:bg-[#4a1c28] ${wrapLine ? "max-w-full break-all" : ""}`}
+          style={fitChordToLabel ? undefined : { width: `${part.length}ch` }}
         >
           <PreferredChordSymbolLabel
             chordInstrument={chordInstrument}
@@ -777,6 +782,7 @@ export function TrackChordSection({
   chords,
   instrument,
   showVariationLabels = true,
+  wrapContent = false,
   onInstrumentChange,
   trackPreference,
   onVariationChange,
@@ -784,6 +790,7 @@ export function TrackChordSection({
   chords: GuitarChordReference[];
   instrument: TrackChordInstrument;
   showVariationLabels?: boolean;
+  wrapContent?: boolean;
   onInstrumentChange: (instrument: TrackChordInstrument) => void;
   trackPreference: TrackPreference;
   onVariationChange: (
@@ -808,7 +815,7 @@ export function TrackChordSection({
           Chords
         </h3>
         <div
-          className="flex gap-5 overflow-x-auto text-[13px] font-black uppercase"
+          className={`flex gap-5 text-[13px] font-black uppercase ${wrapContent ? "flex-wrap" : "overflow-x-auto"}`}
           aria-label="Chord instrument"
         >
           <button
@@ -849,7 +856,7 @@ export function TrackChordSection({
           </button>
         </div>
       </div>
-      <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
+      <div className={`mt-4 flex gap-4 pb-2 ${wrapContent ? "flex-wrap" : "overflow-x-auto"}`}>
         {instrument === "guitar"
           ? chords.map((chordReference) => (
               <div

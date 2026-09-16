@@ -2,18 +2,16 @@
 
 import Link from "next/link";
 import {
-  forwardRef,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
-  type ReactNode,
 } from "react";
 
 import { ChordCard } from "@/components/shared/chords/chord-card";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
+import { SongChart } from "@/components/shared/chords/song-chart";
 import {
   GUITAR_CHORDS,
   PIANO_CHORDS,
@@ -49,13 +47,8 @@ const MAX_STAGE_ZOOM = 1.75;
 const STAGE_ZOOM_STEP = 0.125;
 
 type StageAppearance = {
-  activeSectionBorderClassName: string;
   chordClassName: string;
   chordSurfaceClassName: string;
-  idleSectionBorderClassName: string;
-  labelClassName: string;
-  lyricClassName: string;
-  sectionSurfaceClassName: string;
 };
 
 type StageLine = {
@@ -148,7 +141,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   const [lockState, setLockState] = useState<StageSyncLockState>("free");
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
-  const lineRefs = useRef(new Map<string, HTMLParagraphElement>());
+  const lineRefs = useRef(new Map<string, HTMLElement>());
   const layoutMetricsRef = useRef<StageSectionMetric[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
@@ -795,69 +788,37 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                 >
                   <StageTrackHeader track={track} />
                   {track.isAvailable && track.sections.length ? (
-                    <div className="grid gap-0 sm:gap-8">
-                      {track.sections.map((section) => (
-                        <section
-                          key={section.id}
-                          ref={(element) => {
-                            if (element) {
-                              sectionRefs.current.set(section.id, element);
-                            } else {
-                              sectionRefs.current.delete(section.id);
-                            }
-                          }}
-                          className={`min-w-0 scroll-mt-20 border-l-0 pl-0 sm:border-l-4 sm:pl-3 ${
-                            effectiveActiveSectionId === section.id
-                              ? appearance.activeSectionBorderClassName
-                              : appearance.idleSectionBorderClassName
-                          }`}
-                        >
-                          <div className="my-2 flex items-center gap-2 sm:my-3 sm:gap-3">
-                            <span
-                              className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-black sm:size-8 sm:text-[12px] ${
-                                effectiveActiveSectionId === section.id
-                                  ? "bg-[#ed1746] text-white"
-                                  : isDark
-                                    ? "bg-[#23252a] text-[#d7d2c7]"
-                                    : "bg-[#ebe7dd] text-[#333]"
-                              }`}
-                            >
-                              {section.number}
-                            </span>
-                            <h2 className="text-[14px] font-black sm:text-[22px]">
-                              {section.title}
-                            </h2>
-                          </div>
-                          <div
-                            className={`min-w-0 overflow-x-hidden rounded-none px-1.5 py-3 text-[calc(clamp(11px,3.2vw,14px)*var(--stage-zoom))] leading-[1.45] [tab-size:2] sm:overflow-x-auto sm:rounded-lg sm:px-3 sm:py-4 sm:text-[calc(24px*var(--stage-zoom))] sm:leading-[1.5] sm:[tab-size:4] md:text-[calc(28px*var(--stage-zoom))] md:leading-[1.52] ${
-                              appearance.sectionSurfaceClassName
-                            }`}
-                            style={
-                              { "--stage-zoom": chartZoom } as CSSProperties
-                            }
+                    <SongChart
+                      sections={track.sections}
+                      activeSectionIds={effectiveActiveSectionId ? [effectiveActiveSectionId] : []}
+                      fontSize={`clamp(${13 * chartZoom}px, ${3.2 * chartZoom}vw, ${28 * chartZoom}px)`}
+                      theme={isDark ? "dark" : "light"}
+                      onSectionElement={(id, element) => {
+                        if (element) sectionRefs.current.set(id, element);
+                        else sectionRefs.current.delete(id);
+                      }}
+                      onLineElement={(ids, element) => {
+                        for (const id of ids) {
+                          if (element) lineRefs.current.set(id, element);
+                          else lineRefs.current.delete(id);
+                        }
+                      }}
+                      renderChord={(value) => {
+                        const chordReference = getGuitarChordReference(value);
+                        if (stageInstrument === "vocals" || !chordReference) {
+                          return <strong className={`inline-block max-w-full break-all rounded-sm px-0.5 font-black ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}>{value}</strong>;
+                        }
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedChord({ reference: chordReference, value })}
+                            className={`inline-block max-w-full break-all rounded-sm px-0.5 font-black transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}
                           >
-                            <div className="min-w-0 w-full sm:min-w-max">
-                              {section.lines.map((line) => (
-                                <StageChordLine
-                                  key={line.id}
-                                  ref={(element) => {
-                                    if (element) {
-                                      lineRefs.current.set(line.id, element);
-                                    } else {
-                                      lineRefs.current.delete(line.id);
-                                    }
-                                  }}
-                                  appearance={appearance}
-                                  onChordSelect={setSelectedChord}
-                                  stageInstrument={stageInstrument}
-                                  line={line}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        </section>
-                      ))}
-                    </div>
+                            {value}
+                          </button>
+                        );
+                      }}
+                    />
                   ) : (
                     <div
                       className={`rounded-lg border border-dashed px-5 py-12 text-center ${
@@ -1533,81 +1494,6 @@ function StageNavigator({
   );
 }
 
-const StageChordLine = forwardRef<HTMLParagraphElement, {
-  appearance: StageAppearance;
-  line: StageLine;
-  onChordSelect: (chord: SelectedStageChord) => void;
-  stageInstrument: StageInstrumentId;
-}>(function StageChordLine({
-  appearance,
-  line,
-  onChordSelect,
-  stageInstrument,
-}, ref) {
-  const parts = getStageLineParts(line.text);
-
-  if (parts.length === 0) {
-    return <p ref={ref} className="min-h-[1.45em]">&nbsp;</p>;
-  }
-
-  return (
-    <p
-      ref={ref}
-      className={`whitespace-pre-wrap [overflow-wrap:anywhere] sm:whitespace-pre sm:[overflow-wrap:normal] ${appearance.lyricClassName}`}
-    >
-      {parts.map((part, index) => {
-        if (part.kind === "space") {
-          return <FragmentText key={index}>{part.value}</FragmentText>;
-        }
-
-        if (part.kind === "word") {
-          return <FragmentText key={index}>{part.value}</FragmentText>;
-        }
-
-        if (part.kind === "chord" && stageInstrument !== "vocals") {
-          const chordReference = getGuitarChordReference(part.value);
-
-          if (chordReference) {
-            return (
-              <button
-                key={index}
-                type="button"
-                onClick={() =>
-                  onChordSelect({ reference: chordReference, value: part.value })
-                }
-                className={`inline-flex max-w-full items-center justify-center break-all rounded-sm py-1.5 font-mono text-[1em] font-black leading-none transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] sm:max-w-none sm:break-normal ${appearance.chordClassName} ${appearance.chordSurfaceClassName}`}
-                style={{ width: `${part.sourceLength}ch` }}
-              >
-                {part.value}
-              </button>
-            );
-          }
-        }
-
-        const sourceLength = part.sourceLength;
-
-        return (
-          <strong
-            key={index}
-            className={`inline-flex max-w-full items-center justify-center break-all rounded-sm font-mono text-[1em] font-black leading-none sm:max-w-none sm:break-normal ${
-              part.kind === "chord"
-                ? `${appearance.chordClassName} ${appearance.chordSurfaceClassName}`
-                : appearance.labelClassName
-            }`}
-            style={{ width: `${sourceLength}ch` }}
-          >
-            {part.value}
-          </strong>
-        );
-      })}
-    </p>
-  );
-});
-
-function FragmentText({ children }: { children: ReactNode }) {
-  return <>{children}</>;
-}
-
 function StagePlaybackIcon({ playing }: { playing: boolean }) {
   return playing ? (
     <svg aria-hidden="true" className="size-5" fill="currentColor" viewBox="0 0 24 24">
@@ -1768,13 +1654,6 @@ function StageSyncIcon({ synced }: { synced: boolean }) {
   );
 }
 
-type StageLinePart =
-  | {
-      kind: "chord" | "label" | "space" | "word";
-      sourceLength: number;
-      value: string;
-    };
-
 type GuitarChordReference = {
   chord: ChordDefinition;
   displaySymbol: string;
@@ -1793,33 +1672,6 @@ type UkuleleChordReference = {
   variationIndex: number;
   variationNumber: number | null;
 };
-
-function getStageLineParts(line: string): StageLinePart[] {
-  const lineParts = line.split(/(\[[^\]\r\n]+\])/g).filter(Boolean);
-  const renderedParts: StageLinePart[] = [];
-
-  for (const linePart of lineParts) {
-    if (linePart.startsWith("[") && linePart.endsWith("]")) {
-      const value = linePart.slice(1, -1).trim();
-      renderedParts.push({
-        kind: transposeChord(value, 0, "sharps") ? "chord" : "label",
-        sourceLength: linePart.length,
-        value,
-      });
-      continue;
-    }
-
-    for (const token of linePart.split(/(\s+)/)) {
-      renderedParts.push({
-        kind: token.trim() ? "word" : "space",
-        sourceLength: token.length,
-        value: token,
-      });
-    }
-  }
-
-  return renderedParts;
-}
 
 function getGuitarChordReference(value: string): GuitarChordReference | null {
   const parsedChord = splitVariationSuffix(value);
@@ -2077,14 +1929,7 @@ function getStageAppearance(
   isDark: boolean,
 ): StageAppearance {
   const base = {
-    activeSectionBorderClassName: "border-[#ed1746]",
     chordSurfaceClassName: isDark ? "bg-[#1c1d22]" : "bg-[#ededf0]",
-    idleSectionBorderClassName: isDark
-      ? "border-[#343740]"
-      : "border-[#d8d3c8]",
-    labelClassName: isDark ? "text-[#b8b2a7]" : "text-[#57534e]",
-    lyricClassName: isDark ? "text-[#f5f3ed]" : "text-[#151515]",
-    sectionSurfaceClassName: isDark ? "bg-[#111216]" : "bg-[#fffdf8]",
   };
 
   if (mode === "vocals") {
