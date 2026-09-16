@@ -108,6 +108,7 @@ type VoiceGuideToast = {
 
 const SECTION_ANCHOR_RATIO = 0.75;
 const SECTION_VISIBILITY_CUTOFF_RATIO = 0.25;
+const AUTO_SCROLL_PIXELS_PER_SECOND = 18;
 const VOICE_GUIDE_HIGHLIGHT_CLASS = "text-stone-300";
 const VOICE_GUIDE_SCROLL_ANCHOR_RATIO = 0.25;
 const VOICE_GUIDE_SCROLL_DURATION_MS = 1400;
@@ -252,6 +253,10 @@ export function ChordFullscreenPerformanceView({
     [track.lyricsAndChords, transpose, accidentals],
   );
   const sections = useMemo(() => parseChordSections(source), [source]);
+  const increaseScrollSpeed = useCallback(() => {
+    setIsVoiceGuideEnabled(false);
+    setScrollSpeed((speed) => Math.min(6, speed + 0.5));
+  }, []);
   const lyricLines = useMemo(
     () =>
       sections
@@ -414,18 +419,18 @@ export function ChordFullscreenPerformanceView({
 
       if (event.key === "+" || event.key === "=") {
         event.preventDefault();
-        setScrollSpeed((speed) => Math.min(12, speed + 1));
+        increaseScrollSpeed();
       }
 
       if (event.key === "-" || event.key === "_") {
         event.preventDefault();
-        setScrollSpeed((speed) => Math.max(0, speed - 1));
+        setScrollSpeed((speed) => Math.max(0, speed - 0.5));
       }
     }
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [increaseScrollSpeed]);
 
   useEffect(() => {
     if (scrollSpeed <= 0 || isVoiceGuideEnabled) {
@@ -437,13 +442,21 @@ export function ChordFullscreenPerformanceView({
       return;
     }
 
+    let pendingScrollPixels = 0;
+
     function step(timestamp: number): void {
       const scroller = scrollerRef.current;
 
       if (scroller) {
         const lastFrameTime = lastFrameTimeRef.current ?? timestamp;
-        const elapsedSeconds = (timestamp - lastFrameTime) / 1000;
-        scroller.scrollTop += elapsedSeconds * scrollSpeed * 36;
+        const elapsedSeconds = Math.min((timestamp - lastFrameTime) / 1000, 0.08);
+        pendingScrollPixels +=
+          elapsedSeconds * scrollSpeed * AUTO_SCROLL_PIXELS_PER_SECOND;
+        const wholePixels = Math.floor(pendingScrollPixels);
+        if (wholePixels > 0) {
+          scroller.scrollTop += wholePixels;
+          pendingScrollPixels -= wholePixels;
+        }
         lastFrameTimeRef.current = timestamp;
         updateVisibleSections();
       }
@@ -1406,7 +1419,7 @@ export function ChordFullscreenPerformanceView({
           <button
             type="button"
             aria-label="Decrease auto-scroll speed"
-            onClick={() => setScrollSpeed((speed) => Math.max(0, speed - 1))}
+            onClick={() => setScrollSpeed((speed) => Math.max(0, speed - 0.5))}
             className={`flex size-10 items-center justify-center rounded-full text-xl font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
               isDarkMode
                 ? "bg-[#303036] text-white hover:bg-[#3a3a40]"
@@ -1430,7 +1443,7 @@ export function ChordFullscreenPerformanceView({
           <button
             type="button"
             aria-label="Increase auto-scroll speed"
-            onClick={() => setScrollSpeed((speed) => Math.min(12, speed + 1))}
+            onClick={increaseScrollSpeed}
             className="flex size-10 items-center justify-center rounded-full bg-[#ed1746] text-xl font-black text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
           >
             +

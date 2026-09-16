@@ -9,7 +9,11 @@ import { AppShell } from "@/components/shared/app-shell";
 import { BackLink } from "@/components/shared/back-link";
 import { Dashboard } from "@/components/shared/dashboard";
 import { auth } from "@/lib/auth";
-import { parseSetListTrackArrangement } from "@/lib/setlists/setlist-track-settings";
+import {
+  getTransposedSetListKey,
+  parseSetListTrackArrangement,
+  parseSetListTrackTranspose,
+} from "@/lib/setlists/setlist-track-settings";
 import { SetListService } from "@/services/setlist-service";
 import type { SetListDetailData } from "@/types/setlist";
 
@@ -46,6 +50,8 @@ export default async function SetListPage({
     updatedAt: setList.updatedAt.toISOString(),
     tracks: setList.tracks.map((item) => {
       const arrangement = parseSetListTrackArrangement(item.settings);
+      const transposeSemitones = parseSetListTrackTranspose(item.settings);
+      const baseKey = arrangement?.key ?? item.track.key;
       const isOwnerTrack = item.track.ownerId === session.user.id;
       const isPublicTrack =
         item.track.visibilityStatus === "PUBLIC" &&
@@ -59,7 +65,11 @@ export default async function SetListPage({
         artistName: isViewable
           ? item.track.artistName
           : "This track is no longer public",
-        key: isViewable ? (arrangement?.key ?? item.track.key) : "—",
+        key: isViewable
+          ? getTransposedSetListKey(baseKey, transposeSemitones)
+          : "—",
+        baseKey: isViewable ? baseKey : "—",
+        transposeSemitones: isViewable ? transposeSemitones : 0,
         tuning: isViewable ? (arrangement?.tuning ?? item.track.tuning) : "—",
         arrangementLabel: isViewable ? (arrangement?.label || null) : null,
         isOwnerTrack,

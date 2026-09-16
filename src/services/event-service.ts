@@ -56,8 +56,31 @@ const eventDetailSelect = {
       setList: {
         select: {
           id: true,
+          ownerId: true,
           title: true,
           description: true,
+          tracks: {
+            where: {
+              settings: {
+                path: ["transposeSemitones"],
+                not: 0,
+              },
+            },
+            orderBy: [{ orderNumber: "asc" as const }, { id: "asc" as const }],
+            select: {
+              id: true,
+              settings: true,
+              track: {
+                select: {
+                  title: true,
+                  key: true,
+                  ownerId: true,
+                  visibilityStatus: true,
+                  publicityStatus: true,
+                },
+              },
+            },
+          },
           _count: {
             select: {
               tracks: true,

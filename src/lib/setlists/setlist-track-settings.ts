@@ -1,10 +1,46 @@
 import { MUSICAL_KEYS, TRACK_TUNINGS } from "@/lib/music/track-options";
+import { transposeChord } from "@/lib/chords/chord-pro";
 import type { SetListTrackArrangement } from "@/types/setlist";
 
 const MAX_LABEL_LENGTH = 80;
 const MAX_TIME_SIGNATURE_LENGTH = 16;
 const MAX_LYRICS_LENGTH = 100_000;
 const MAX_NOTES_LENGTH = 20_000;
+export const MAX_SETLIST_TRANSPOSE = 12;
+
+export function parseSetListTrackTranspose(settings: unknown): number {
+  if (!isRecord(settings)) {
+    return 0;
+  }
+
+  const value = settings.transposeSemitones;
+  return isInteger(value, -MAX_SETLIST_TRANSPOSE, MAX_SETLIST_TRANSPOSE)
+    ? value
+    : 0;
+}
+
+export function mergeSetListTrackTranspose(
+  settings: unknown,
+  transposeSemitones: number,
+): Record<string, unknown> {
+  return {
+    ...(isRecord(settings) ? settings : {}),
+    transposeSemitones,
+  };
+}
+
+export function getTransposedSetListKey(
+  key: string,
+  transposeSemitones: number,
+): string {
+  return (
+    transposeChord(
+      key,
+      transposeSemitones,
+      key.includes("b") ? "flats" : "sharps",
+    ) ?? key
+  );
+}
 
 export function parseSetListTrackArrangement(
   settings: unknown,
@@ -71,6 +107,15 @@ function isNullableInteger(
       Number.isInteger(value) &&
       value >= minimum &&
       value <= maximum)
+  );
+}
+
+function isInteger(value: unknown, minimum: number, maximum: number): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= minimum &&
+    value <= maximum
   );
 }
 

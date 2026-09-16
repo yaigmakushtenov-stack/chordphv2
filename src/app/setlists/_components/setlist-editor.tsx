@@ -348,6 +348,12 @@ export function SetListEditor({ setList }: SetListEditorProps) {
                         {item.arrangementLabel}
                       </span>
                     ) : null}
+                    {item.transposeSemitones !== 0 ? (
+                      <span className="mt-1 block truncate text-[10px] font-bold text-[#c90f39] dark:text-[#fb7185]">
+                        Transposed {item.transposeSemitones > 0 ? "+" : ""}
+                        {item.transposeSemitones} · {item.baseKey} → {item.key}
+                      </span>
+                    ) : null}
                   </Link>
                 ) : (
                   <span className="min-w-0 flex-1">

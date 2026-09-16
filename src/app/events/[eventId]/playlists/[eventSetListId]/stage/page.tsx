@@ -10,7 +10,10 @@ import {
   type EventStagePlaylistRecord,
 } from "@/services/event-service";
 import { auth } from "@/lib/auth";
-import { parseSetListTrackArrangement } from "@/lib/setlists/setlist-track-settings";
+import {
+  parseSetListTrackArrangement,
+  parseSetListTrackTranspose,
+} from "@/lib/setlists/setlist-track-settings";
 import type { StagePlaylistData } from "@/types/stage";
 
 export const metadata: Metadata = {
@@ -98,6 +101,9 @@ function toStagePlaylistData(
           ? item.track.artistName
           : "This track is no longer public",
         key: isViewable ? (arrangement?.key ?? item.track.key) : "",
+        transposeSemitones: isViewable
+          ? parseSetListTrackTranspose(item.settings)
+          : 0,
         capo: isViewable ? (arrangement?.capo ?? item.track.capo) : null,
         tempo: isViewable ? (arrangement?.tempo ?? item.track.tempo) : null,
         timeSignature: isViewable

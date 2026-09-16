@@ -22,6 +22,8 @@ export type SetListTrackData = {
   title: string;
   artistName: string;
   key: string;
+  baseKey: string;
+  transposeSemitones: number;
   tuning: string;
   arrangementLabel: string | null;
   isOwnerTrack: boolean;
@@ -45,6 +47,12 @@ export type SaveSetListTrackArrangementInput = {
   setListId: string;
   setListTrackId: string;
   arrangement: SetListTrackArrangement;
+};
+
+export type SaveSetListTrackTransposeInput = {
+  setListId: string;
+  setListTrackId: string;
+  transposeSemitones: number;
 };
 
 export type CopySetListTrackArrangementInput = {

@@ -5,7 +5,10 @@ import { notFound, redirect } from "next/navigation";
 import { AnnotationViewer } from "@/app/track/_components/annotation-viewer";
 import { AppShell } from "@/components/shared/app-shell";
 import { auth } from "@/lib/auth";
-import { parseSetListTrackArrangement } from "@/lib/setlists/setlist-track-settings";
+import {
+  parseSetListTrackArrangement,
+  parseSetListTrackTranspose,
+} from "@/lib/setlists/setlist-track-settings";
 import { SetListService } from "@/services/setlist-service";
 import type { AnnotationViewerData } from "@/types/track";
 
@@ -37,19 +40,22 @@ export default async function SetListTrackArrangementPage({
   }
 
   const arrangement = parseSetListTrackArrangement(item.settings);
+  const transposeSemitones = parseSetListTrackTranspose(item.settings);
+  const baseKey = arrangement?.key ?? item.track.key;
+  const lyricsAndChords =
+    arrangement?.lyricsAndChords ?? item.track.annotation.lyricsAndChords;
   const isRootOwner = item.track.ownerId === session.user.id;
   const track: AnnotationViewerData = {
     id: item.track.id,
     title: item.track.title,
     artistName: item.track.artistName,
-    key: arrangement?.key ?? item.track.key,
+    key: baseKey,
     tuning: arrangement?.tuning ?? item.track.tuning,
     capo: arrangement?.capo ?? item.track.capo,
     tempo: arrangement?.tempo ?? item.track.tempo,
     timeSignature: arrangement?.timeSignature ?? item.track.timeSignature ?? "",
     tags: item.track.tags,
-    lyricsAndChords:
-      arrangement?.lyricsAndChords ?? item.track.annotation.lyricsAndChords,
+    lyricsAndChords,
     notes:
       arrangement?.notes ?? (isRootOwner ? item.track.annotation.notes : ""),
     youtubeLink: item.track.youtubeLink,
@@ -80,6 +86,7 @@ export default async function SetListTrackArrangementPage({
           setListId: item.setList.id,
           setListTitle: item.setList.title,
           setListTrackId: item.id,
+          transposeSemitones,
         }}
         track={track}
       />

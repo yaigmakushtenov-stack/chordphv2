@@ -472,7 +472,7 @@ export function EventPlaylistEditor({
                     rowElementsRef.current.delete(playlist.id);
                   }
                 }}
-                className={`grid min-w-0 gap-3 px-4 py-4 transition sm:grid-cols-[auto_minmax(0,1fr)_minmax(180px,260px)_auto] sm:items-center sm:px-5 ${
+                className={`grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 px-4 py-3 transition sm:px-5 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center ${
                   draggedPlaylistId === playlist.id
                     ? "relative z-10 bg-[#fff0f3] opacity-75 shadow-lg dark:bg-[#3a111d]"
                     : "hover:bg-[#fafafa] dark:hover:bg-[#1f1f22]"
@@ -481,106 +481,118 @@ export function EventPlaylistEditor({
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f1f1f1] text-[12px] font-black dark:bg-[#28282c]">
                   {index + 1}
                 </span>
-                {canManage ? (
-                  <Link
-                    href={`/setlists/${playlist.setListId}`}
-                    className="min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-                  >
-                    <span className="block truncate text-[15px] font-bold hover:text-[#ed1746]">
-                      {playlist.title}
-                    </span>
-                    <span className="mt-0.5 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
-                      {playlist.description || "No description"} ·{" "}
-                      {playlist.trackCount}{" "}
-                      {playlist.trackCount === 1 ? "track" : "tracks"}
-                    </span>
-                  </Link>
-                ) : (
-                  <span className="min-w-0">
-                    <span className="block truncate text-[15px] font-bold">
-                      {playlist.title}
-                    </span>
-                    <span className="mt-0.5 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
-                      {playlist.description || "No description"} ·{" "}
-                      {playlist.trackCount}{" "}
-                      {playlist.trackCount === 1 ? "track" : "tracks"}
-                    </span>
-                  </span>
-                )}
-                {canManage ? (
-                  <label className="grid gap-1 text-[11px] font-bold text-[#666] dark:text-[#b4b4bc]">
-                    Band
-                    <select
-                      value={playlist.band?.id ?? ""}
-                      onChange={(selectEvent) =>
-                        handleBandChange(playlist.id, selectEvent)
-                      }
-                      disabled={isPending}
-                      className="h-9 min-w-0 rounded-full border border-[#d9d9d9] bg-white px-3 text-[12px] font-bold text-[#111] outline-none transition focus:border-[#ed1746] focus:ring-3 focus:ring-[#ed1746]/10 disabled:cursor-not-allowed disabled:opacity-55 dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-white dark:focus:border-[#ed1746]"
-                    >
-                      <option value="">No band</option>
-                      {bandOptions.map((band) => (
-                        <option key={band.id} value={band.id}>
-                          {band.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : (
-                  <span className="w-fit rounded-full bg-[#f1f1f1] px-3 py-1.5 text-[11px] font-bold dark:bg-[#28282c]">
-                    {playlist.band?.name ?? "No band"}
-                  </span>
-                )}
-                {isEditing ? (
-                  <div className="flex shrink-0 gap-1">
+                <div className="min-w-0">
+                  {canManage ? (
                     <Link
-                      href={`/events/${event.id}/playlists/${playlist.id}/stage`}
-                      className="inline-flex h-9 items-center justify-center rounded-full bg-[#ed1746] px-3 text-[11px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+                      href={`/setlists/${playlist.setListId}`}
+                      className="block min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
                     >
-                      Stage
-                    </Link>
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onPointerDown={(pointerEvent) =>
-                        handleDragStart(pointerEvent, playlist.id)
-                      }
-                      onPointerMove={handleDragMove}
-                      onPointerUp={handleDragEnd}
-                      onPointerCancel={handleDragCancel}
-                      onKeyDown={(keyboardEvent) =>
-                        handleDragKeyDown(keyboardEvent, playlist.id)
-                      }
-                      aria-label={`Arrange ${playlist.title}. Use arrow keys or drag.`}
-                      className="inline-flex size-9 touch-none cursor-grab items-center justify-center rounded-full border border-[#dedede] text-[#777] transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#3a3a3f] dark:text-[#a1a1aa]"
-                    >
-                      <DragHandleIcon />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => handleRemovePlaylist(playlist.id)}
-                      className="inline-flex size-9 items-center justify-center rounded-full text-[18px] text-[#777] transition hover:bg-[#fff0f3] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:opacity-40 dark:text-[#a1a1aa] dark:hover:bg-[#3a111d]"
-                      aria-label={`Remove ${playlist.title}`}
-                    >
-                      x
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex shrink-0 items-center gap-2">
-                    {canManage ? (
-                      <span className="w-fit rounded-full bg-[#f1f1f1] px-3 py-1.5 text-[11px] font-bold dark:bg-[#28282c]">
-                        {playlist.band?.name ?? "No band"}
+                      <span className="block truncate text-[15px] font-bold hover:text-[#ed1746]">
+                        {playlist.title}
                       </span>
-                    ) : null}
-                    <Link
-                      href={`/events/${event.id}/playlists/${playlist.id}/stage`}
-                      className="inline-flex h-9 items-center justify-center rounded-full bg-[#ed1746] px-3 text-[11px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-                    >
-                      Stage
+                      <span className="mt-0.5 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
+                        {playlist.description || "No description"} ·{" "}
+                        {playlist.trackCount}{" "}
+                        {playlist.trackCount === 1 ? "track" : "tracks"}
+                      </span>
                     </Link>
-                  </div>
-                )}
+                  ) : (
+                    <span className="block min-w-0">
+                      <span className="block truncate text-[15px] font-bold">
+                        {playlist.title}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
+                        {playlist.description || "No description"} ·{" "}
+                        {playlist.trackCount}{" "}
+                        {playlist.trackCount === 1 ? "track" : "tracks"}
+                      </span>
+                    </span>
+                  )}
+                  {playlist.transposedTracks.length > 0 ? (
+                    <ul className="mt-1.5 grid gap-0.5">
+                      {playlist.transposedTracks.map((track) => (
+                        <li
+                          key={track.id}
+                          className="truncate text-[11px] font-bold text-[#c90f39] dark:text-[#fb7185]"
+                        >
+                          {track.title}: {track.baseKey} → {track.key} ({track.transposeSemitones > 0 ? "+" : ""}{track.transposeSemitones})
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+                <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-2 lg:col-span-1 lg:justify-end">
+                  {canManage ? (
+                    <label className="relative min-w-32 flex-1 lg:w-44 lg:flex-none">
+                      <span className="sr-only">Band for {playlist.title}</span>
+                      <select
+                        value={playlist.band?.id ?? ""}
+                        onChange={(selectEvent) =>
+                          handleBandChange(playlist.id, selectEvent)
+                        }
+                        disabled={isPending}
+                        className="h-9 w-full min-w-0 appearance-none rounded-full border border-[#d9d9d9] bg-white py-0 pl-3 pr-9 text-[12px] font-bold text-[#111] outline-none transition focus:border-[#ed1746] focus:ring-3 focus:ring-[#ed1746]/10 disabled:cursor-not-allowed disabled:opacity-55 dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-white dark:focus:border-[#ed1746]"
+                      >
+                        <option value="">No band</option>
+                        {bandOptions.map((band) => (
+                          <option key={band.id} value={band.id}>
+                            {band.name}
+                          </option>
+                        ))}
+                      </select>
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#555] dark:text-[#c4c4cc]"
+                      >
+                        <path
+                          d="m3.5 6 4.5 4 4.5-4"
+                          stroke="currentColor"
+                          strokeWidth="1.75"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </label>
+                  ) : null}
+                  <Link
+                    href={`/events/${event.id}/playlists/${playlist.id}/stage`}
+                    className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-3 text-[11px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+                  >
+                    Stage
+                  </Link>
+                  {isEditing ? (
+                    <>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onPointerDown={(pointerEvent) =>
+                          handleDragStart(pointerEvent, playlist.id)
+                        }
+                        onPointerMove={handleDragMove}
+                        onPointerUp={handleDragEnd}
+                        onPointerCancel={handleDragCancel}
+                        onKeyDown={(keyboardEvent) =>
+                          handleDragKeyDown(keyboardEvent, playlist.id)
+                        }
+                        aria-label={`Arrange ${playlist.title}. Use arrow keys or drag.`}
+                        className="inline-flex size-9 touch-none cursor-grab items-center justify-center rounded-full border border-[#dedede] text-[#777] transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#3a3a3f] dark:text-[#a1a1aa]"
+                      >
+                        <DragHandleIcon />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => handleRemovePlaylist(playlist.id)}
+                        className="inline-flex size-9 items-center justify-center rounded-full text-[18px] text-[#777] transition hover:bg-[#fff0f3] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:opacity-40 dark:text-[#a1a1aa] dark:hover:bg-[#3a111d]"
+                        aria-label={`Remove ${playlist.title}`}
+                      >
+                        x
+                      </button>
+                    </>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ol>

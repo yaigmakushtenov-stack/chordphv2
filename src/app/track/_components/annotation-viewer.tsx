@@ -13,6 +13,7 @@ import { BackButton } from "@/components/shared/back-button";
 import { BackLink } from "@/components/shared/back-link";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
 import { showToast } from "@/components/shared/toast";
+import { MAX_SETLIST_TRANSPOSE } from "@/lib/setlists/setlist-track-settings";
 
 import {
   splitVariationSuffix,
@@ -44,17 +45,21 @@ export function AnnotationViewer({
     setListId: string;
     setListTitle: string;
     setListTrackId: string;
+    transposeSemitones: number;
   };
   track: AnnotationViewerData;
 }) {
   const router = useRouter();
-  const [transpose, setTranspose] = useState(0);
+  const [transpose, setTranspose] = useState(
+    setListContext?.transposeSemitones ?? 0,
+  );
   const [publicityStatus, setPublicityStatus] = useState(
     track.publicityStatus,
   );
   const [isPending, startTransition] = useTransition();
-  const [accidentals, setAccidentals] =
-    useState<AccidentalPreference>("sharps");
+  const [accidentals, setAccidentals] = useState<AccidentalPreference>(
+    setListContext && track.key.includes("b") ? "flats" : "sharps",
+  );
   const [chordInstrument, setChordInstrument] =
     useState<TrackChordInstrument>("guitar");
   const [trackPreference, setTrackPreference] = useState<TrackPreference>({
@@ -67,6 +72,36 @@ export function AnnotationViewer({
   const usedChords = useMemo(() => getUsedGuitarChords(source), [source]);
   const displayKey =
     transposeChord(track.key, transpose, accidentals) ?? track.key;
+
+  function handleTransposeChange(nextTranspose: number): void {
+    if (isPending || nextTranspose === transpose) {
+      return;
+    }
+
+    if (!setListContext) {
+      setTranspose(nextTranspose);
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await SetListActions.saveTrackTranspose({
+        setListId: setListContext.setListId,
+        setListTrackId: setListContext.setListTrackId,
+        transposeSemitones: nextTranspose,
+      });
+
+      if (!result.ok) {
+        showToast({
+          title: "Transpose not saved",
+          description: result.error.message,
+          tone: "error",
+        });
+        return;
+      }
+
+      setTranspose(nextTranspose);
+    });
+  }
 
   function handleCopy(): void {
     startTransition(async () => {
@@ -160,8 +195,8 @@ export function AnnotationViewer({
         track={{
           title: track.title,
           artistName: track.artistName,
-          key: track.key,
-          lyricsAndChords: track.lyricsAndChords,
+          key: setListContext ? displayKey : track.key,
+          lyricsAndChords: setListContext ? source : track.lyricsAndChords,
         }}
         trackPreference={trackPreference}
       />
@@ -260,11 +295,11 @@ export function AnnotationViewer({
           <span className="rounded-full bg-[#111] px-3 py-1.5 text-[11px] font-bold text-white dark:bg-white dark:text-[#111]">Key {displayKey}</span>
           <div className="inline-flex h-9 items-center overflow-hidden rounded-full border border-[#dedede] bg-white dark:border-[#3a3a3f] dark:bg-[#202023]">
             <span className="border-r border-[#dedede] px-3 text-[11px] font-black dark:border-[#3a3a3f]">Tr.</span>
-            <button type="button" disabled={transpose <= -12} onClick={() => setTranspose((value) => Math.max(-12, value - 1))} className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]" aria-label="Transpose down one semitone">−</button>
+            <button type="button" disabled={isPending || transpose <= -MAX_SETLIST_TRANSPOSE} onClick={() => handleTransposeChange(transpose - 1)} className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]" aria-label="Transpose down one semitone">−</button>
             <span className="min-w-8 text-center text-[12px] font-bold tabular-nums">{transpose}</span>
-            <button type="button" disabled={transpose >= 12} onClick={() => setTranspose((value) => Math.min(12, value + 1))} className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]" aria-label="Transpose up one semitone">+</button>
+            <button type="button" disabled={isPending || transpose >= MAX_SETLIST_TRANSPOSE} onClick={() => handleTransposeChange(transpose + 1)} className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]" aria-label="Transpose up one semitone">+</button>
           </div>
-          <button type="button" onClick={() => setTranspose(0)} className="h-9 rounded-full border border-[#dedede] px-3 text-[11px] font-bold hover:bg-[#f4f4f4] focus-visible:outline-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] dark:hover:bg-[#28282c]">Reset</button>
+          <button type="button" disabled={isPending || transpose === 0} onClick={() => handleTransposeChange(0)} className="h-9 rounded-full border border-[#dedede] px-3 text-[11px] font-bold hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] dark:hover:bg-[#28282c]">Reset</button>
           <select aria-label="Accidental preference" value={accidentals} onChange={(event) => setAccidentals(event.target.value as AccidentalPreference)} className="h-9 rounded-full border border-[#dedede] bg-white px-3 text-[11px] font-bold outline-none focus:border-[#ed1746] dark:border-[#3a3a3f] dark:bg-[#202023]">
             <option value="sharps">Sharps ♯</option>
             <option value="flats">Flats ♭</option>

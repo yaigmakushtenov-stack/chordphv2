@@ -4,6 +4,7 @@ export type StageTrackData = {
   title: string;
   artistName: string;
   key: string;
+  transposeSemitones: number;
   capo: number | null;
   tempo: number | null;
   timeSignature: string;

@@ -9,6 +9,12 @@ import { Dashboard } from "@/components/shared/dashboard";
 import { NameDetailsDrawer } from "@/components/shared/name-details-drawer";
 import { auth } from "@/lib/auth";
 import {
+  getTransposedSetListKey,
+  parseSetListTrackArrangement,
+  parseSetListTrackTranspose,
+} from "@/lib/setlists/setlist-track-settings";
+import {
+  canViewStageTrack,
   EventService,
   type EventDetailRecord,
 } from "@/services/event-service";
@@ -106,6 +112,29 @@ function toEventDetailData(event: EventDetailRecord): EventDetailData {
         title: item.setList.title,
         description: item.setList.description,
         trackCount: item.setList._count.tracks,
+        transposedTracks: item.setList.tracks.flatMap((setListTrack) => {
+          const transposeSemitones = parseSetListTrackTranspose(
+            setListTrack.settings,
+          );
+
+          if (
+            transposeSemitones === 0 ||
+            !canViewStageTrack(item.setList.ownerId, setListTrack.track)
+          ) {
+            return [];
+          }
+
+          const arrangement = parseSetListTrackArrangement(setListTrack.settings);
+          const baseKey = arrangement?.key ?? setListTrack.track.key;
+
+          return [{
+            id: setListTrack.id,
+            title: setListTrack.track.title,
+            baseKey,
+            key: getTransposedSetListKey(baseKey, transposeSemitones),
+            transposeSemitones,
+          }];
+        }),
         band: band ? { id: band.id, name: band.name } : null,
         orderNumber: item.orderNumber,
       };

@@ -7,7 +7,10 @@ import { headers } from "next/headers";
 
 import { actionFailure, actionSuccess, type ActionResult } from "@/lib/actions";
 import { auth } from "@/lib/auth";
-import { parseSetListTrackArrangement } from "@/lib/setlists/setlist-track-settings";
+import {
+  MAX_SETLIST_TRANSPOSE,
+  parseSetListTrackArrangement,
+} from "@/lib/setlists/setlist-track-settings";
 import {
   SetListService,
   SetListServiceError,
@@ -17,6 +20,7 @@ import type {
   CopySetListTrackArrangementInput,
   ReorderSetListTracksInput,
   SaveSetListTrackArrangementInput,
+  SaveSetListTrackTransposeInput,
   SetListDetailsInput,
   UpdateSetListDetailsInput,
 } from "@/types/setlist";
@@ -222,6 +226,43 @@ export async function saveTrackArrangement(
       arrangement,
     });
     revalidateSetList(input.setListId);
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleSetListServiceError(error);
+  }
+}
+
+export async function saveTrackTranspose(
+  input: SaveSetListTrackTransposeInput,
+): Promise<ActionResult<null>> {
+  const userId = await getAuthenticatedUserId();
+
+  if (!userId) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to update this setlist.");
+  }
+
+  if (
+    !input ||
+    !isId(input.setListId) ||
+    !isId(input.setListTrackId) ||
+    !Number.isInteger(input.transposeSemitones) ||
+    Math.abs(input.transposeSemitones) > MAX_SETLIST_TRANSPOSE
+  ) {
+    return actionFailure("VALIDATION_ERROR", "The transpose value is invalid.");
+  }
+
+  try {
+    await SetListService.saveSetListTrackTranspose({
+      ownerId: userId,
+      ...input,
+    });
+    revalidateSetList(input.setListId);
+    revalidatePath(`/setlists/${input.setListId}/tracks/${input.setListTrackId}`);
+    revalidatePath("/events/[eventId]", "page");
+    revalidatePath(
+      "/events/[eventId]/playlists/[eventSetListId]/stage",
+      "page",
+    );
     return actionSuccess(null);
   } catch (error: unknown) {
     return handleSetListServiceError(error);

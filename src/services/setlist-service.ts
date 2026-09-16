@@ -7,8 +7,11 @@ import {
 } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import {
+  MAX_SETLIST_TRANSPOSE,
+  mergeSetListTrackTranspose,
   mergeSetListTrackArrangement,
   parseSetListTrackArrangement,
+  parseSetListTrackTranspose,
 } from "@/lib/setlists/setlist-track-settings";
 import type { SetListTrackArrangement } from "@/types/setlist";
 
@@ -289,6 +292,53 @@ export async function saveSetListTrackArrangement(input: {
         settings: mergeSetListTrackArrangement(
           item.settings,
           input.arrangement,
+        ) as Prisma.InputJsonObject,
+      },
+    });
+  });
+}
+
+export async function saveSetListTrackTranspose(input: {
+  ownerId: string;
+  setListId: string;
+  setListTrackId: string;
+  transposeSemitones: number;
+}): Promise<void> {
+  const ownerId = requireId(input.ownerId, "ownerId");
+  const setListId = requireId(input.setListId, "setListId");
+  const setListTrackId = requireId(input.setListTrackId, "setListTrackId");
+
+  if (
+    !Number.isInteger(input.transposeSemitones) ||
+    Math.abs(input.transposeSemitones) > MAX_SETLIST_TRANSPOSE
+  ) {
+    throw new SetListServiceError("INVALID_INPUT", "Transpose is invalid.");
+  }
+
+  await runSerializableTransaction(async (transaction) => {
+    const item = await transaction.setListTrack.findFirst({
+      where: {
+        id: setListTrackId,
+        setListId,
+        setList: { ownerId },
+      },
+      select: { id: true, settings: true },
+    });
+
+    if (!item) {
+      throw new SetListServiceError("NOT_FOUND", "Setlist track not found.");
+    }
+
+    if (parseSetListTrackTranspose(item.settings) === input.transposeSemitones) {
+      return;
+    }
+
+    await transaction.setListTrack.update({
+      where: { id: item.id },
+      data: {
+        settings: mergeSetListTrackTranspose(
+          item.settings,
+          input.transposeSemitones,
         ) as Prisma.InputJsonObject,
       },
     });
@@ -845,6 +895,7 @@ export const SetListService = {
   removeTrackFromSetList,
   reorderSetListTracks,
   saveSetListTrackArrangement,
+  saveSetListTrackTranspose,
   searchTracksForSetList,
   updateSetListDetails,
 };

@@ -4,6 +4,13 @@ export type EventPlaylistData = {
   title: string;
   description: string | null;
   trackCount: number;
+  transposedTracks: Array<{
+    id: string;
+    title: string;
+    baseKey: string;
+    key: string;
+    transposeSemitones: number;
+  }>;
   band: {
     id: string;
     name: string;
