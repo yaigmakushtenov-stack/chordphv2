@@ -54,60 +54,83 @@ type BandDetailProps = {
 };
 
 export function BandDetail({ band }: BandDetailProps) {
+  const [isMembersExpanded, setIsMembersExpanded] = useState(false);
+
   return (
     <div className="grid gap-8">
-      <section className="grid gap-4" aria-label="Band members">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-[15px] font-bold">Members</h2>
-            <p className="mt-1 text-[12px] text-[#717171] dark:text-[#a1a1aa]">
+      <section aria-label="Band members">
+        <button
+          type="button"
+          aria-expanded={isMembersExpanded}
+          aria-controls="band-members-panel"
+          onClick={() => setIsMembersExpanded((current) => !current)}
+          className="flex w-full items-center justify-between gap-4 rounded-xl border border-[#e2e2e2] bg-[#fafafa] px-4 py-3 text-left transition hover:border-[#ed1746]/60 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#303034] dark:bg-[#18181b] dark:hover:border-[#ed1746]/60 dark:hover:bg-[#202023]"
+        >
+          <span>
+            <span className="block text-[15px] font-bold">Members</span>
+            <span className="mt-1 block text-[12px] text-[#717171] dark:text-[#a1a1aa]">
               {band.members.length}{" "}
               {band.members.length === 1 ? "member" : "members"}
-            </p>
-          </div>
-          <GroupPermissionGuard
-            permission={GroupPermission.INVITE_MEMBERS}
-            role={band.currentUserRole}
+            </span>
+          </span>
+          <span
+            aria-hidden="true"
+            className={`text-[20px] text-[#717171] transition-transform dark:text-[#a1a1aa] ${
+              isMembersExpanded ? "rotate-180" : ""
+            }`}
           >
-            <AddMemberForm groupId={band.id} />
-          </GroupPermissionGuard>
-        </div>
+            ⌄
+          </span>
+        </button>
 
-        <div className="divide-y divide-[#e9e9e9] border-y border-[#e9e9e9] dark:divide-[#303034] dark:border-[#303034]">
-          {band.members.map((member) => (
-            <div
-              key={member.id}
-              className="grid gap-3 px-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-3"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <MemberAvatar image={member.image} name={member.name} />
-                <span className="min-w-0">
-                  <span className="block truncate text-[15px] font-bold">
-                    {member.name}
-                  </span>
-                  <span className="mt-1 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
-                    {member.email}
-                  </span>
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                <span className="rounded-full bg-[#f1f1f1] px-3 py-1.5 text-[11px] font-bold dark:bg-[#28282c]">
-                  {member.instrument
-                    ? formatGroupInstrument(member.instrument)
-                    : "No instrument"}
-                </span>
-                <span className="rounded-full bg-[#f1f1f1] px-3 py-1.5 text-[11px] font-bold dark:bg-[#28282c]">
-                  {formatRole(member.role)}
-                </span>
-                {member.status !== "ACCEPTED" ? (
-                  <span className="rounded-full border border-[#ed1746]/30 px-3 py-1.5 text-[11px] font-bold text-[#ed1746]">
-                    Pending
-                  </span>
-                ) : null}
-              </div>
+        {isMembersExpanded ? (
+          <div id="band-members-panel" className="mt-4 grid gap-4">
+            <div className="flex justify-end">
+              <GroupPermissionGuard
+                permission={GroupPermission.INVITE_MEMBERS}
+                role={band.currentUserRole}
+              >
+                <AddMemberForm groupId={band.id} />
+              </GroupPermissionGuard>
             </div>
-          ))}
-        </div>
+
+            <div className="divide-y divide-[#e9e9e9] border-y border-[#e9e9e9] dark:divide-[#303034] dark:border-[#303034]">
+              {band.members.map((member) => (
+                <div
+                  key={member.id}
+                  className="grid gap-3 px-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-3"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <MemberAvatar image={member.image} name={member.name} />
+                    <span className="min-w-0">
+                      <span className="block truncate text-[15px] font-bold">
+                        {member.name}
+                      </span>
+                      <span className="mt-1 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
+                        {member.email}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <span className="rounded-full bg-[#f1f1f1] px-3 py-1.5 text-[11px] font-bold dark:bg-[#28282c]">
+                      {member.instrument
+                        ? formatGroupInstrument(member.instrument)
+                        : "No instrument"}
+                    </span>
+                    <span className="rounded-full bg-[#f1f1f1] px-3 py-1.5 text-[11px] font-bold dark:bg-[#28282c]">
+                      {formatRole(member.role)}
+                    </span>
+                    {member.status !== "ACCEPTED" ? (
+                      <span className="rounded-full border border-[#ed1746]/30 px-3 py-1.5 text-[11px] font-bold text-[#ed1746]">
+                        Pending
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="grid gap-4" aria-label="Band events">

@@ -24,7 +24,7 @@ export default async function EventsPage() {
   }
 
   const events = (await EventService.listEventsForUser(session.user.id)).map(
-    toEventLibraryItem,
+    (event) => toEventLibraryItem(event, session.user.id),
   );
 
   return (
@@ -41,7 +41,7 @@ export default async function EventsPage() {
   );
 }
 
-function toEventLibraryItem(event: EventSummaryRecord) {
+function toEventLibraryItem(event: EventSummaryRecord, userId: string) {
   return {
     id: event.id,
     title: event.title,
@@ -50,5 +50,6 @@ function toEventLibraryItem(event: EventSummaryRecord) {
     place: event.place,
     locationAddress: event.locationAddress,
     setListCount: event._count.eventSetLists,
+    isOwner: event.ownerId === userId,
   };
 }

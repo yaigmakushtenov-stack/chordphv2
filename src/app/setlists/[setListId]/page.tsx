@@ -8,6 +8,8 @@ import { SetListDetailsDrawer } from "@/app/setlists/_components/setlist-details
 import { AppShell } from "@/components/shared/app-shell";
 import { BackLink } from "@/components/shared/back-link";
 import { Dashboard } from "@/components/shared/dashboard";
+import { PracticeResumeTracker } from "@/components/shared/practice-resume-tracker";
+import { ShareLinkButton } from "@/components/shared/share-link-button";
 import { auth } from "@/lib/auth";
 import {
   getTransposedSetListKey,
@@ -81,6 +83,17 @@ export default async function SetListPage({
 
   return (
     <AppShell documentScroll>
+      <PracticeResumeTracker
+        item={{
+          href: `/setlists/${data.id}`,
+          id: data.id,
+          key: data.tracks.find((track) => track.trackId)?.key ?? null,
+          subtitle: `${data.tracks.length} ${data.tracks.length === 1 ? "track" : "tracks"}`,
+          tempo: null,
+          title: data.title,
+          type: "setlist",
+        }}
+      />
       <Dashboard
         documentScroll
         actions={
@@ -94,14 +107,20 @@ export default async function SetListPage({
         headerNavigation={
           <div className="flex items-center justify-between gap-3">
             <BackLink href="/setlists">All setlists</BackLink>
-            <SetListDetailsDrawer
-              mode="edit"
-              setList={{
-                id: data.id,
-                title: data.title,
-                description: data.description,
-              }}
-            />
+            <div className="flex items-center gap-2">
+              <ShareLinkButton
+                path={`/setlists/${data.id}`}
+                title={`${data.title} · ChordPH`}
+              />
+              <SetListDetailsDrawer
+                mode="edit"
+                setList={{
+                  id: data.id,
+                  title: data.title,
+                  description: data.description,
+                }}
+              />
+            </div>
           </div>
         }
         eyebrow={`SETLIST · ${data.tracks.length} ${

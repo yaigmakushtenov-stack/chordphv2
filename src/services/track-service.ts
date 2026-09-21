@@ -88,6 +88,8 @@ const browseTrackSelect = {
   artistName: true,
   key: true,
   tuning: true,
+  youtubeLink: true,
+  spotifyLink: true,
 } satisfies Prisma.TrackSelect;
 
 const dashboardPublicTrackSelect = {
@@ -95,6 +97,9 @@ const dashboardPublicTrackSelect = {
   title: true,
   artistName: true,
   key: true,
+  createdAt: true,
+  youtubeLink: true,
+  spotifyLink: true,
   annotation: {
     select: {
       type: true,
@@ -364,8 +369,8 @@ export async function listDashboardPublicTracks(): Promise<
       annotation: { isNot: null },
     },
     select: dashboardPublicTrackSelect,
-    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-    take: 6,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 12,
   });
 }
 

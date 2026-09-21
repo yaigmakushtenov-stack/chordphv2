@@ -5,12 +5,14 @@ import { Dashboard } from "@/components/shared/dashboard";
 import { DashboardHome } from "@/app/_components/dashboard-home";
 import { AppShell } from "@/components/shared/app-shell";
 import { auth } from "@/lib/auth";
-import {
-  MusicService,
-  type MusicFileSearchResult,
-} from "@/services/music-service";
+import { EventService, type EventDetailRecord } from "@/services/event-service";
+import { GroupService } from "@/services/group-service";
+import { SetListService } from "@/services/setlist-service";
 import { TrackService } from "@/services/track-service";
-import type { MusicFileListItemData } from "@/types/music";
+import type {
+  DashboardActivityItem,
+  DashboardNextEvent,
+} from "@/types/dashboard";
 import type { DashboardPublicTrackData } from "@/types/track";
 
 export const metadata: Metadata = {
@@ -19,36 +21,58 @@ export const metadata: Metadata = {
     "Explore guitar chords, tabs, and lyrics for OPM favorites and global hits.",
 };
 
-const NEWEST_SONGS_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+const ACTIVITY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+const ACTIVITY_LIMIT = 8;
 
 export default async function Home() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  const [libraryItems, publicTracks] = await Promise.all([
-    session?.user?.id
-      ? MusicService.listReadyMusicFiles({
-          ownerId: session.user.id,
-          sort: "latest",
-        }).then((files) => files.map(toMusicFileListItemData))
-      : Promise.resolve([]),
+  const [publicTracks, events, setLists, groupMemberships] =
+    await Promise.all([
     TrackService.listDashboardPublicTracks().then((tracks) =>
       tracks.flatMap((track): DashboardPublicTrackData[] =>
         track.annotation
           ? [
               {
+                createdAt: track.createdAt.toISOString(),
                 id: track.id,
                 title: track.title,
                 artistName: track.artistName,
                 key: track.key,
                 annotationType: track.annotation.type,
+                youtubeLink: track.youtubeLink,
+                spotifyLink: track.spotifyLink,
               },
             ]
           : [],
       ),
     ),
+    session?.user?.id
+      ? EventService.listEventsForUser(session.user.id)
+      : Promise.resolve([]),
+    session?.user?.id
+      ? SetListService.listSetListsForUser(session.user.id)
+      : Promise.resolve([]),
+    session?.user?.id
+      ? GroupService.listGroupsForUser(session.user.id)
+      : Promise.resolve([]),
   ]);
-  const newestSongs = libraryItems.filter(isNewestSong);
+  const now = new Date();
+  const nextEventSummary = events.find((event) => isUpcomingEvent(event, now));
+  const nextEventDetail =
+    session?.user?.id && nextEventSummary
+      ? await EventService.getEventDetailForUser(
+          session.user.id,
+          nextEventSummary.id,
+        )
+      : null;
+  const activityItems = buildActivityItems({
+    events,
+    groupMemberships,
+    now,
+    setLists,
+  });
 
   return (
     <AppShell mobileDocumentScroll autoHideMobileHeader>
@@ -56,10 +80,11 @@ export default async function Home() {
         mobileDocumentScroll
         eyebrow="CHORDPH - MADE IN THE PHILIPPINES"
         title="Dashboard"
-        description="Create track annotations and keep your chords, lyrics, references, and practice library in one workspace."
+        description="Resume practice, catch up on band activity, and prepare for what you’re playing next."
       >
         <DashboardHome
-          initialNewestSongs={newestSongs}
+          activityItems={activityItems}
+          nextEvent={toDashboardNextEvent(nextEventDetail)}
           publicTracks={publicTracks}
         />
       </Dashboard>
@@ -67,44 +92,84 @@ export default async function Home() {
   );
 }
 
-function toMusicFileListItemData(
-  file: MusicFileSearchResult,
-): MusicFileListItemData {
-  return {
-    id: file.id,
-    title: file.title || file.originalFileName,
-    artist: file.artist,
-    album: file.album,
-    originalFileName: file.originalFileName,
-    contentType: file.contentType,
-    sourceSizeBytes: file.sourceSizeBytes,
-    storedSizeBytes: file.storedSizeBytes,
-    durationSeconds: getDurationSeconds(file.metadata),
-    playbackUrl: `/music/files/${encodeURIComponent(file.id)}/play`,
-    createdAt: file.createdAt.toISOString(),
-    uploadedAt: file.uploadedAt?.toISOString() ?? null,
-  };
+function isUpcomingEvent(
+  event: Awaited<ReturnType<typeof EventService.listEventsForUser>>[number],
+  now: Date,
+): boolean {
+  if (event.endDate) {
+    return event.endDate.getTime() >= now.getTime();
+  }
+
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+
+  return event.startDate.getTime() >= startOfToday.getTime();
 }
 
-function isNewestSong(file: MusicFileListItemData) {
-  return (
-    Date.now() - new Date(file.uploadedAt ?? file.createdAt).getTime() <=
-    NEWEST_SONGS_WINDOW_MS
-  );
-}
-
-function getDurationSeconds(metadata: unknown) {
-  if (
-    typeof metadata !== "object" ||
-    metadata === null ||
-    Array.isArray(metadata)
-  ) {
+function toDashboardNextEvent(
+  event: EventDetailRecord | null,
+): DashboardNextEvent | null {
+  if (!event) {
     return null;
   }
 
-  const value = (metadata as Record<string, unknown>).durationSeconds;
+  return {
+    id: event.id,
+    place: event.place,
+    playlists: event.eventSetLists.map((playlist) => ({
+      bandName: playlist.eventGroupSetLists[0]?.group.name ?? null,
+      id: playlist.id,
+      orderNumber: playlist.orderNumber,
+      title: playlist.setList.title,
+      trackCount: playlist.setList._count.tracks,
+    })),
+    startDate: event.startDate.toISOString(),
+    title: event.title,
+  };
+}
 
-  return typeof value === "number" && Number.isFinite(value) && value >= 0
-    ? value
-    : null;
+function buildActivityItems({
+  events,
+  groupMemberships,
+  now,
+  setLists,
+}: {
+  events: Awaited<ReturnType<typeof EventService.listEventsForUser>>;
+  groupMemberships: Awaited<ReturnType<typeof GroupService.listGroupsForUser>>;
+  now: Date;
+  setLists: Awaited<ReturnType<typeof SetListService.listSetListsForUser>>;
+}): DashboardActivityItem[] {
+  const cutoff = now.getTime() - ACTIVITY_WINDOW_MS;
+  const items: DashboardActivityItem[] = [
+    ...events.map((event) => ({
+      href: `/events/${event.id}`,
+      id: `event-${event.id}`,
+      source: "event" as const,
+      timestamp: event.updatedAt.toISOString(),
+      title: `${event.title} event updated`,
+    })),
+    ...setLists.map((setList) => ({
+      href: `/setlists/${setList.id}`,
+      id: `setlist-${setList.id}`,
+      source: "setlist" as const,
+      timestamp: setList.updatedAt.toISOString(),
+      title: `${setList.title} setlist updated`,
+    })),
+    ...groupMemberships.map((membership) => ({
+      href: `/bands/${membership.group.id}`,
+      id: `band-${membership.group.id}`,
+      source: "band" as const,
+      timestamp: membership.group.updatedAt.toISOString(),
+      title: `${membership.group.name} band updated`,
+    })),
+  ];
+
+  return items
+    .filter((item) => new Date(item.timestamp).getTime() >= cutoff)
+    .sort(
+      (left, right) =>
+        new Date(right.timestamp).getTime() -
+        new Date(left.timestamp).getTime(),
+    )
+    .slice(0, ACTIVITY_LIMIT);
 }

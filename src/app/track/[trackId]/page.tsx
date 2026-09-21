@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { AppShell } from "@/components/shared/app-shell";
 import { AnnotationViewer } from "@/app/track/_components/annotation-viewer";
+import { PracticeResumeTracker } from "@/components/shared/practice-resume-tracker";
 import { auth } from "@/lib/auth";
 import { SetListService } from "@/services/setlist-service";
 import { TrackService, type AnnotationTrack } from "@/services/track-service";
@@ -38,6 +39,17 @@ export default async function TrackPage({
 
   return (
     <AppShell>
+      <PracticeResumeTracker
+        item={{
+          href: `/track/${track.id}#song-chart`,
+          id: track.id,
+          key: track.key,
+          subtitle: track.artistName,
+          tempo: track.tempo,
+          title: track.title,
+          type: "track",
+        }}
+      />
       <AnnotationViewer
         quickAddSetLists={quickAddSetLists}
         track={toViewerData(track, {

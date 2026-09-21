@@ -109,12 +109,17 @@ export type TrackBrowseItemData = {
   tuning: string;
   isOwnerTrack: boolean;
   isInSetList?: boolean;
+  youtubeLink?: string | null;
+  spotifyLink?: string | null;
 };
 
 export type DashboardPublicTrackData = {
+  createdAt: string;
   id: string;
   title: string;
   artistName: string;
   key: string;
   annotationType: "VOCALS" | "CHORDS" | "TAB" | "BASS" | "DRUMS";
+  youtubeLink: string | null;
+  spotifyLink: string | null;
 };

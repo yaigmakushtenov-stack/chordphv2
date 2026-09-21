@@ -17,6 +17,7 @@ const MAX_EVENT_SETLISTS = 100;
 
 const eventSummarySelect = {
   id: true,
+  ownerId: true,
   title: true,
   description: true,
   startDate: true,

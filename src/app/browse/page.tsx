@@ -31,6 +31,8 @@ export default async function BrowsePage({
     key: track.key,
     tuning: track.tuning,
     isOwnerTrack: track.ownerId === viewerId,
+    youtubeLink: track.youtubeLink,
+    spotifyLink: track.spotifyLink,
   }));
 
   return (

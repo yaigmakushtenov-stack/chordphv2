@@ -116,7 +116,7 @@ export function NameDetailsDrawer(props: NameDetailsDrawerProps) {
     });
   }
 
-  const drawerTitleId = `${props.entity}-details-drawer-title`;
+  const drawerTitleId = `${props.entity}-${props.id}-details-drawer-title`;
 
   return (
     <>

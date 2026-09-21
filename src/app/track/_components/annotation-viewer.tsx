@@ -13,6 +13,7 @@ import { BackButton } from "@/components/shared/back-button";
 import { BackLink } from "@/components/shared/back-link";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
 import { SongChart, parseSongChartSource } from "@/components/shared/chords/song-chart";
+import { ShareLinkButton } from "@/components/shared/share-link-button";
 import { showToast } from "@/components/shared/toast";
 import { MAX_SETLIST_TRANSPOSE } from "@/lib/setlists/setlist-track-settings";
 
@@ -205,23 +206,6 @@ export function AnnotationViewer({
     });
   }
 
-  async function handleCopyLink(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      showToast({
-        title: "Public link copied",
-        description: "Anyone with this link can view the annotation.",
-        tone: "success",
-      });
-    } catch {
-      showToast({
-        title: "Unable to copy the link",
-        description: "Copy the address from your browser instead.",
-        tone: "error",
-      });
-    }
-  }
-
   return (
     <div className="grid h-full min-h-0 w-full overflow-y-auto bg-white dark:bg-[#121214] xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-hidden">
       <ChordFullscreenPerformanceLauncher
@@ -306,17 +290,14 @@ export function AnnotationViewer({
           </div>
           {!setListContext ? (
             <div className="flex flex-wrap gap-2">
+              {publicityStatus === "APPROVED" ? (
+                <ShareLinkButton
+                  path={`/track/${track.id}#song-chart`}
+                  title={`${track.title} by ${track.artistName} · ChordPH`}
+                />
+              ) : null}
               {track.isOwner ? (
                 <>
-                  {publicityStatus === "APPROVED" ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleCopyLink()}
-                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-[#d9d9d9] px-4 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
-                    >
-                      Copy public link
-                    </button>
-                  ) : null}
                   {publicityStatus === "PRIVATE" ||
                   publicityStatus === "REJECTED" ? (
                     <button
@@ -383,7 +364,10 @@ export function AnnotationViewer({
         ) : null}
 
         {source.trim() ? (
-          <div className="min-w-0 overflow-x-hidden text-[12px] sm:text-[13px]">
+          <div
+            id="song-chart"
+            className="min-w-0 scroll-mt-4 overflow-x-hidden text-[12px] sm:text-[13px]"
+          >
             <SongChart
               sections={chartSections}
               renderChord={(value) => (

@@ -195,6 +195,27 @@ export function TrackBrowser({
                       {track.isOwnerTrack ? "Your track" : "Public"}
                     </span>
                   </Link>
+                  {!setList && (track.youtubeLink || track.spotifyLink) ? (
+                    <div
+                      className="flex shrink-0 items-center gap-1.5"
+                      aria-label="Listen to this song"
+                    >
+                      {track.youtubeLink ? (
+                        <ExternalTrackLink
+                          href={track.youtubeLink}
+                          provider="youtube"
+                          trackTitle={track.title}
+                        />
+                      ) : null}
+                      {track.spotifyLink ? (
+                        <ExternalTrackLink
+                          href={track.spotifyLink}
+                          provider="spotify"
+                          trackTitle={track.title}
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
                   {setList ? (
                     <button
                       type="button"
@@ -229,6 +250,62 @@ export function TrackBrowser({
         )}
       </section>
     </div>
+  );
+}
+
+function ExternalTrackLink({
+  href,
+  provider,
+  trackTitle,
+}: {
+  href: string;
+  provider: "spotify" | "youtube";
+  trackTitle: string;
+}) {
+  const label = provider === "youtube" ? "YouTube" : "Spotify";
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`Listen to ${trackTitle} on ${label}`}
+      title={`Open ${label}`}
+      className={`flex size-9 items-center justify-center rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+        provider === "youtube"
+          ? "bg-red-50 text-red-600 hover:bg-red-600 hover:text-white dark:bg-red-950/45 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white"
+          : "bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white dark:bg-emerald-950/45 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white"
+      }`}
+    >
+      {provider === "youtube" ? (
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          className="size-4"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="6" width="18" height="12" rx="4" />
+          <path d="m10 9 5 3-5 3V9Z" fill="currentColor" stroke="none" />
+        </svg>
+      ) : (
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          className="size-4"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M7.5 10c3.5-1 7.1-.7 10 .8M8 13c3-.7 6.3-.4 8.8.8M8.8 16c2.3-.5 4.8-.2 6.8.7" />
+        </svg>
+      )}
+    </a>
   );
 }
 

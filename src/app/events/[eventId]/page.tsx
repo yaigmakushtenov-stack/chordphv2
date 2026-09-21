@@ -7,6 +7,7 @@ import { AppShell } from "@/components/shared/app-shell";
 import { BackLink } from "@/components/shared/back-link";
 import { Dashboard } from "@/components/shared/dashboard";
 import { NameDetailsDrawer } from "@/components/shared/name-details-drawer";
+import { ShareLinkButton } from "@/components/shared/share-link-button";
 import { auth } from "@/lib/auth";
 import {
   getTransposedSetListKey,
@@ -73,9 +74,19 @@ export default async function EventDetailPage({
         headerNavigation={
           <div className="flex items-center justify-between gap-3">
             <BackLink href="/events">Events</BackLink>
-            {canManageEvent ? (
-              <NameDetailsDrawer entity="event" id={event.id} name={event.title} />
-            ) : null}
+            <div className="flex items-center gap-2">
+              <ShareLinkButton
+                path={`/events/${event.id}`}
+                title={`${event.title} · ChordPH`}
+              />
+              {canManageEvent ? (
+                <NameDetailsDrawer
+                  entity="event"
+                  id={event.id}
+                  name={event.title}
+                />
+              ) : null}
+            </div>
           </div>
         }
         eyebrow={`EVENT · ${formatDateTime(event.startDate)}`}

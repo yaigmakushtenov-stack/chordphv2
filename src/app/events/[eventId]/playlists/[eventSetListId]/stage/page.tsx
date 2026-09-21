@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { StageView } from "@/app/events/_components/stage-view";
+import { PracticeResumeTracker } from "@/components/shared/practice-resume-tracker";
 import {
   canViewStageTrack,
   EventService,
@@ -57,10 +58,24 @@ export default async function EventPlaylistStagePage({
     notFound();
   }
 
+  const playlist = toStagePlaylistData(stagePlaylist, session.user.id, access);
+  const firstAvailableTrack = playlist.tracks.find((track) => track.isAvailable);
+
   return (
-    <StageView
-      playlist={toStagePlaylistData(stagePlaylist, session.user.id, access)}
-    />
+    <>
+      <PracticeResumeTracker
+        item={{
+          href: `/events/${eventId}/playlists/${eventSetListId}/stage`,
+          id: playlist.id,
+          key: firstAvailableTrack?.key ?? null,
+          subtitle: playlist.eventTitle,
+          tempo: firstAvailableTrack?.tempo ?? null,
+          title: playlist.setListTitle,
+          type: "setlist",
+        }}
+      />
+      <StageView playlist={playlist} />
+    </>
   );
 }
 
