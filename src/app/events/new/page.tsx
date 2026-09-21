@@ -7,6 +7,7 @@ import { AppShell } from "@/components/shared/app-shell";
 import { BackLink } from "@/components/shared/back-link";
 import { Dashboard } from "@/components/shared/dashboard";
 import { auth } from "@/lib/auth";
+import { GroupService } from "@/services/group-service";
 
 export const metadata: Metadata = {
   title: "Create Event | ChordPH",
@@ -20,6 +21,13 @@ export default async function NewEventPage() {
     redirect("/login");
   }
 
+  const bands = (await GroupService.listGroupsForUser(session.user.id)).map(
+    (membership) => ({
+      id: membership.group.id,
+      name: membership.group.name,
+    }),
+  );
+
   return (
     <AppShell mobileDocumentScroll>
       <Dashboard
@@ -27,9 +35,9 @@ export default async function NewEventPage() {
         headerNavigation={<BackLink href="/events">Events</BackLink>}
         eyebrow="NEW EVENT"
         title="Create an event"
-        description="Set the date, time, and location. Setlists and bands can be attached from the event detail page later."
+        description="Set the date, time, location, and band. Setlists can be attached from the event detail page later."
       >
-        <EventCreateForm />
+        <EventCreateForm bands={bands} />
       </Dashboard>
     </AppShell>
   );

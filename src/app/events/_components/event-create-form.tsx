@@ -6,12 +6,18 @@ import { useRouter } from "next/navigation";
 import * as EventActions from "@/actions/event-actions";
 import { showToast } from "@/components/shared/toast";
 
-export function EventCreateForm() {
+type BandOption = {
+  id: string;
+  name: string;
+};
+
+export function EventCreateForm({ bands }: { bands: BandOption[] }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [startDate, setStartDate] = useState("");
   const [place, setPlace] = useState("");
   const [locationAddress, setLocationAddress] = useState("");
+  const [groupId, setGroupId] = useState("");
   const [isPending, startTransition] = useTransition();
   const timezone = useMemo(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -37,6 +43,7 @@ export function EventCreateForm() {
         title,
         startDate: parsedStartDate.toISOString(),
         place,
+        groupId: groupId || null,
         timezone,
         locationAddress,
       });
@@ -91,6 +98,25 @@ export function EventCreateForm() {
             placeholder="Main rehearsal room"
             className="h-12 rounded-xl border border-[#d9d9d9] bg-white px-3 text-[14px] font-medium outline-none transition focus:border-[#ed1746] focus:ring-3 focus:ring-[#ed1746]/10 dark:border-[#3a3a3f] dark:bg-[#202023] dark:focus:border-[#ed1746]"
           />
+        </label>
+
+        <label className="grid gap-1.5 text-[12px] font-bold lg:col-span-2">
+          Share with a band
+          <select
+            value={groupId}
+            onChange={(event) => setGroupId(event.target.value)}
+            className="h-12 rounded-xl border border-[#d9d9d9] bg-white px-3 text-[14px] font-medium outline-none transition focus:border-[#ed1746] focus:ring-3 focus:ring-[#ed1746]/10 dark:border-[#3a3a3f] dark:bg-[#202023] dark:focus:border-[#ed1746]"
+          >
+            <option value="">Private — only me</option>
+            {bands.map((band) => (
+              <option key={band.id} value={band.id}>
+                {band.name}
+              </option>
+            ))}
+          </select>
+          <span className="font-normal text-[#71717a] dark:text-[#a1a1aa]">
+            Accepted members of the selected band will see this event.
+          </span>
         </label>
 
         <label className="grid gap-1.5 text-[12px] font-bold lg:col-span-2">

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { Dashboard } from "@/components/shared/dashboard";
 import { DashboardHome } from "@/app/_components/dashboard-home";
 import { AppShell } from "@/components/shared/app-shell";
+import { ServerRefreshPulse } from "@/components/shared/server-refresh-pulse";
 import { auth } from "@/lib/auth";
 import { EventService, type EventDetailRecord } from "@/services/event-service";
 import { GroupService } from "@/services/group-service";
@@ -76,6 +77,7 @@ export default async function Home() {
 
   return (
     <AppShell mobileDocumentScroll autoHideMobileHeader>
+      {session?.user?.id ? <ServerRefreshPulse /> : null}
       <Dashboard
         mobileDocumentScroll
         eyebrow="CHORDPH - MADE IN THE PHILIPPINES"

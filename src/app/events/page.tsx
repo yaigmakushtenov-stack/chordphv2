@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { EventLibrary } from "@/app/events/_components/event-library";
 import { AppShell } from "@/components/shared/app-shell";
 import { Dashboard } from "@/components/shared/dashboard";
+import { ServerRefreshPulse } from "@/components/shared/server-refresh-pulse";
 import { auth } from "@/lib/auth";
 import {
   EventService,
@@ -29,6 +30,7 @@ export default async function EventsPage() {
 
   return (
     <AppShell mobileDocumentScroll>
+      <ServerRefreshPulse />
       <Dashboard
         mobileDocumentScroll
         eyebrow="YOUR EVENTS"

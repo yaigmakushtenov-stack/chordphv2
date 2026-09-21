@@ -194,6 +194,7 @@ export type CreateEventInput = {
   startDate: Date;
   endDate?: Date | null;
   place: string;
+  groupId?: string | null;
   timezone?: string;
   locationAddress?: string;
   latitude?: number | null;
@@ -223,6 +224,20 @@ export async function listEventsForUser(
     where: {
       OR: [
         { ownerId: normalizedUserId },
+        {
+          eventGroups: {
+            some: {
+              group: {
+                memberships: {
+                  some: {
+                    userId: normalizedUserId,
+                    status: GroupMembershipStatus.ACCEPTED,
+                  },
+                },
+              },
+            },
+          },
+        },
         {
           eventGroupSetLists: {
             some: {
@@ -282,6 +297,20 @@ export async function getEventDetailForUser(
       id: normalizedEventId,
       OR: [
         { ownerId: normalizedUserId },
+        {
+          eventGroups: {
+            some: {
+              group: {
+                memberships: {
+                  some: {
+                    userId: normalizedUserId,
+                    status: GroupMembershipStatus.ACCEPTED,
+                  },
+                },
+              },
+            },
+          },
+        },
         {
           eventGroupSetLists: {
             some: {
@@ -495,6 +524,9 @@ export async function createEvent(
 ): Promise<EventSummaryRecord> {
   const startDate = requireDate(input.startDate, "startDate");
   const endDate = optionalDate(input.endDate, "endDate");
+  const ownerId = requireId(input.ownerId, "ownerId");
+  const groupId =
+    input.groupId == null ? null : requireId(input.groupId, "groupId");
 
   if (endDate && endDate <= startDate) {
     throw new EventServiceError(
@@ -503,28 +535,61 @@ export async function createEvent(
     );
   }
 
-  return prisma.event.create({
-    data: {
-      ownerId: requireText(input.ownerId, "ownerId", 255),
-      title: requireText(input.title, "title", MAX_EVENT_TITLE_LENGTH),
-      description: optionalText(
-        input.description,
-        "description",
-        MAX_EVENT_DESCRIPTION_LENGTH,
-      ),
-      startDate,
-      endDate,
-      place: requireText(input.place, "place", MAX_LOCATION_TEXT_LENGTH),
-      timezone: optionalText(input.timezone, "timezone", MAX_TIMEZONE_LENGTH),
-      locationAddress: optionalText(
-        input.locationAddress,
-        "locationAddress",
-        MAX_LOCATION_TEXT_LENGTH,
-      ),
-      latitude: optionalCoordinate(input.latitude, "latitude", -90, 90),
-      longitude: optionalCoordinate(input.longitude, "longitude", -180, 180),
-    },
-    select: eventSummarySelect,
+  return prisma.$transaction(async (transaction) => {
+    if (groupId) {
+      const membership = await transaction.groupMembership.findUnique({
+        where: {
+          groupId_userId: {
+            groupId,
+            userId: ownerId,
+          },
+        },
+        select: { status: true },
+      });
+
+      if (membership?.status !== GroupMembershipStatus.ACCEPTED) {
+        throw new EventServiceError(
+          "FORBIDDEN",
+          "You do not have access to this band.",
+        );
+      }
+    }
+
+    return transaction.event.create({
+      data: {
+        ownerId,
+        title: requireText(input.title, "title", MAX_EVENT_TITLE_LENGTH),
+        description: optionalText(
+          input.description,
+          "description",
+          MAX_EVENT_DESCRIPTION_LENGTH,
+        ),
+        startDate,
+        endDate,
+        place: requireText(input.place, "place", MAX_LOCATION_TEXT_LENGTH),
+        timezone: optionalText(
+          input.timezone,
+          "timezone",
+          MAX_TIMEZONE_LENGTH,
+        ),
+        locationAddress: optionalText(
+          input.locationAddress,
+          "locationAddress",
+          MAX_LOCATION_TEXT_LENGTH,
+        ),
+        latitude: optionalCoordinate(input.latitude, "latitude", -90, 90),
+        longitude: optionalCoordinate(input.longitude, "longitude", -180, 180),
+        eventGroups: groupId
+          ? {
+              create: {
+                groupId,
+                orderNumber: 1,
+              },
+            }
+          : undefined,
+      },
+      select: eventSummarySelect,
+    });
   });
 }
 

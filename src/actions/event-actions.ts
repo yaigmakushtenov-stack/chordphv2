@@ -15,6 +15,7 @@ export type CreateEventActionInput = {
   startDate: string;
   endDate?: string;
   place: string;
+  groupId?: string | null;
   timezone?: string;
   locationAddress?: string;
   latitude?: number | null;
@@ -65,6 +66,7 @@ export async function createNew(
       startDate,
       endDate,
       place: input.place,
+      groupId: input.groupId,
       timezone: input.timezone,
       locationAddress: input.locationAddress,
       latitude: input.latitude,
@@ -72,6 +74,7 @@ export async function createNew(
     });
 
     revalidatePath("/events");
+    revalidatePath("/");
     return actionSuccess({ eventId: event.id });
   } catch (error: unknown) {
     if (!(error instanceof EventServiceError)) {
@@ -242,6 +245,7 @@ export async function deleteEvent(eventId: string): Promise<ActionResult<null>> 
     await EventService.deleteEvent({ eventId, ownerId: userId });
     revalidatePath("/events");
     revalidatePath("/bands");
+    revalidatePath("/");
     return actionSuccess(null);
   } catch (error: unknown) {
     return handleEventServiceError(error);
@@ -254,6 +258,7 @@ async function getAuthenticatedUserId(): Promise<string | null> {
 }
 
 function revalidateEvent(eventId: string): void {
+  revalidatePath("/");
   revalidatePath("/events");
   revalidatePath(`/events/${eventId}`);
 }
@@ -288,6 +293,7 @@ function isCreateEventActionInput(
     typeof value.place === "string" &&
     optionalString(value.description) &&
     optionalString(value.endDate) &&
+    optionalIdOrNull(value.groupId) &&
     optionalString(value.timezone) &&
     optionalString(value.locationAddress) &&
     optionalNumberOrNull(value.latitude) &&
@@ -323,6 +329,10 @@ function optionalString(value: unknown): boolean {
 
 function optionalNumberOrNull(value: unknown): boolean {
   return value === undefined || value === null || typeof value === "number";
+}
+
+function optionalIdOrNull(value: unknown): boolean {
+  return value === undefined || value === null || isId(value);
 }
 
 function isId(value: unknown): value is string {
