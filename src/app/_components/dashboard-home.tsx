@@ -43,13 +43,13 @@ export function DashboardHome({
   );
 
   return (
-    <div className="grid gap-8 pb-24 lg:pb-0">
+    <div className="grid w-full min-w-0 max-w-full gap-8 overflow-x-clip pb-24">
       <ContinuePracticeCard resumeItem={resumeItem} />
 
-      <div className="grid min-w-0 gap-5 lg:grid-cols-3 lg:items-stretch">
-        <NewestSongs newestSongs={newestSongs} />
+      <div className="grid w-full min-w-0 max-w-full gap-5 lg:grid-cols-3 lg:items-stretch">
         <NextEventCard event={nextEvent} />
         <ActivityFeed items={activityItems.slice(0, 4)} />
+        <NewestSongs newestSongs={newestSongs} />
       </div>
 
       <PublicSongs tracks={publicTracks.slice(0, 4)} />
@@ -64,7 +64,7 @@ function ContinuePracticeCard({
   resumeItem: PracticeResumeItem | null;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl bg-[linear-gradient(120deg,#ed1746_0%,#b8143a_55%,#71152c_100%)] text-white shadow-[0_18px_45px_rgba(237,23,70,0.2)]">
+    <section className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl bg-[linear-gradient(120deg,#ed1746_0%,#b8143a_55%,#71152c_100%)] text-white shadow-[0_18px_45px_rgba(237,23,70,0.2)]">
       <div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div className="min-w-0">
           <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/75">
@@ -137,7 +137,7 @@ function ActivityFeed({ items }: { items: DashboardActivityItem[] }) {
   return (
     <section
       aria-labelledby="activity-heading"
-      className="h-full rounded-2xl border border-[#e4e4e4] bg-[#fafafa] p-5 dark:border-[#303034] dark:bg-[#18181b]"
+      className="h-full w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-[#e4e4e4] bg-[#fafafa] p-5 dark:border-[#303034] dark:bg-[#18181b]"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -157,12 +157,12 @@ function ActivityFeed({ items }: { items: DashboardActivityItem[] }) {
       </div>
 
       {items.length ? (
-        <div className="-mx-1 mt-4 flex snap-x gap-3 overflow-x-auto px-1 pb-2 lg:mx-0 lg:grid lg:overflow-visible lg:px-0 lg:pb-0">
+        <div className="mt-4 grid min-w-0 gap-3">
           {items.map((item) => (
             <Link
               key={item.id}
               href={item.href}
-              className="group flex min-w-[260px] snap-start items-start gap-3 rounded-xl border border-[#e4e4e4] bg-white p-3 transition hover:border-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] lg:min-w-0 dark:border-[#303034] dark:bg-[#242428] dark:hover:border-[#ed1746]"
+              className="group flex min-w-0 max-w-full items-start gap-3 rounded-xl border border-[#e4e4e4] bg-white p-3 transition hover:border-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#303034] dark:bg-[#242428] dark:hover:border-[#ed1746]"
             >
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#ffe2e7] text-[#ed1746] dark:bg-[#3a1720] dark:text-[#fb7185]">
                 <DashboardIcon name={item.source} className="size-5" />
@@ -202,7 +202,7 @@ function ActivityFeed({ items }: { items: DashboardActivityItem[] }) {
 function NextEventCard({ event }: { event: DashboardNextEvent | null }) {
   if (!event) {
     return (
-      <section className="h-full rounded-2xl border border-[#e4e4e4] bg-[#fafafa] p-5 dark:border-[#303034] dark:bg-[#18181b]">
+      <section className="h-full w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-[#e4e4e4] bg-[#fafafa] p-5 dark:border-[#303034] dark:bg-[#18181b]">
         <div className="flex items-center gap-3">
           <span className="flex size-10 items-center justify-center rounded-xl bg-[#ffe2e7] text-[#ed1746] dark:bg-[#3a1720] dark:text-[#fb7185]">
             <DashboardIcon name="calendar" className="size-5" />
@@ -230,7 +230,7 @@ function NextEventCard({ event }: { event: DashboardNextEvent | null }) {
   const firstPlaylist = event.playlists[0] ?? null;
 
   return (
-    <section className="h-full overflow-hidden rounded-2xl border border-[#e4e4e4] bg-[#fafafa] dark:border-[#303034] dark:bg-[#18181b]">
+    <section className="h-full w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-[#e4e4e4] bg-[#fafafa] dark:border-[#303034] dark:bg-[#18181b]">
       <div className="border-b border-[#e8e8e8] p-5 dark:border-[#303034]">
         <div className="flex items-start gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#ffe2e7] text-[#ed1746] dark:bg-[#3a1720] dark:text-[#fb7185]">
@@ -311,7 +311,7 @@ function NewestSongs({
   newestSongs: DashboardPublicTrackData[];
 }) {
   return (
-    <section className="h-full rounded-2xl border border-[#e4e4e4] bg-[#fafafa] p-5 dark:border-[#303034] dark:bg-[#18181b]">
+    <section className="h-full w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-[#e4e4e4] bg-[#fafafa] p-5 dark:border-[#303034] dark:bg-[#18181b]">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-[22px] font-black tracking-[-0.03em]">
           Newest songs
@@ -448,7 +448,7 @@ function ExternalSongLink({
 
 function PublicSongs({ tracks }: { tracks: DashboardPublicTrackData[] }) {
   return (
-    <section>
+    <section className="w-full min-w-0 max-w-full overflow-hidden">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-[22px] font-black tracking-[-0.03em]">
           Approved public songs
@@ -489,6 +489,20 @@ function PublicSongs({ tracks }: { tracks: DashboardPublicTrackData[] }) {
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
+                {track.youtubeLink ? (
+                  <ExternalSongLink
+                    href={track.youtubeLink}
+                    provider="youtube"
+                    songTitle={track.title}
+                  />
+                ) : null}
+                {track.spotifyLink ? (
+                  <ExternalSongLink
+                    href={track.spotifyLink}
+                    provider="spotify"
+                    songTitle={track.title}
+                  />
+                ) : null}
                 <Link
                   href={`/track/${track.id}#song-chart`}
                   className="hidden rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-[#555] transition hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] sm:inline-flex dark:bg-[#28282c] dark:text-[#c4c4cc] dark:hover:text-[#fb7185]"
@@ -528,13 +542,13 @@ function QuickToolsDock() {
   return (
     <nav
       aria-label="Quick tools"
-      className="fixed bottom-3 left-1/2 z-30 grid w-[calc(100%_-_1.5rem)] max-w-[460px] -translate-x-1/2 grid-cols-4 gap-1 rounded-2xl border border-[#dedede] bg-white/95 p-2 shadow-[0_16px_50px_rgba(0,0,0,0.2)] backdrop-blur lg:static lg:w-full lg:max-w-none lg:translate-x-0 lg:rounded-xl lg:bg-[#fafafa] lg:shadow-none dark:border-[#343438] dark:bg-[#18181b]/95 lg:dark:bg-[#18181b]"
+      className="fixed bottom-3 left-1/2 z-30 grid w-[calc(100%_-_1.5rem)] max-w-[460px] -translate-x-1/2 grid-cols-4 gap-1 rounded-2xl border border-[#dedede] bg-white/95 p-2 shadow-[0_16px_50px_rgba(0,0,0,0.2)] backdrop-blur lg:left-[calc(50%+110px)] lg:w-[calc(100%_-_300px)] lg:max-w-[760px] lg:gap-2 lg:p-3 xl:left-[calc(50%+140px)] xl:max-w-[860px] dark:border-[#343438] dark:bg-[#18181b]/95"
     >
       {tools.map((tool) => (
         <Link
           key={tool.href}
           href={tool.href}
-          className="flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl px-1 py-2 text-[10px] font-bold text-[#5f5f5f] transition hover:bg-[#f2f2f2] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-[#ed1746] dark:text-[#c4c4cc] dark:hover:bg-[#28282c] dark:hover:text-[#fb7185]"
+          className="flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl px-1 py-2 text-[10px] font-bold text-[#5f5f5f] transition hover:bg-[#f2f2f2] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-[#ed1746] lg:flex-row lg:gap-2 lg:py-3 lg:text-[12px] dark:text-[#c4c4cc] dark:hover:bg-[#28282c] dark:hover:text-[#fb7185]"
         >
           <DashboardIcon name={tool.icon} className="size-5" />
           <span className="truncate">{tool.label}</span>
