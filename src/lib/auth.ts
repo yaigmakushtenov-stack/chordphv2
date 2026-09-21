@@ -10,16 +10,16 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
   user: {
-    modelName: "BetterAuthUser",
+    modelName: "betterAuthUser",
   },
   session: {
-    modelName: "BetterAuthSession",
+    modelName: "betterAuthSession",
   },
   account: {
-    modelName: "BetterAuthAccount",
+    modelName: "betterAuthAccount",
   },
   verification: {
-    modelName: "BetterAuthVerification",
+    modelName: "betterAuthVerification",
   },
   socialProviders: {
     google: {
