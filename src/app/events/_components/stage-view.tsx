@@ -1118,7 +1118,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
             </div>
           </div>
         ) : null}
-        <div className="flex min-w-0 items-center justify-between gap-1.5 sm:hidden">
+        <div className="flex min-w-0 items-center justify-between gap-1 sm:hidden">
           <button
             type="button"
             onClick={toggleAutoScroll}
@@ -1151,6 +1151,27 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
               )
             }
           />
+          <button
+            type="button"
+            onClick={() =>
+              setAccidentals((current) =>
+                current === "sharps" ? "flats" : "sharps",
+              )
+            }
+            className={`flex size-9 shrink-0 items-center justify-center rounded-full border text-[13px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+              isDark
+                ? "border-[#343740] bg-[#17191f] text-[#f5f3ed] hover:border-[#ed1746]"
+                : "border-[#d8d3c8] bg-white text-[#151515] hover:border-[#ed1746]"
+            }`}
+            aria-label={
+              accidentals === "sharps"
+                ? "Use flat chord names"
+                : "Use sharp chord names"
+            }
+            title={accidentals === "sharps" ? "Using sharps" : "Using flats"}
+          >
+            {accidentals === "sharps" ? "♯" : "♭"}
+          </button>
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen((current) => !current)}
