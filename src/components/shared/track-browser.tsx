@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import * as SetListActions from "@/actions/setlist-actions";
 import { BackLink } from "@/components/shared/back-link";
@@ -23,6 +23,8 @@ type TrackBrowserProps = {
 
 type TrackFilter = "all" | "owned" | "public";
 
+const MAX_TRACK_SUGGESTIONS = 6;
+
 export function TrackBrowser({
   initialQuery,
   isAuthenticated,
@@ -30,7 +32,10 @@ export function TrackBrowser({
   tracks,
 }: TrackBrowserProps) {
   const router = useRouter();
+  const searchFormRef = useRef<HTMLFormElement | null>(null);
   const [activeFilter, setActiveFilter] = useState<TrackFilter>("all");
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [addedTrackIds, setAddedTrackIds] = useState(
     () =>
       new Set(
@@ -41,6 +46,10 @@ export function TrackBrowser({
   );
   const [pendingTrackId, setPendingTrackId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const suggestions = useMemo(
+    () => getTrackSuggestions(tracks, searchQuery),
+    [searchQuery, tracks],
+  );
   const visibleTracks = tracks.filter((track) => {
     if (activeFilter === "owned") {
       return track.isOwnerTrack;
@@ -55,6 +64,35 @@ export function TrackBrowser({
   const clearSearchHref = setList
     ? `/setlists/${setList.id}/tracks`
     : "/browse";
+
+  useEffect(() => {
+    if (!isSuggestionsOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent): void {
+      if (
+        event.target instanceof Node &&
+        !searchFormRef.current?.contains(event.target)
+      ) {
+        setIsSuggestionsOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        setIsSuggestionsOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isSuggestionsOpen]);
 
   function handleAdd(trackId: string): void {
     if (!setList) {
@@ -83,7 +121,7 @@ export function TrackBrowser({
   }
 
   return (
-    <div className="flex flex-1 flex-col lg:min-h-0">
+    <div className="flex min-w-0 flex-1 flex-col lg:min-h-0">
       <header className="shrink-0 border-b border-[#ececec] px-4 pb-3 pt-4 sm:px-6 dark:border-[#29292c]">
         {setList ? (
           <div className="mb-4">
@@ -103,25 +141,73 @@ export function TrackBrowser({
           </div>
         </div>
 
-        <form method="get" action={setList ? undefined : "/browse"} className="mt-4 flex min-w-0 gap-2">
-          <label className="relative min-w-0 flex-1">
-            <span className="sr-only">Search tracks</span>
+        <form
+          ref={searchFormRef}
+          method="get"
+          action={setList ? undefined : "/browse"}
+          onSubmit={() => setIsSuggestionsOpen(false)}
+          className="relative mt-4 min-w-0"
+        >
+          <label className="relative block min-w-0">
+            <span className="sr-only">
+              Search tracks. Press Enter to view all results.
+            </span>
             <SearchIcon />
             <input
               type="search"
               name="q"
               maxLength={100}
-              defaultValue={initialQuery}
+              value={searchQuery}
+              autoComplete="off"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls="track-search-suggestions"
+              aria-expanded={isSuggestionsOpen && searchQuery.trim().length > 0}
+              onFocus={() => setIsSuggestionsOpen(true)}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setIsSuggestionsOpen(true);
+              }}
               placeholder="Search by track title or artist"
               className="h-12 w-full rounded-full border border-transparent bg-[#f1f1f1] pl-12 pr-4 text-[14px] font-medium outline-none transition focus:border-[#b8b8b8] focus:bg-white focus:ring-3 focus:ring-[#ed1746]/10 dark:bg-[#242427] dark:focus:border-[#55555b] dark:focus:bg-[#1d1d20]"
             />
           </label>
-          <button
-            type="submit"
-            className="inline-flex h-12 shrink-0 items-center justify-center rounded-full bg-[#111] px-5 text-[12px] font-bold text-white transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
-          >
-            Search
-          </button>
+
+          {isSuggestionsOpen && searchQuery.trim().length > 0 ? (
+            <div
+              id="track-search-suggestions"
+              role="listbox"
+              aria-label="Suggested tracks"
+              className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-[#dedede] bg-white p-2 shadow-xl dark:border-[#39393e] dark:bg-[#1d1d20]"
+            >
+              {suggestions.length ? (
+                suggestions.map((track) => (
+                  <Link
+                    key={track.id}
+                    href={`/track/${track.id}`}
+                    role="option"
+                    aria-selected="false"
+                    onClick={() => setIsSuggestionsOpen(false)}
+                    className="flex min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-[#f1f1f1] focus-visible:bg-[#f1f1f1] focus-visible:outline-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#29292d] dark:focus-visible:bg-[#29292d]"
+                  >
+                    <SmallTrackIcon />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-bold">
+                        {track.title}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[11px] text-[#666] dark:text-[#b4b4bc]">
+                        {track.artistName} · Key {track.key}
+                      </span>
+                    </span>
+                  </Link>
+                ))
+              ) : (
+                <p className="px-3 py-3 text-[12px] text-[#666] dark:text-[#b4b4bc]">
+                  No close matches in the loaded tracks. Press Enter to search.
+                </p>
+              )}
+            </div>
+          ) : null}
         </form>
 
         <div
@@ -197,7 +283,7 @@ export function TrackBrowser({
                   </Link>
                   {!setList && (track.youtubeLink || track.spotifyLink) ? (
                     <div
-                      className="flex shrink-0 items-center gap-1.5"
+                      className="ml-auto flex w-[78px] shrink-0 items-center justify-end gap-1.5"
                       aria-label="Listen to this song"
                     >
                       {track.youtubeLink ? (
@@ -231,11 +317,7 @@ export function TrackBrowser({
                     >
                       <AddStatusIcon pending={isCurrentPending} added={isAdded} />
                     </button>
-                  ) : (
-                    <span className="flex size-9 shrink-0 items-center justify-center text-[#777] transition group-hover:translate-x-0.5 group-hover:text-[#ed1746] dark:text-[#a1a1aa]">
-                      <ChevronIcon />
-                    </span>
-                  )}
+                  ) : null}
                 </article>
               );
             })}
@@ -308,7 +390,6 @@ function ExternalTrackLink({
     </a>
   );
 }
-
 function FilterButton({
   active,
   label,
@@ -349,6 +430,74 @@ function SearchIcon() {
       <path d="m16 16 4 4" />
     </svg>
   );
+}
+function SmallTrackIcon() {
+  return (
+    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#ededed] text-[#717171] dark:bg-[#29292d] dark:text-[#b4b4bc]">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className="size-4"
+      >
+        <path d="M17 4a1 1 0 0 0-1.2-.98l-7 1.4A1 1 0 0 0 8 5.4v8.28A3.4 3.4 0 0 0 6.5 13.3C4.57 13.3 3 14.58 3 16.15S4.57 19 6.5 19 10 17.73 10 16.15V9l5-1v4.68a3.4 3.4 0 0 0-1.5-.38c-1.93 0-3.5 1.28-3.5 2.85S11.57 18 13.5 18s3.5-1.27 3.5-2.85V4Z" />
+      </svg>
+    </span>
+  );
+}
+
+function getTrackSuggestions(
+  tracks: TrackBrowseItemData[],
+  query: string,
+): TrackBrowseItemData[] {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  return tracks
+    .map((track) => ({
+      score: getTrackMatchScore(track, normalizedQuery),
+      track,
+    }))
+    .filter(
+      (candidate): candidate is { score: number; track: TrackBrowseItemData } =>
+        candidate.score !== null,
+    )
+    .sort(
+      (left, right) =>
+        left.score - right.score ||
+        left.track.title.localeCompare(right.track.title),
+    )
+    .slice(0, MAX_TRACK_SUGGESTIONS)
+    .map(({ track }) => track);
+}
+
+function getTrackMatchScore(
+  track: TrackBrowseItemData,
+  normalizedQuery: string,
+): number | null {
+  const title = track.title.toLocaleLowerCase();
+  const artist = track.artistName.toLocaleLowerCase();
+
+  if (title.startsWith(normalizedQuery)) {
+    return 0;
+  }
+
+  if (title.includes(normalizedQuery)) {
+    return 1;
+  }
+
+  if (artist.startsWith(normalizedQuery)) {
+    return 2;
+  }
+
+  if (artist.includes(normalizedQuery)) {
+    return 3;
+  }
+
+  return null;
 }
 
 function TrackIcon() {
@@ -401,23 +550,6 @@ function AddStatusIcon({ pending, added }: { pending: boolean; added: boolean })
       strokeLinecap="round"
     >
       <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="size-5"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m9 18 6-6-6-6" />
     </svg>
   );
 }

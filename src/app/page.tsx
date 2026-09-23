@@ -76,11 +76,14 @@ export default async function Home() {
   });
 
   return (
-    <AppShell mobileDocumentScroll autoHideMobileHeader>
+    <AppShell
+      mobileDocumentScroll
+      autoHideMobileHeader
+      showAnnotateAction
+    >
       {session?.user?.id ? <ServerRefreshPulse /> : null}
       <Dashboard
         mobileDocumentScroll
-        eyebrow="CHORDPH - MADE IN THE PHILIPPINES"
         title="Dashboard"
         description="Resume practice, catch up on band activity, and prepare for what you’re playing next."
       >

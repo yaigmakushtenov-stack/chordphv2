@@ -31,9 +31,8 @@ export default async function AnnotationLibraryPage() {
   return (
     <AppShell>
       <Dashboard
-        eyebrow="YOUR ANNOTATIONS"
         title="Personal annotations"
-        description="Open your saved chord sheets for practice or return to the editor whenever you need to make changes."
+        description="Open your saved chord sheets for practice or return to the editor whenever you need to make changes. Adding an MP3 is optional."
       >
         <AnnotationLibrary items={items} />
       </Dashboard>

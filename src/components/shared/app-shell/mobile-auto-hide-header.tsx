@@ -41,7 +41,7 @@ export function MobileAutoHideHeader({
 
   return (
     <header
-      className={`shrink-0 border-b border-[#e5e5e5] bg-white px-3 py-2 transition-transform duration-300 dark:border-[#151515] dark:bg-black ${
+      className={`shrink-0 border-b border-[#e5e5e5] bg-white px-6 py-2 transition-transform duration-300 lg:px-3 dark:border-[#151515] dark:bg-black ${
         enabled
           ? `sticky top-0 z-40 lg:static lg:translate-y-0 ${
               isVisible ? "translate-y-0" : "-translate-y-full"

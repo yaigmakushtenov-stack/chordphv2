@@ -417,21 +417,22 @@ export function EventPlaylistEditor({
               type="button"
               disabled={isPending}
               onClick={handleEditingToggle}
-              className={`inline-flex h-9 items-center justify-center gap-2 justify-self-end rounded-full px-4 text-[11px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-50 ${
+              aria-label={isEditing ? "Done editing event playlists" : "Edit event playlists"}
+              title={isEditing ? "Done editing" : "Edit event playlists"}
+              className={`inline-flex size-9 items-center justify-center justify-self-end rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-50 ${
                 isEditing
                   ? "bg-[#111] text-white hover:bg-[#2c2c2c] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
                   : "border border-[#d9d9d9] hover:border-[#ed1746] hover:text-[#ed1746] dark:border-[#3a3a3f]"
               }`}
             >
               {isEditing ? <DoneIcon /> : <PencilIcon />}
-              {isEditing ? "Done" : "Edit"}
             </button>
           ) : null}
           <p className="col-span-2 text-[12px] text-[#717171] dark:text-[#a1a1aa]">
             {isEditing
               ? "Drag the handle to arrange playlists, assign bands, or remove playlists from this event."
               : canManage
-                ? "Playlists run from top to bottom. Choose Edit to change the plan."
+                ? "Playlists run from top to bottom."
                 : "Playlists assigned to your band are available for stage mode."}
           </p>
           {canManage && isEditing ? (

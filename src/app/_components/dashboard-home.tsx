@@ -43,7 +43,7 @@ export function DashboardHome({
   );
 
   return (
-    <div className="grid w-full min-w-0 max-w-full gap-8 overflow-x-clip pb-24">
+    <div className="grid w-full min-w-0 max-w-full gap-8 overflow-x-clip pb-24 md:pb-0">
       <ContinuePracticeCard resumeItem={resumeItem} />
 
       <div className="grid w-full min-w-0 max-w-full gap-5 lg:grid-cols-3 lg:items-stretch">
@@ -542,7 +542,7 @@ function QuickToolsDock() {
   return (
     <nav
       aria-label="Quick tools"
-      className="fixed bottom-3 left-1/2 z-30 grid w-[calc(100%_-_1.5rem)] max-w-[460px] -translate-x-1/2 grid-cols-4 gap-1 rounded-2xl border border-[#dedede] bg-white/95 p-2 shadow-[0_16px_50px_rgba(0,0,0,0.2)] backdrop-blur lg:left-[calc(50%+110px)] lg:w-[calc(100%_-_300px)] lg:max-w-[760px] lg:gap-2 lg:p-3 xl:left-[calc(50%+140px)] xl:max-w-[860px] dark:border-[#343438] dark:bg-[#18181b]/95"
+      className="fixed bottom-3 left-1/2 z-30 grid w-[calc(100%_-_1.5rem)] max-w-[460px] -translate-x-1/2 grid-cols-4 gap-1 rounded-2xl border border-[#dedede] bg-white/95 p-2 shadow-[0_16px_50px_rgba(0,0,0,0.2)] backdrop-blur md:hidden dark:border-[#343438] dark:bg-[#18181b]/95"
     >
       {tools.map((tool) => (
         <Link

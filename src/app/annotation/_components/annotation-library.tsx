@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { PersonalTrackListItem } from "@/types/track";
 
@@ -31,13 +31,9 @@ export function AnnotationLibrary({ items }: AnnotationLibraryProps) {
 
   return (
     <div className="grid gap-5">
-      <section className="flex flex-col gap-3 rounded-2xl border border-[#e4e4e4] bg-white p-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#303034] dark:bg-[#171719]">
-        <div>
-          <h2 className="text-[15px] font-bold">Personal annotations</h2>
-          <p className="mt-1 text-[12px] text-[#717171] dark:text-[#a1a1aa]">Every saved track appears here. Adding an MP3 is optional.</p>
-        </div>
-        <Link href="/track/new/annotate" className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]">Create annotation</Link>
-      </section>
+      <div className="flex justify-end">
+        <Link href="/track/new/annotate" className="inline-flex h-10 w-full shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] sm:w-auto">Create annotation</Link>
+      </div>
 
       {items.length ? (
         <section className="overflow-hidden rounded-2xl border border-[#e4e4e4] bg-white dark:border-[#303034] dark:bg-[#171719]">
@@ -54,25 +50,36 @@ export function AnnotationLibrary({ items }: AnnotationLibraryProps) {
           {visibleItems.length ? (
             <div className="divide-y divide-[#e9e9e9] dark:divide-[#303034]">
               {visibleItems.map((item) => (
-              <article key={item.id} className="flex flex-col gap-4 px-5 py-4 transition hover:bg-[#fafafa] sm:flex-row sm:items-center dark:hover:bg-[#1f1f22]">
-                <Link href={`/track/${item.id}`} className="min-w-0 flex-1 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed1746]">
-                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                    <h3 className="truncate text-[15px] font-bold hover:text-[#ed1746]">{item.title}</h3>
-                    <StatusBadge tone="owner">Your track</StatusBadge>
-                    <PublicationBadge item={item} />
+              <article key={item.id} className="min-w-0 px-5 py-4 transition hover:bg-[#fafafa] dark:hover:bg-[#1f1f22]">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Link
+                      href={`/track/${item.id}`}
+                      className="min-w-0 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed1746]"
+                    >
+                      <h3 className="truncate text-[15px] font-bold transition hover:text-[#ed1746]">
+                        {item.title}
+                      </h3>
+                    </Link>
+                    <PublicationStatusIcon item={item} />
                   </div>
                   <p className="mt-1 truncate text-[13px] text-[#666] dark:text-[#b4b4bc]">{item.artistName}</p>
                   <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-bold">
                     <span className="rounded-full bg-[#f1f1f1] px-2.5 py-1 dark:bg-[#28282c]">Key {item.key}</span>
                     <span className="rounded-full bg-[#f1f1f1] px-2.5 py-1 dark:bg-[#28282c]">{item.tuning}</span>
                     <span className="rounded-full bg-[#f1f1f1] px-2.5 py-1 dark:bg-[#28282c]">{item.hasAudio ? "MP3 attached" : "No MP3"}</span>
-                    {item.tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-[#fff0f3] px-2.5 py-1 text-[#c90f39] dark:bg-[#3a111d] dark:text-[#fb7185]">{tag}</span>)}
                   </div>
-                </Link>
-                <div className="flex shrink-0 gap-2">
-                  <Link href={`/track/${item.id}`} className="inline-flex h-9 items-center justify-center rounded-full bg-[#111] px-4 text-[11px] font-bold text-white transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]">View</Link>
-                  <Link href={`/track/${item.id}/annotate`} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#d9d9d9] px-3.5 text-[11px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"><EditPencilIcon />Edit</Link>
-                </div>
+                  {item.tags.length ? (
+                    <div className="mt-2 flex min-w-0 gap-1.5 overflow-x-auto pb-1 text-[10px] font-bold [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      {item.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="shrink-0 rounded-full bg-[#fff0f3] px-2.5 py-1 text-[#c90f39] dark:bg-[#3a111d] dark:text-[#fb7185]"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
               </article>
               ))}
             </div>
@@ -98,32 +105,64 @@ function isApprovedPublic(item: PersonalTrackListItem): boolean {
   return item.visibilityStatus === "PUBLIC" && item.publicityStatus === "APPROVED";
 }
 
-function PublicationBadge({ item }: { item: PersonalTrackListItem }) {
+function PublicationStatusIcon({ item }: { item: PersonalTrackListItem }) {
   if (isApprovedPublic(item)) {
-    return <StatusBadge tone="public">Approved public</StatusBadge>;
+    return (
+      <StatusIcon label="Approved public" tone="public">
+        <GlobeIcon />
+      </StatusIcon>
+    );
   }
 
   if (item.publicityStatus === "PENDING") {
-    return <StatusBadge tone="pending">Pending review</StatusBadge>;
+    return (
+      <StatusIcon label="Pending review" tone="pending">
+        <ClockIcon />
+      </StatusIcon>
+    );
   }
 
   if (item.publicityStatus === "REJECTED") {
-    return <StatusBadge tone="rejected">Changes needed</StatusBadge>;
+    return (
+      <StatusIcon label="Changes needed" tone="rejected">
+        <WarningIcon />
+      </StatusIcon>
+    );
   }
 
-  return <StatusBadge tone="private">Unpublished</StatusBadge>;
+  return (
+    <StatusIcon label="Unpublished" tone="private">
+      <LockIcon />
+    </StatusIcon>
+  );
 }
 
-function StatusBadge({ children, tone }: { children: string; tone: "owner" | "public" | "pending" | "rejected" | "private" }) {
+function StatusIcon({
+  children,
+  label,
+  tone,
+}: {
+  children: ReactNode;
+  label: string;
+  tone: "public" | "pending" | "rejected" | "private";
+}) {
   const toneClassName = {
-    owner: "bg-[#fff0f3] text-[#c90f39] dark:bg-[#3a111d] dark:text-[#fb7185]",
     public: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
     pending: "bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
     rejected: "bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300",
     private: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
   }[tone];
 
-  return <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${toneClassName}`}>{children}</span>;
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className={`flex size-6 shrink-0 items-center justify-center rounded-full ${toneClassName}`}
+    >
+      {children}
+    </span>
+  );
 }
 
 function LibraryFilterButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
@@ -141,11 +180,38 @@ function LibraryFilterButton({ active, label, onClick }: { active: boolean; labe
   );
 }
 
-function EditPencilIcon() {
+function GlobeIcon() {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m4 20 4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16 4 20Z" />
-      <path d="m14.5 6.5 3 3" />
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="10" width="14" height="10" rx="2" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
+
+function WarningIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.3 4.2 2.8 17.5A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.5L13.7 4.2a2 2 0 0 0-3.4 0Z" />
+      <path d="M12 9v4M12 17h.01" />
     </svg>
   );
 }

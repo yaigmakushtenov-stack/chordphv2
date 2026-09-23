@@ -36,6 +36,9 @@ import type { QuickAddSetListData } from "@/types/setlist";
 import type { AnnotationViewerData } from "@/types/track";
 import type { TrackPreference } from "@/types/track-preference";
 
+const MIN_CHART_FONT_SIZE = 11;
+const MAX_CHART_FONT_SIZE = 18;
+
 export function AnnotationViewer({
   quickAddSetLists,
   setListContext,
@@ -64,6 +67,7 @@ export function AnnotationViewer({
   );
   const [chordInstrument, setChordInstrument] =
     useState<TrackChordInstrument>("guitar");
+  const [chartFontSize, setChartFontSize] = useState(13);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
   const optionsPanelRef = useRef<HTMLDivElement>(null);
@@ -228,126 +232,191 @@ export function AnnotationViewer({
           ) : (
             <BackButton fallbackHref={track.isOwner ? "/annotation" : "/browse"} />
           )}
-          <div ref={optionsRef} className="relative shrink-0">
-            <button
-              ref={optionsTriggerRef}
-              type="button"
-              aria-label="Track options"
-              aria-haspopup="dialog"
-              aria-expanded={isOptionsOpen}
-              aria-controls={isOptionsOpen ? "track-options" : undefined}
-              onClick={() => setIsOptionsOpen((open) => !open)}
-              className="inline-flex size-9 items-center justify-center rounded-full border border-[#d9d9d9] transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
-            >
-              <EllipsisIcon />
-            </button>
-            {isOptionsOpen ? (
-              <div
-                ref={optionsPanelRef}
-                id="track-options"
-                role="dialog"
-                aria-label="Track options"
-                tabIndex={-1}
-                className="absolute right-0 top-full z-40 mt-2 w-56 rounded-xl border border-[#d9d9d9] bg-white p-1.5 shadow-xl dark:border-[#3a3a3f] dark:bg-[#242427]"
-              >
-                {setListContext || track.isOwner ? (
-                  <Link
-                    href={setListContext
-                      ? `/setlists/${setListContext.setListId}/tracks/${setListContext.setListTrackId}/edit`
-                      : `/track/${track.id}/annotate`}
-                    className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold transition hover:bg-[#f2f2f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#343438]"
-                  >
-                    Edit
-                  </Link>
-                ) : null}
-                {setListContext ? (
-                  <CopyArrangementToSetList context={setListContext} setLists={quickAddSetLists} />
-                ) : track.isAuthenticated ? (
-                  <QuickAddToSetList setLists={quickAddSetLists} trackId={track.id} />
-                ) : (
-                  <Link href="/login" className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold transition hover:bg-[#f2f2f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#343438]">Copy to setlist</Link>
-                )}
-              </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {!setListContext && publicityStatus === "APPROVED" ? (
+              <ShareLinkButton
+                iconOnly
+                path={`/track/${track.id}#song-chart`}
+                title={`${track.title} by ${track.artistName} · ChordPH`}
+              />
             ) : null}
+            <div ref={optionsRef} className="relative shrink-0">
+              <button
+                ref={optionsTriggerRef}
+                type="button"
+                aria-label="Track options"
+                aria-haspopup="dialog"
+                aria-expanded={isOptionsOpen}
+                aria-controls={isOptionsOpen ? "track-options" : undefined}
+                onClick={() => setIsOptionsOpen((open) => !open)}
+                className="inline-flex size-9 items-center justify-center rounded-full border border-[#d9d9d9] transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
+              >
+                <EllipsisIcon />
+              </button>
+              {isOptionsOpen ? (
+                <div
+                  ref={optionsPanelRef}
+                  id="track-options"
+                  role="dialog"
+                  aria-label="Track options"
+                  tabIndex={-1}
+                  className="absolute right-0 top-full z-40 mt-2 w-56 rounded-xl border border-[#d9d9d9] bg-white p-1.5 shadow-xl dark:border-[#3a3a3f] dark:bg-[#242427]"
+                >
+                  {setListContext || track.isOwner ? (
+                    <Link
+                      href={setListContext
+                        ? `/setlists/${setListContext.setListId}/tracks/${setListContext.setListTrackId}/edit`
+                        : `/track/${track.id}/annotate`}
+                      className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold transition hover:bg-[#f2f2f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#343438]"
+                    >
+                      Edit
+                    </Link>
+                  ) : null}
+                  {!setListContext && track.isOwner &&
+                  (publicityStatus === "PRIVATE" ||
+                    publicityStatus === "REJECTED") ? (
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        setIsOptionsOpen(false);
+                        handleReviewSubmission();
+                      }}
+                      className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold transition hover:bg-[#f2f2f2] disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#343438]"
+                    >
+                      {isPending ? "Submitting…" : "Submit for review"}
+                    </button>
+                  ) : null}
+                  {!setListContext &&
+                  track.isOwner &&
+                  publicityStatus === "PENDING" ? (
+                    <span className="flex w-full items-center px-3 py-2.5 text-left text-[11px] font-bold text-[#8a5a00] dark:text-[#facc15]">
+                      Pending admin review
+                    </span>
+                  ) : null}
+                  {!setListContext && !track.isOwner ? (
+                    track.isAuthenticated ? (
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => {
+                          setIsOptionsOpen(false);
+                          handleCopy();
+                        }}
+                        className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold transition hover:bg-[#f2f2f2] disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#343438]"
+                      >
+                        {isPending ? "Saving…" : "Save as personal copy"}
+                      </button>
+                    ) : (
+                      <Link
+                        href="/login"
+                        className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold transition hover:bg-[#f2f2f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#343438]"
+                      >
+                        Sign in to save a copy
+                      </Link>
+                    )
+                  ) : null}
+                  {setListContext ? (
+                    <CopyArrangementToSetList context={setListContext} setLists={quickAddSetLists} />
+                  ) : track.isAuthenticated ? (
+                    <QuickAddToSetList setLists={quickAddSetLists} trackId={track.id} />
+                  ) : (
+                    <Link href="/login" className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold transition hover:bg-[#f2f2f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#343438]">Copy to setlist</Link>
+                  )}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
-        <div className="flex flex-col gap-4 border-b border-[#e6e6e6] pb-5 sm:flex-row sm:items-start sm:justify-between dark:border-[#303034]">
+        <div className="border-b border-[#e6e6e6] pb-5 dark:border-[#303034]">
           <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#ed1746]">
-              {setListContext
-                ? "Setlist arrangement"
-                : track.isOwner
-                  ? "Personal chord sheet"
-                  : "Public chord sheet"}
-            </p>
-            <h2 className="mt-2 truncate text-2xl font-black">{track.title}</h2>
-            <p className="mt-1 text-[14px] text-[#666] dark:text-[#b4b4bc]">{track.artistName}</p>
+            <div className="flex min-w-0 items-center gap-2">
+              <h2 className="truncate text-2xl font-black">
+                {track.title}
+              </h2>
+              <TrackSheetIcon
+                isOwner={track.isOwner}
+                isSetList={Boolean(setListContext)}
+              />
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
+              <span className="text-[14px] text-[#666] dark:text-[#b4b4bc]">
+                {track.artistName}
+              </span>
+              <TrackMetadataSeparator />
+              <span className="font-black text-[#444] dark:text-[#d4d4d8]">
+                Key {displayKey}
+              </span>
+              {track.tempo !== null ? (
+                <>
+                  <TrackMetadataSeparator />
+                  <span className="font-bold text-[#666] dark:text-[#b4b4bc]">
+                    {track.tempo} BPM
+                  </span>
+                </>
+              ) : null}
+              {track.timeSignature ? (
+                <>
+                  <TrackMetadataSeparator />
+                  <span className="font-bold text-[#666] dark:text-[#b4b4bc]">
+                    {track.timeSignature}
+                  </span>
+                </>
+              ) : null}
+            </div>
             {setListContext?.arrangementLabel ? (
               <p className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#ed1746]">
                 {setListContext.arrangementLabel}
               </p>
             ) : null}
           </div>
-          {!setListContext ? (
-            <div className="flex flex-wrap gap-2">
-              {publicityStatus === "APPROVED" ? (
-                <ShareLinkButton
-                  path={`/track/${track.id}#song-chart`}
-                  title={`${track.title} by ${track.artistName} · ChordPH`}
-                />
-              ) : null}
-              {track.isOwner ? (
-                <>
-                  {publicityStatus === "PRIVATE" ||
-                  publicityStatus === "REJECTED" ? (
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={handleReviewSubmission}
-                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-[#d9d9d9] px-4 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
-                    >
-                      {isPending ? "Submitting…" : "Submit for review"}
-                    </button>
-                  ) : null}
-                  {publicityStatus === "PENDING" ? (
-                    <span className="inline-flex h-10 items-center rounded-full bg-[#fff4d6] px-4 text-[11px] font-bold text-[#8a5a00] dark:bg-[#3b2b08] dark:text-[#facc15]">
-                      Pending admin review
-                    </span>
-                  ) : null}
-                </>
-              ) : track.isAuthenticated ? (
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={handleCopy}
-                  className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-                >
-                  {isPending ? "Saving…" : "Save as personal copy"}
-                </button>
-              ) : (
-                <Link href="/login" className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]">Sign in to save a copy</Link>
-              )}
-            </div>
-          ) : null}
+          <TrackMediaReferences track={track} />
         </div>
 
         <div className="flex flex-wrap items-center gap-2 py-4">
-          <span className="rounded-full bg-[#111] px-3 py-1.5 text-[11px] font-bold text-white dark:bg-white dark:text-[#111]">Key {displayKey}</span>
           <div className="inline-flex h-9 items-center overflow-hidden rounded-full border border-[#dedede] bg-white dark:border-[#3a3a3f] dark:bg-[#202023]">
-            <span className="border-r border-[#dedede] px-3 text-[11px] font-black dark:border-[#3a3a3f]">Tr.</span>
-            <button type="button" disabled={isPending || transpose <= -MAX_SETLIST_TRANSPOSE} onClick={() => handleTransposeChange(transpose - 1)} className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]" aria-label="Transpose down one semitone">−</button>
-            <span className="min-w-8 text-center text-[12px] font-bold tabular-nums">{transpose}</span>
-            <button type="button" disabled={isPending || transpose >= MAX_SETLIST_TRANSPOSE} onClick={() => handleTransposeChange(transpose + 1)} className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]" aria-label="Transpose up one semitone">+</button>
+            <button type="button" disabled={isPending || transpose <= -MAX_SETLIST_TRANSPOSE} onClick={() => handleTransposeChange(transpose - 1)} className="flex h-full w-9 items-center justify-center text-[16px] font-black transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]" aria-label="Transpose down one semitone">−</button>
+            <span className="min-w-8 text-center text-[12px] font-black tabular-nums">{transpose}</span>
+            <button type="button" disabled={isPending || transpose >= MAX_SETLIST_TRANSPOSE} onClick={() => handleTransposeChange(transpose + 1)} className="flex h-full w-9 items-center justify-center text-[16px] font-black transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]" aria-label="Transpose up one semitone">+</button>
           </div>
-          <button type="button" disabled={isPending || transpose === 0} onClick={() => handleTransposeChange(0)} className="h-9 rounded-full border border-[#dedede] px-3 text-[11px] font-bold hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] dark:hover:bg-[#28282c]">Reset</button>
+          <div className="inline-flex h-9 items-center overflow-hidden rounded-full border border-[#dedede] bg-white dark:border-[#3a3a3f] dark:bg-[#202023]">
+            <button
+              type="button"
+              disabled={chartFontSize <= MIN_CHART_FONT_SIZE}
+              onClick={() =>
+                setChartFontSize((size) =>
+                  Math.max(MIN_CHART_FONT_SIZE, size - 1),
+                )
+              }
+              aria-label="Decrease chart text size"
+              className="flex h-full w-9 items-center justify-center text-[16px] font-black transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]"
+            >
+              −
+            </button>
+            <span className="min-w-8 text-center text-[12px] font-black">A</span>
+            <button
+              type="button"
+              disabled={chartFontSize >= MAX_CHART_FONT_SIZE}
+              onClick={() =>
+                setChartFontSize((size) =>
+                  Math.min(MAX_CHART_FONT_SIZE, size + 1),
+                )
+              }
+              aria-label="Increase chart text size"
+              className="flex h-full w-9 items-center justify-center text-[16px] font-black transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]"
+            >
+              +
+            </button>
+          </div>
           <button
             type="button"
             aria-label={accidentals === "sharps" ? "Sharps. Switch to flats" : "Flats. Switch to sharps"}
             title={accidentals === "sharps" ? "Sharps" : "Flats"}
             onClick={() => setAccidentals((current) => current === "sharps" ? "flats" : "sharps")}
-            className="inline-flex size-9 items-center justify-center rounded-full border border-[#dedede] bg-white text-[19px] font-bold leading-none transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] dark:bg-[#202023]"
+            className="inline-flex size-9 items-center justify-center gap-px rounded-full border border-[#dedede] bg-white text-[15px] font-black leading-none transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] dark:bg-[#202023]"
           >
-            {accidentals === "sharps" ? "♯" : "♭"}
+            <span className={accidentals === "sharps" ? "" : "opacity-35"}>♯</span>
+            <span className={accidentals === "flats" ? "" : "opacity-35"}>♭</span>
           </button>
         </div>
 
@@ -369,6 +438,7 @@ export function AnnotationViewer({
             className="min-w-0 scroll-mt-4 overflow-x-hidden text-[12px] sm:text-[13px]"
           >
             <SongChart
+              fontSize={`${chartFontSize}px`}
               sections={chartSections}
               renderChord={(value) => (
                 <ChordLine
@@ -403,18 +473,338 @@ export function AnnotationViewer({
           {track.tags.length ? <div className="mt-4 flex flex-wrap gap-1.5">{track.tags.map((tag) => <span key={tag} className="rounded-full bg-[#fff0f3] px-2.5 py-1 text-[10px] font-bold text-[#c90f39] dark:bg-[#3a111d] dark:text-[#fb7185]">{tag}</span>)}</div> : null}
         </section>
 
-        <section className="rounded-2xl border border-[#e4e4e4] bg-white p-5 dark:border-[#303034] dark:bg-[#171719]">
-          <h2 className="text-[14px] font-bold">Track references</h2>
-          {track.audio ? <audio controls preload="metadata" src={track.audio.playbackUrl} aria-label={`Audio player for ${track.title}`} className="mt-4 w-full" /> : <p className="mt-3 text-[12px] leading-5 text-[#666] dark:text-[#b4b4bc]">No MP3 attached. This does not affect the annotation.</p>}
-          <div className="mt-4 flex flex-wrap gap-2">
-            {track.youtubeLink ? <a href={track.youtubeLink} target="_blank" rel="noreferrer" className="rounded-full border border-[#dedede] px-3 py-2 text-[11px] font-bold hover:border-[#ed1746] hover:text-[#ed1746] dark:border-[#3a3a3f]">YouTube</a> : null}
-            {track.spotifyLink ? <a href={track.spotifyLink} target="_blank" rel="noreferrer" className="rounded-full border border-[#dedede] px-3 py-2 text-[11px] font-bold hover:border-[#ed1746] hover:text-[#ed1746] dark:border-[#3a3a3f]">Spotify</a> : null}
-          </div>
-        </section>
-
         {track.notes ? <section className="rounded-2xl border border-[#e4e4e4] bg-white p-5 dark:border-[#303034] dark:bg-[#171719]"><h2 className="text-[14px] font-bold">Private notes</h2><p className="mt-3 whitespace-pre-wrap text-[13px] leading-6 text-[#555] dark:text-[#c4c4cc]">{track.notes}</p></section> : null}
       </aside>
     </div>
+  );
+}
+
+function TrackMediaReferences({ track }: { track: AnnotationViewerData }) {
+  const [isYouTubePlayerOpen, setIsYouTubePlayerOpen] = useState(false);
+  const youtubeVideoId = track.youtubeLink
+    ? getYouTubeVideoId(track.youtubeLink)
+    : null;
+  const hasReferences = Boolean(
+    track.audio || track.youtubeLink || track.spotifyLink,
+  );
+
+  if (!hasReferences) {
+    return track.isOwner ? (
+      <Link
+        href={`/track/${track.id}/annotate#track-references`}
+        className="mt-4 flex items-center gap-3 rounded-xl border border-dashed border-[#c9c9c9] bg-[#fafafa] p-3 text-left transition hover:border-[#ed1746] hover:bg-[#fff7f8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#48484e] dark:bg-[#1d1d20] dark:hover:border-[#ed1746] dark:hover:bg-[#271217]"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-[#ed1746] shadow-sm dark:bg-[#29292d]">
+          <LinkAddIcon />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[12px] font-black text-[#171717] dark:text-white">
+            Add YouTube or Spotify link
+          </span>
+          <span className="mt-0.5 block text-[10px] text-[#777] dark:text-[#92929a]">
+            Add a listening reference for this track.
+          </span>
+        </span>
+      </Link>
+    ) : null;
+  }
+
+  return (
+    <div className="mt-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {track.youtubeLink ? (
+          youtubeVideoId ? (
+            <button
+              type="button"
+              aria-expanded={isYouTubePlayerOpen}
+              onClick={() => setIsYouTubePlayerOpen((open) => !open)}
+              className={`inline-flex h-9 items-center gap-2 rounded-full border px-3 text-[11px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+                isYouTubePlayerOpen
+                  ? "border-[#ff0000] bg-[#ff0000] text-white"
+                  : "border-red-200 bg-red-50 text-red-700 hover:border-[#ff0000] dark:border-red-950 dark:bg-red-950/30 dark:text-red-300"
+              }`}
+            >
+              <span className="flex size-5 items-center justify-center rounded-full bg-[#ff0000] text-white">
+                <YouTubeIcon />
+              </span>
+              {isYouTubePlayerOpen ? "Hide YouTube" : "Play YouTube"}
+            </button>
+          ) : (
+            <MediaExternalLink
+              href={track.youtubeLink}
+              label="Open YouTube"
+              provider="youtube"
+              trackTitle={track.title}
+            />
+          )
+        ) : null}
+        {track.spotifyLink ? (
+          <MediaExternalLink
+            href={track.spotifyLink}
+            label="Open Spotify"
+            provider="spotify"
+            trackTitle={track.title}
+          />
+        ) : null}
+        {track.audio ? (
+          <span className="inline-flex h-9 items-center gap-2 rounded-full border border-[#dedede] bg-white px-3 text-[11px] font-black text-[#555] dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-[#d4d4d8]">
+            <AudioIcon />
+            MP3 attached
+          </span>
+        ) : null}
+      </div>
+
+      {isYouTubePlayerOpen && youtubeVideoId ? (
+        <div className="mt-3 overflow-hidden rounded-xl border border-[#dedede] bg-black dark:border-[#3a3a3f]">
+          <iframe
+            src={`https://www.youtube.com/embed/${youtubeVideoId}?playsinline=1`}
+            title={`${track.title} on YouTube`}
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+            className="aspect-video min-h-[200px] w-full"
+          />
+        </div>
+      ) : null}
+
+      {track.audio ? (
+        <audio
+          controls
+          preload="metadata"
+          src={track.audio.playbackUrl}
+          aria-label={`Audio player for ${track.title}`}
+          className="mt-3 w-full"
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function TrackMetadataSeparator() {
+  return (
+    <span aria-hidden="true" className="size-1 rounded-full bg-[#c7c7c7] dark:bg-[#52525b]" />
+  );
+}
+
+function TrackSheetIcon({
+  isOwner,
+  isSetList,
+}: {
+  isOwner: boolean;
+  isSetList: boolean;
+}) {
+  const label = isSetList
+    ? "Setlist arrangement"
+    : isOwner
+      ? "Personal chord sheet"
+      : "Public chord sheet";
+
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#fff0f3] text-[#ed1746] dark:bg-[#3a111d] dark:text-[#fb7185]"
+    >
+      {isSetList ? (
+        <SetListSheetIcon />
+      ) : isOwner ? (
+        <PersonalSheetIcon />
+      ) : (
+        <PublicSheetIcon />
+      )}
+    </span>
+  );
+}
+
+function PersonalSheetIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="size-4"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 3h8l4 4v5" />
+      <path d="M14 3v5h4" />
+      <path d="M6 3v18h6" />
+      <rect x="12" y="14" width="8" height="6" rx="1.5" />
+      <path d="M14 14v-1a2 2 0 0 1 4 0v1" />
+    </svg>
+  );
+}
+
+function PublicSheetIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="size-4"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+    </svg>
+  );
+}
+
+function SetListSheetIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="size-4"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 6h11M9 12h11M9 18h7" />
+      <path d="m4 6 .8.8L6.5 5M4 12l.8.8L6.5 11M4 18l.8.8L6.5 17" />
+    </svg>
+  );
+}
+
+function MediaExternalLink({
+  href,
+  label,
+  provider,
+  trackTitle,
+}: {
+  href: string;
+  label: string;
+  provider: "spotify" | "youtube";
+  trackTitle: string;
+}) {
+  const isYouTube = provider === "youtube";
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`${label} for ${trackTitle}`}
+      className={`inline-flex h-9 items-center gap-2 rounded-full border px-3 text-[11px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+        isYouTube
+          ? "border-red-200 bg-red-50 text-red-700 hover:border-[#ff0000] dark:border-red-950 dark:bg-red-950/30 dark:text-red-300"
+          : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-[#1db954] dark:border-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-300"
+      }`}
+    >
+      <span
+        className={`flex size-5 items-center justify-center rounded-full text-white ${
+          isYouTube ? "bg-[#ff0000]" : "bg-[#1db954]"
+        }`}
+      >
+        {isYouTube ? <YouTubeIcon /> : <SpotifyIcon />}
+      </span>
+      {label}
+    </a>
+  );
+}
+
+function getYouTubeVideoId(value: string): string | null {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+    let videoId: string | null = null;
+
+    if (hostname === "youtu.be") {
+      videoId = url.pathname.split("/").filter(Boolean)[0] ?? null;
+    } else if (
+      hostname === "youtube.com" ||
+      hostname === "m.youtube.com" ||
+      hostname === "music.youtube.com"
+    ) {
+      const [route, routeId] = url.pathname.split("/").filter(Boolean);
+      videoId =
+        url.searchParams.get("v") ??
+        (["embed", "shorts", "live"].includes(route) ? routeId : null) ??
+        null;
+    }
+
+    return videoId && /^[A-Za-z0-9_-]{11}$/.test(videoId) ? videoId : null;
+  } catch {
+    return null;
+  }
+}
+
+function YouTubeIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="size-3.5"
+    >
+      <rect x="2.5" y="6" width="19" height="12" rx="4" fill="currentColor" />
+      <path d="m10 9 5 3-5 3V9Z" fill="#ff0000" />
+    </svg>
+  );
+}
+
+function SpotifyIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="size-3.5"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
+      <path d="M5.5 9.5c4.4-1.3 9.2-.9 13 1" />
+      <path d="M6.3 13c3.7-.9 7.8-.6 11 1" />
+      <path d="M7.2 16.4c3-.6 6.3-.3 8.9.8" />
+    </svg>
+  );
+}
+
+function AudioIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="size-4 text-[#ed1746]"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 18V5l10-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="16" cy="16" r="3" />
+    </svg>
+  );
+}
+
+function LinkAddIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="size-5"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2" />
+      <path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2" />
+      <path d="M19 17v4M17 19h4" />
+    </svg>
   );
 }
 

@@ -37,7 +37,7 @@ export default async function BrowsePage({
 
   return (
     <AppShell>
-      <section className="flex flex-1 flex-col rounded-xl bg-white text-[#111] shadow-[0_1px_0_rgba(0,0,0,0.04)] lg:min-h-0 lg:overflow-hidden dark:bg-[#121214] dark:text-[#f5f5f5]">
+      <section className="flex min-w-0 flex-1 flex-col rounded-xl bg-white text-[#111] shadow-[0_1px_0_rgba(0,0,0,0.04)] lg:min-h-0 lg:overflow-hidden dark:bg-[#121214] dark:text-[#f5f5f5]">
         <TrackBrowser
           initialQuery={query}
           isAuthenticated={Boolean(viewerId)}

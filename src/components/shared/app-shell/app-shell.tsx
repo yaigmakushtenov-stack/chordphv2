@@ -9,6 +9,7 @@ import {
 } from "@/components/shared/app-shell/left-library-panel";
 import { StickyMusicPlayer } from "@/components/shared/app-shell/sticky-music-player";
 import { MobileAutoHideHeader } from "@/components/shared/app-shell/mobile-auto-hide-header";
+import { NotificationButton } from "@/components/shared/notifications";
 import { ToastProvider } from "@/components/shared/toast";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { auth } from "@/lib/auth";
@@ -20,6 +21,7 @@ type AppShellProps = {
   focusMode?: boolean;
   mobileDocumentScroll?: boolean;
   autoHideMobileHeader?: boolean;
+  showAnnotateAction?: boolean;
 };
 
 type AppShellUser = {
@@ -59,12 +61,32 @@ function SearchIcon() {
   );
 }
 
+function AnnotationIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="size-4"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5 19h14" />
+      <path d="m7 15 8.5-8.5 2 2L9 17H7v-2Z" />
+      <path d="M14 6l2 2" />
+    </svg>
+  );
+}
+
 export async function AppShell({
   children,
   documentScroll = false,
   focusMode = false,
   mobileDocumentScroll = true,
   autoHideMobileHeader = true,
+  showAnnotateAction = false,
 }: AppShellProps) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -90,10 +112,10 @@ export async function AppShell({
       <div
         className={
           documentScroll
-            ? "flex min-h-dvh flex-col bg-[#f4f4f4] text-[#111] dark:bg-black dark:text-[#f5f5f5]"
+            ? "app-shell flex min-h-dvh flex-col bg-[#f4f4f4] text-[#111] dark:bg-black dark:text-[#f5f5f5]"
             : mobileDocumentScroll
-            ? "flex min-h-dvh flex-col bg-[#f4f4f4] text-[#111] lg:h-dvh lg:overflow-hidden dark:bg-black dark:text-[#f5f5f5]"
-            : "flex h-dvh flex-col overflow-hidden bg-[#f4f4f4] text-[#111] dark:bg-black dark:text-[#f5f5f5]"
+            ? "app-shell flex min-h-dvh flex-col bg-[#f4f4f4] text-[#111] lg:h-dvh lg:overflow-hidden dark:bg-black dark:text-[#f5f5f5]"
+            : "app-shell flex h-dvh flex-col overflow-hidden bg-[#f4f4f4] text-[#111] dark:bg-black dark:text-[#f5f5f5]"
         }
       >
         <ToastProvider />
@@ -124,6 +146,15 @@ export async function AppShell({
                   />
                 </label>
               </form>
+              {showAnnotateAction ? (
+                <Link
+                  href="/track/new/annotate"
+                  className="hidden h-10 shrink-0 items-center gap-2 rounded-full bg-[#ed1746] px-4 text-[13px] font-bold text-white transition hover:bg-[#cf123b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] md:inline-flex dark:bg-[#ed1746] dark:text-white dark:hover:bg-[#ff315d]"
+                >
+                  <AnnotationIcon />
+                  Annotate
+                </Link>
+              ) : null}
               <nav
                 aria-label="Account navigation"
                 className="ml-auto flex min-w-0 items-center justify-end gap-2"
@@ -144,6 +175,7 @@ export async function AppShell({
                     </Link>
                   </>
                 ) : null}
+                {user ? <NotificationButton /> : null}
                 <ThemeToggle className="size-10" />
               </nav>
             </div>

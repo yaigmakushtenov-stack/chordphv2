@@ -355,6 +355,26 @@ function SidebarUserMenu({ user }: { user: SidebarUser }) {
             </span>
           </div>
           <div className="mt-3 border-t border-[#e8e8e8] pt-2 dark:border-[#38383c]">
+            <Link
+              href="/settings"
+              onClick={() => setIsOpen(false)}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-bold text-[#555] transition hover:bg-[#f5f5f5] hover:text-[#111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#b4b4bc] dark:hover:bg-[#2b2b2f] dark:hover:text-white"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                className="size-4"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="8" r="3" />
+                <path d="M5 20c.6-4 2.9-6 7-6s6.4 2 7 6" />
+              </svg>
+              Profile preferences
+            </Link>
             <LogoutButton variant="menu" />
           </div>
         </div>

@@ -151,15 +151,12 @@ export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
         onClick={openDrawer}
         className={
           isEditMode
-            ? "inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#d9d9d9] px-3.5 text-[11px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
+            ? "inline-flex size-9 items-center justify-center rounded-full border border-[#d9d9d9] transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
             : "inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#ed1746] px-4 text-[11px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
         }
       >
         {isEditMode ? (
-          <>
-            <PencilIcon />
-            Edit
-          </>
+          <PencilIcon />
         ) : (
           <>
             <span aria-hidden="true" className="text-base font-medium leading-none">

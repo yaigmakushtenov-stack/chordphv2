@@ -665,7 +665,10 @@ function SongArtistsSection({
   savedAt: string | null;
 }) {
   return (
-    <section className="rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]">
+    <section
+      id="track-references"
+      className="scroll-mt-4 rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]"
+    >
       <SectionHeader
         title="Song and artists"
         description="Start with the required information people use to identify this track."

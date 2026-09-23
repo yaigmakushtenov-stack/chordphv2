@@ -273,20 +273,18 @@ export function SetListEditor({ setList }: SetListEditorProps) {
   return (
     <div className="grid">
       <section className="overflow-hidden rounded-2xl border border-[#e4e4e4] bg-white dark:border-[#303034] dark:bg-[#171719]">
-        <div className="flex flex-col gap-4 border-b border-[#e4e4e4] px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#303034]">
-          <div>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b border-[#e4e4e4] px-4 py-3.5 sm:px-5 dark:border-[#303034]">
+          <div className="min-w-0">
             <h2 className="text-[15px] font-bold">Playing order</h2>
             <p className="mt-1 text-[12px] text-[#717171] dark:text-[#a1a1aa]">
               {isEditing
                 ? "Drag the handle to arrange tracks, or remove tracks from this setlist."
-                : "Tracks play from top to bottom. Choose Edit to change the order."}
+                : "Tracks play from top to bottom."}
             </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
             {isEditing ? (
               <span
                 aria-live="polite"
-                className="inline-flex h-8 items-center rounded-full bg-[#fff0f3] px-3 text-[10px] font-black uppercase tracking-[0.08em] text-[#c90f39] dark:bg-[#3a111d] dark:text-[#fb7185]"
+                className="mt-2 inline-flex h-7 items-center rounded-full bg-[#fff0f3] px-2.5 text-[9px] font-black uppercase tracking-[0.08em] text-[#c90f39] dark:bg-[#3a111d] dark:text-[#fb7185]"
               >
                 {isPending
                   ? "Saving…"
@@ -295,20 +293,21 @@ export function SetListEditor({ setList }: SetListEditorProps) {
                     : "Editing"}
               </span>
             ) : null}
-            <button
-              type="button"
-              disabled={isPending}
-              onClick={handleEditingToggle}
-              className={`inline-flex h-9 items-center justify-center gap-2 rounded-full px-4 text-[11px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-50 ${
-                isEditing
-                  ? "bg-[#111] text-white hover:bg-[#2c2c2c] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
-                  : "border border-[#d9d9d9] hover:border-[#ed1746] hover:text-[#ed1746] dark:border-[#3a3a3f]"
-              }`}
-            >
-              {isEditing ? <DoneIcon /> : <PencilIcon />}
-              {isEditing ? "Done" : "Edit"}
-            </button>
           </div>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={handleEditingToggle}
+            aria-label={isEditing ? "Done editing playing order" : "Edit playing order"}
+            title={isEditing ? "Done editing" : "Edit playing order"}
+            className={`inline-flex size-9 items-center justify-center justify-self-end rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-50 ${
+              isEditing
+                ? "bg-[#111] text-white hover:bg-[#2c2c2c] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
+                : "border border-[#d9d9d9] hover:border-[#ed1746] hover:text-[#ed1746] dark:border-[#3a3a3f]"
+            }`}
+          >
+            {isEditing ? <DoneIcon /> : <PencilIcon />}
+          </button>
         </div>
         {tracks.length ? (
           <ol className="divide-y divide-[#e9e9e9] dark:divide-[#303034]">
@@ -379,10 +378,9 @@ export function SetListEditor({ setList }: SetListEditorProps) {
                         href={`/setlists/${setList.id}/tracks/${item.id}/edit`}
                         aria-label={`Edit the ${item.title} arrangement`}
                         title="Edit arrangement"
-                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#d9d9d9] px-3.5 text-[11px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
+                        className="inline-flex size-9 items-center justify-center rounded-full border border-[#d9d9d9] transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f]"
                       >
                         <PencilIcon />
-                        Edit
                       </Link>
                     ) : null}
                     <button
