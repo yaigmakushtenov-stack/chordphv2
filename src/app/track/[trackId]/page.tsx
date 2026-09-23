@@ -11,8 +11,8 @@ import { TrackService, type AnnotationTrack } from "@/services/track-service";
 import type { AnnotationViewerData } from "@/types/track";
 
 export const metadata: Metadata = {
-  title: "Track Annotation | ChordPH",
-  description: "View a personal lyrics and chord annotation.",
+  title: "Chord Chart/Tab | ChordPH",
+  description: "View a personal chord chart or tab.",
 };
 
 export default async function TrackPage({

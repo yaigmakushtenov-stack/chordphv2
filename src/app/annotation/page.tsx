@@ -13,8 +13,8 @@ import {
 import type { PersonalTrackListItem } from "@/types/track";
 
 export const metadata: Metadata = {
-  title: "Your Annotations | ChordPH",
-  description: "View and edit your personal ChordPH track annotations.",
+  title: "Personal Chord Charts | ChordPH",
+  description: "View and edit your personal ChordPH chord charts and tabs.",
 };
 
 export default async function AnnotationLibraryPage() {
@@ -31,7 +31,7 @@ export default async function AnnotationLibraryPage() {
   return (
     <AppShell>
       <Dashboard
-        title="Personal annotations"
+        title="Personal chord charts"
         description="Open your saved chord sheets for practice or return to the editor whenever you need to make changes. Adding an MP3 is optional."
       >
         <AnnotationLibrary items={items} />

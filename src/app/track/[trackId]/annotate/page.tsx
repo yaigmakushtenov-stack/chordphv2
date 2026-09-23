@@ -14,8 +14,8 @@ import {
 import type { AnnotationEditorData } from "@/types/track";
 
 export const metadata: Metadata = {
-  title: "Annotate Track | ChordPH",
-  description: "Add lyrics, chords, musical details, and notes to a track.",
+  title: "Edit Chord Chart/Tab | ChordPH",
+  description: "Edit lyrics, chords, tabs, musical details, and notes for a track.",
 };
 
 export default async function AnnotateTrackPage({
@@ -47,7 +47,7 @@ export default async function AnnotateTrackPage({
           <BackLink href="/">Back to dashboard</BackLink>
         }
         eyebrow="TRACK WORKSPACE"
-        title="Annotate track"
+        title="Edit chord chart/tab"
         description="Add song details, collaborators, lyrics, chords, and rehearsal notes. Preview transposition without changing the saved source."
       >
         <AnnotationEditor

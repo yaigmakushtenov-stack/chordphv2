@@ -298,7 +298,7 @@ export function AnnotationEditor({
         }
         showToast({
           title: "Track created",
-          description: "Your private track and annotation are ready.",
+          description: "Your private track and chord chart/tab are ready.",
           tone: "success",
         });
         router.replace(`/track/${result.data.trackId}`);
@@ -316,7 +316,7 @@ export function AnnotationEditor({
 
       if (!result.ok) {
         showToast({
-          title: "Could not save annotation",
+          title: "Could not save chord chart/tab",
           description: result.error.message,
           tone: "error",
         });
@@ -324,7 +324,7 @@ export function AnnotationEditor({
       }
 
       showToast({
-        title: "Annotation saved",
+        title: "Chord chart/tab saved",
         description: "Your lyrics, chords, and notes are up to date.",
         tone: "success",
       });
@@ -430,7 +430,7 @@ export function AnnotationEditor({
 
       if (!saveResult.ok) {
         showToast({
-          title: "Could not save annotation",
+          title: "Could not save chord chart/tab",
           description: saveResult.error.message,
           tone: "error",
         });
@@ -472,8 +472,8 @@ export function AnnotationEditor({
         }
         footerDescription={
           isCreateMode
-            ? "The Track and annotation are created together on the final step."
-            : "Track details save when you continue. Save the annotation on the final step."
+            ? "The track and chord chart/tab are created together on the final step."
+            : "Track details save when you continue. Save the chord chart/tab on the final step."
         }
       />
 
@@ -568,7 +568,7 @@ export function AnnotationEditor({
             </section>
 
             <section className="rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]">
-              <Field label="Private annotation notes">
+              <Field label="Private notes">
                 <textarea
                   value={annotation.notes}
                   maxLength={20_000}
@@ -1030,7 +1030,7 @@ function TrackReferencesSection({
       <div>
         <h2 className="text-[16px] font-bold">Track references</h2>
         <p className="mt-1 text-[12px] text-[#717171] dark:text-[#a1a1aa]">
-          Add any optional source that can help identify or annotate the track.
+          Add any optional source that can help identify the track or guide the chart.
         </p>
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -1119,7 +1119,7 @@ function CreationProgress({
   draftStatus: string;
   footerDescription: string;
 }) {
-  const steps = ["Song & artists", "Music details", "Annotation"];
+  const steps = ["Song & artists", "Music details", "Chord chart/tab"];
 
   return (
     <section className="rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]">
@@ -1227,8 +1227,8 @@ function CreationNavigation({
                 ? "Creating…"
                 : "Saving…"
               : isCreateMode
-                ? "Create track & save annotation"
-                : "Save annotation"}
+                ? "Create track & save chart/tab"
+                : "Save chord chart/tab"}
           </button>
         </div>
       )}
@@ -1417,7 +1417,7 @@ function OptionalAudioSection({
       <AudioUpload
         embedded={embedded}
         heading={selectedAudio ? "Replace optional audio" : "Optional audio"}
-        description="Upload one reference audio file only when it helps with annotation or rehearsal. MP3 and other common audio formats up to 50 MB are supported."
+        description="Upload one reference audio file only when it helps with the chord chart/tab or rehearsal. MP3 and other common audio formats up to 50 MB are supported."
         multiple={false}
         onUploadComplete={(file) =>
           onSelect({
@@ -1452,7 +1452,7 @@ function AudioPanel({
                   ? ` · ${formatDuration(audio.durationSeconds)}`
                   : ""
               }`
-            : "Private annotation draft · No audio attached"}
+            : "Private chord chart/tab draft · No audio attached"}
         </p>
       </div>
       {audio ? (
@@ -1465,7 +1465,7 @@ function AudioPanel({
         />
       ) : (
         <div className="mt-4 rounded-xl border border-dashed border-[#d9d9d9] px-4 py-6 text-center text-[12px] text-[#717171] dark:border-[#3a3a3f] dark:text-[#a1a1aa]">
-          You can write and save this annotation without uploading an MP3.
+          You can write and save this chord chart/tab without uploading an MP3.
         </div>
       )}
     </section>

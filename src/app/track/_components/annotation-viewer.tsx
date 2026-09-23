@@ -157,7 +157,7 @@ export function AnnotationViewer({
       }
 
       showToast({
-        title: "Saved to your annotations",
+        title: "Saved to your chord charts",
         description: "You can now edit your personal copy.",
         tone: "success",
       });
@@ -182,7 +182,7 @@ export function AnnotationViewer({
       showToast({
         title: "Submitted for admin review",
         description:
-          "The annotation stays private until an admin approves it.",
+          "The chord chart/tab stays private until an admin approves it.",
         tone: "success",
       });
       router.refresh();

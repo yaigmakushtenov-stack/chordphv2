@@ -10,8 +10,8 @@ import { auth } from "@/lib/auth";
 import { TrackService } from "@/services/track-service";
 
 export const metadata: Metadata = {
-  title: "Create Annotation | ChordPH",
-  description: "Create a private track annotation without uploading audio.",
+  title: "Create a Chord Chart/Tab | ChordPH",
+  description: "Create a private chord chart or tab without uploading audio.",
 };
 
 export default async function NewTrackAnnotationPage() {
@@ -29,8 +29,8 @@ export default async function NewTrackAnnotationPage() {
         documentScroll
         headerNavigation={<BackButton fallbackHref="/annotation" />}
         eyebrow="NEW TRACK"
-        title="Create an annotation"
-        description="Complete the guided form at your own pace. The Track and annotation are created together only on the final step."
+        title="Create a chord chart/tab"
+        description="Complete the guided form at your own pace. The track and chord chart/tab are created together only on the final step."
       >
         <AnnotationEditor
           mode="create"

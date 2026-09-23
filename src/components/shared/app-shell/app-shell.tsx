@@ -124,9 +124,15 @@ export async function AppShell({
             <div className="flex min-h-14 min-w-0 items-center gap-2">
               <MobileMenuButton />
               <Link
+                href="/track/new/annotate"
+                className="inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-[#ed1746] px-3 text-[11px] font-bold text-white transition hover:bg-[#cf123b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] md:hidden dark:bg-[#ed1746] dark:text-white dark:hover:bg-[#ff315d]"
+              >
+                Create chart/tab
+              </Link>
+              <Link
                 href="/"
                 aria-label="ChordPH home"
-                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#111] text-[#ed1746] transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#111] dark:text-[#ed1746] dark:hover:bg-[#1f1f1f]"
+                className="hidden size-11 shrink-0 items-center justify-center rounded-full bg-[#111] text-[#ed1746] transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] md:flex dark:bg-[#111] dark:text-[#ed1746] dark:hover:bg-[#1f1f1f]"
               >
                 <MusicLogoIcon />
               </Link>
@@ -152,7 +158,7 @@ export async function AppShell({
                   className="hidden h-10 shrink-0 items-center gap-2 rounded-full bg-[#ed1746] px-4 text-[13px] font-bold text-white transition hover:bg-[#cf123b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] md:inline-flex dark:bg-[#ed1746] dark:text-white dark:hover:bg-[#ff315d]"
                 >
                   <AnnotationIcon />
-                  Annotate
+                  Create a chord chart/tab
                 </Link>
               ) : null}
               <nav

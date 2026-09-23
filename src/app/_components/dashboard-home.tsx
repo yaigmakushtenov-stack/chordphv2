@@ -121,12 +121,6 @@ function ContinuePracticeCard({
               </Link>
             </>
           )}
-          <Link
-            href="/track/new/annotate"
-            className="inline-flex h-12 items-center justify-center rounded-full border border-white/35 bg-white/10 px-6 text-[14px] font-black text-white transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-          >
-            Create annotation
-          </Link>
         </div>
       </div>
     </section>
@@ -536,7 +530,7 @@ function QuickToolsDock() {
     { href: "/annotations", icon: "library", label: "Songs" },
     { href: "/setlists", icon: "setlist", label: "Setlists" },
     { href: "/chord-chart", icon: "chords", label: "Chords" },
-    { href: "/track/new/annotate", icon: "annotation", label: "Annotate" },
+    { href: "/track/new/annotate", icon: "annotation", label: "Create chart" },
   ];
 
   return (

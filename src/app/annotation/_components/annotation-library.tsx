@@ -32,14 +32,14 @@ export function AnnotationLibrary({ items }: AnnotationLibraryProps) {
   return (
     <div className="grid gap-5">
       <div className="flex justify-end">
-        <Link href="/track/new/annotate" className="inline-flex h-10 w-full shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] sm:w-auto">Create annotation</Link>
+        <Link href="/track/new/annotate" className="inline-flex h-10 w-full shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] sm:w-auto">Create a chord chart/tab</Link>
       </div>
 
       {items.length ? (
         <section className="overflow-hidden rounded-2xl border border-[#e4e4e4] bg-white dark:border-[#303034] dark:bg-[#171719]">
           <div className="border-b border-[#e4e4e4] px-5 py-4 dark:border-[#303034]">
             <h2 className="text-[15px] font-bold">Your tracks</h2>
-            <p className="mt-1 text-[12px] text-[#717171] dark:text-[#a1a1aa]">{items.length} {items.length === 1 ? "annotation" : "annotations"}</p>
+            <p className="mt-1 text-[12px] text-[#717171] dark:text-[#a1a1aa]">{items.length} {items.length === 1 ? "chord chart" : "chord charts"}</p>
             <div className="mt-3 flex gap-2 overflow-x-auto pb-0.5" aria-label="Track status filters">
               <LibraryFilterButton active={activeFilter === "all"} label="All" onClick={() => setActiveFilter("all")} />
               <LibraryFilterButton active={activeFilter === "public"} label="Approved public" onClick={() => setActiveFilter("public")} />
@@ -92,9 +92,9 @@ export function AnnotationLibrary({ items }: AnnotationLibraryProps) {
         </section>
       ) : (
         <section className="rounded-2xl border border-dashed border-[#d9d9d9] bg-white px-6 py-16 text-center dark:border-[#3a3a3f] dark:bg-[#171719]">
-          <h2 className="text-[16px] font-bold">No annotations yet</h2>
+          <h2 className="text-[16px] font-bold">No chord charts yet</h2>
           <p className="mx-auto mt-2 max-w-md text-[13px] leading-5 text-[#666] dark:text-[#b4b4bc]">Create lyrics and chords for your first personal track. You can save it with or without an audio file.</p>
-          <Link href="/track/new/annotate" className="mt-5 inline-flex h-10 items-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]">Create annotation</Link>
+          <Link href="/track/new/annotate" className="mt-5 inline-flex h-10 items-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]">Create a chord chart/tab</Link>
         </section>
       )}
     </div>
