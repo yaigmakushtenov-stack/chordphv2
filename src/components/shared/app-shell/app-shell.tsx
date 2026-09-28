@@ -21,7 +21,6 @@ type AppShellProps = {
   focusMode?: boolean;
   mobileDocumentScroll?: boolean;
   autoHideMobileHeader?: boolean;
-  showAnnotateAction?: boolean;
 };
 
 type AppShellUser = {
@@ -86,7 +85,6 @@ export async function AppShell({
   focusMode = false,
   mobileDocumentScroll = true,
   autoHideMobileHeader = true,
-  showAnnotateAction = false,
 }: AppShellProps) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -152,15 +150,13 @@ export async function AppShell({
                   />
                 </label>
               </form>
-              {showAnnotateAction ? (
-                <Link
-                  href="/track/new/annotate"
-                  className="hidden h-10 shrink-0 items-center gap-2 rounded-full bg-[#ed1746] px-4 text-[13px] font-bold text-white transition hover:bg-[#cf123b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] md:inline-flex dark:bg-[#ed1746] dark:text-white dark:hover:bg-[#ff315d]"
-                >
-                  <AnnotationIcon />
-                  Create a chord chart/tab
-                </Link>
-              ) : null}
+              <Link
+                href="/track/new/annotate"
+                className="hidden h-10 shrink-0 items-center gap-2 rounded-full bg-[#ed1746] px-4 text-[13px] font-bold text-white transition hover:bg-[#cf123b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] md:inline-flex dark:bg-[#ed1746] dark:text-white dark:hover:bg-[#ff315d]"
+              >
+                <AnnotationIcon />
+                Create a chord chart/tab
+              </Link>
               <nav
                 aria-label="Account navigation"
                 className="ml-auto flex min-w-0 items-center justify-end gap-2"

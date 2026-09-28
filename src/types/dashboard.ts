@@ -25,6 +25,8 @@ export type DashboardNextEvent = {
 };
 
 export type PracticeResumeItem = {
+  eventId?: string;
+  expiresAt?: string;
   href: string;
   id: string;
   key: string | null;

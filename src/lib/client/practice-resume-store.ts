@@ -6,6 +6,7 @@ import type { PracticeResumeItem } from "@/types/dashboard";
 
 const STORAGE_KEY = "chordph:practice-resume";
 const UPDATE_EVENT = "chordph:practice-resume-updated";
+const MAX_TIMEOUT_MS = 2_147_483_647;
 
 let cachedRawValue: string | null | undefined;
 let cachedItem: PracticeResumeItem | null = null;
@@ -22,11 +23,42 @@ export function savePracticeResume(item: PracticeResumeItem): void {
   }
 }
 
+export function clearPracticeResumeForEvent(eventId: string): void {
+  const item = getSnapshot();
+
+  if (item?.eventId !== eventId) {
+    return;
+  }
+
+  clearPracticeResume();
+}
+
 export function usePracticeResume(): PracticeResumeItem | null {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
 function subscribe(onStoreChange: () => void): () => void {
+  const item = getSnapshot();
+  let expirationTimeoutId: number | null = null;
+
+  function scheduleExpiration(expiresAt: string): void {
+    const expirationDelay = new Date(expiresAt).getTime() - Date.now();
+
+    expirationTimeoutId = window.setTimeout(() => {
+      if (expirationDelay > MAX_TIMEOUT_MS) {
+        scheduleExpiration(expiresAt);
+        return;
+      }
+
+      clearPracticeResume();
+      onStoreChange();
+    }, Math.min(Math.max(0, expirationDelay), MAX_TIMEOUT_MS));
+  }
+
+  if (item?.expiresAt) {
+    scheduleExpiration(item.expiresAt);
+  }
+
   function handleStorage(event: StorageEvent): void {
     if (event.key === STORAGE_KEY) {
       cachedRawValue = undefined;
@@ -38,6 +70,9 @@ function subscribe(onStoreChange: () => void): () => void {
   window.addEventListener(UPDATE_EVENT, onStoreChange);
 
   return () => {
+    if (expirationTimeoutId !== null) {
+      window.clearTimeout(expirationTimeoutId);
+    }
     window.removeEventListener("storage", handleStorage);
     window.removeEventListener(UPDATE_EVENT, onStoreChange);
   };
@@ -59,6 +94,10 @@ function getSnapshot(): PracticeResumeItem | null {
 
   cachedRawValue = rawValue;
   cachedItem = parsePracticeResumeItem(rawValue);
+
+  if (cachedItem?.expiresAt && new Date(cachedItem.expiresAt).getTime() <= Date.now()) {
+    clearPracticeResume();
+  }
 
   return cachedItem;
 }
@@ -93,7 +132,11 @@ function parsePracticeResumeItem(value: string | null): PracticeResumeItem | nul
       !("key" in item) ||
       (item.key !== null && typeof item.key !== "string") ||
       !("tempo" in item) ||
-      (item.tempo !== null && typeof item.tempo !== "number")
+      (item.tempo !== null && typeof item.tempo !== "number") ||
+      ("eventId" in item && typeof item.eventId !== "string") ||
+      ("expiresAt" in item &&
+        (typeof item.expiresAt !== "string" ||
+          Number.isNaN(new Date(item.expiresAt).getTime())))
     ) {
       return null;
     }
@@ -103,4 +146,16 @@ function parsePracticeResumeItem(value: string | null): PracticeResumeItem | nul
     console.warn("Practice resume state is invalid.", error);
     return null;
   }
+}
+
+function clearPracticeResume(): void {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch (error) {
+    console.warn("Practice resume state could not be cleared.", error);
+  }
+
+  cachedRawValue = null;
+  cachedItem = null;
+  window.dispatchEvent(new Event(UPDATE_EVENT));
 }

@@ -114,6 +114,8 @@ const eventStagePlaylistSelect = {
       id: true,
       ownerId: true,
       title: true,
+      startDate: true,
+      endDate: true,
     },
   },
   setList: {

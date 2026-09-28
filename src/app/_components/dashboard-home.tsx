@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 
-import { usePracticeResume } from "@/lib/client/practice-resume-store";
+import {
+  clearPracticeResumeForEvent,
+  usePracticeResume,
+} from "@/lib/client/practice-resume-store";
 import type {
   DashboardActivityItem,
   DashboardActivitySource,
@@ -16,6 +19,7 @@ const NEWEST_SONGS_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 
 type DashboardHomeProps = {
   activityItems: DashboardActivityItem[];
+  activeEventIds: string[];
   nextEvent: DashboardNextEvent | null;
   publicTracks: DashboardPublicTrackData[];
 };
@@ -33,10 +37,19 @@ type IconName =
 
 export function DashboardHome({
   activityItems,
+  activeEventIds,
   nextEvent,
   publicTracks,
 }: DashboardHomeProps) {
   const resumeItem = usePracticeResume();
+  const hasActiveEventResume =
+    !resumeItem?.eventId || activeEventIds.includes(resumeItem.eventId);
+
+  useEffect(() => {
+    if (resumeItem?.eventId && !activeEventIds.includes(resumeItem.eventId)) {
+      clearPracticeResumeForEvent(resumeItem.eventId);
+    }
+  }, [activeEventIds, resumeItem?.eventId]);
   const newestSongs = useMemo(
     () => getNewestSongs(publicTracks).slice(0, 3),
     [publicTracks],
@@ -44,7 +57,9 @@ export function DashboardHome({
 
   return (
     <div className="grid w-full min-w-0 max-w-full gap-8 overflow-x-clip pb-24 md:pb-0">
-      <ContinuePracticeCard resumeItem={resumeItem} />
+      <ContinuePracticeCard
+        resumeItem={hasActiveEventResume ? resumeItem : null}
+      />
 
       <div className="grid w-full min-w-0 max-w-full gap-5 lg:grid-cols-3 lg:items-stretch">
         <NextEventCard event={nextEvent} />

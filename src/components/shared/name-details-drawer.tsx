@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import * as EventActions from "@/actions/event-actions";
 import * as GroupActions from "@/actions/group-actions";
 import { showToast } from "@/components/shared/toast";
+import { clearPracticeResumeForEvent } from "@/lib/client/practice-resume-store";
 
 type NameDetailsDrawerProps = {
   entity: "band" | "event";
@@ -108,6 +109,10 @@ export function NameDetailsDrawer(props: NameDetailsDrawerProps) {
           tone: "error",
         });
         return;
+      }
+
+      if (props.entity === "event") {
+        clearPracticeResumeForEvent(props.id);
       }
 
       setIsOpen(false);

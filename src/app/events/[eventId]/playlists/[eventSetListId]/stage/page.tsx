@@ -67,6 +67,8 @@ export default async function EventPlaylistStagePage({
         item={{
           href: `/events/${eventId}/playlists/${eventSetListId}/stage`,
           id: playlist.id,
+          eventId: stagePlaylist.event.id,
+          expiresAt: getEventPracticeExpiration(stagePlaylist.event).toISOString(),
           key: firstAvailableTrack?.key ?? null,
           subtitle: playlist.eventTitle,
           tempo: firstAvailableTrack?.tempo ?? null,
@@ -77,6 +79,20 @@ export default async function EventPlaylistStagePage({
       <StageView playlist={playlist} />
     </>
   );
+}
+
+function getEventPracticeExpiration(event: {
+  startDate: Date;
+  endDate: Date | null;
+}): Date {
+  if (event.endDate) {
+    return event.endDate;
+  }
+
+  const nextDay = new Date(event.startDate);
+  nextDay.setDate(nextDay.getDate() + 1);
+  nextDay.setHours(0, 0, 0, 0);
+  return nextDay;
 }
 
 function toStagePlaylistData(

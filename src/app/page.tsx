@@ -79,7 +79,6 @@ export default async function Home() {
     <AppShell
       mobileDocumentScroll
       autoHideMobileHeader
-      showAnnotateAction
     >
       {session?.user?.id ? <ServerRefreshPulse /> : null}
       <Dashboard
@@ -89,6 +88,9 @@ export default async function Home() {
       >
         <DashboardHome
           activityItems={activityItems}
+          activeEventIds={events
+            .filter((event) => isUpcomingEvent(event, now))
+            .map((event) => event.id)}
           nextEvent={toDashboardNextEvent(nextEventDetail)}
           publicTracks={publicTracks}
         />
