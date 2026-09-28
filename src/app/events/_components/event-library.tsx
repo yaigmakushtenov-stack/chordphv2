@@ -10,6 +10,7 @@ type EventLibraryItem = {
   title: string;
   description: string | null;
   startDate: string;
+  timezone: string | null;
   place: string;
   locationAddress: string | null;
   setListCount: number;
@@ -173,7 +174,7 @@ export function EventLibrary({ items }: EventLibraryProps) {
                       {item.title}
                     </span>
                     <span className="mt-1 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
-                      {formatDateTime(item.startDate)} at {item.place}
+                      {formatDateTime(item.startDate, item.timezone)} at {item.place}
                     </span>
                     {item.locationAddress ? (
                       <span className="mt-1 block truncate text-[12px] text-[#777] dark:text-[#a1a1aa]">
@@ -210,9 +211,10 @@ export function EventLibrary({ items }: EventLibraryProps) {
   );
 }
 
-function formatDateTime(value: string): string {
+function formatDateTime(value: string, timezone: string | null): string {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: timezone ?? "Asia/Manila",
   }).format(new Date(value));
 }

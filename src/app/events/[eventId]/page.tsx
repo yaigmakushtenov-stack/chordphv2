@@ -89,7 +89,7 @@ export default async function EventDetailPage({
             </div>
           </div>
         }
-        eyebrow={`EVENT · ${formatDateTime(event.startDate)}`}
+        eyebrow={`EVENT · ${formatDateTime(event.startDate, event.timezone)}`}
         title={event.title}
         description={
           event.description ||
@@ -165,9 +165,10 @@ function toPlaylistOptions(
   }));
 }
 
-function formatDateTime(value: Date): string {
+function formatDateTime(value: Date, timezone: string | null): string {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: timezone ?? "Asia/Manila",
   }).format(value);
 }

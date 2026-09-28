@@ -49,6 +49,7 @@ function toEventLibraryItem(event: EventSummaryRecord, userId: string) {
     title: event.title,
     description: event.description,
     startDate: event.startDate.toISOString(),
+    timezone: event.timezone,
     place: event.place,
     locationAddress: event.locationAddress,
     setListCount: event._count.eventSetLists,
