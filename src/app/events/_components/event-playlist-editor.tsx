@@ -144,7 +144,7 @@ export function EventPlaylistEditor({
 
       if (!result.ok) {
         showToast({
-          title: "Playlist not added",
+          title: "Setlist not added",
           description: result.error.message,
           tone: "error",
         });
@@ -152,7 +152,7 @@ export function EventPlaylistEditor({
       }
 
       setIsAddPlaylistOpen(false);
-      showToast({ title: "Playlist added to event", tone: "success" });
+      showToast({ title: "Setlist added to event", tone: "success" });
       router.refresh();
     });
   }
@@ -167,7 +167,7 @@ export function EventPlaylistEditor({
 
       if (!result.ok) {
         showToast({
-          title: "Playlist not removed",
+          title: "Setlist not removed",
           description: result.error.message,
           tone: "error",
         });
@@ -179,7 +179,7 @@ export function EventPlaylistEditor({
       );
       playlistsRef.current = nextPlaylists;
       setPlaylists(nextPlaylists);
-      showToast({ title: "Playlist removed from event", tone: "success" });
+      showToast({ title: "Setlist removed from event", tone: "success" });
       router.refresh();
     });
   }
@@ -231,7 +231,7 @@ export function EventPlaylistEditor({
       }
 
       showToast({
-        title: groupId ? "Band linked to playlist" : "Band removed from playlist",
+        title: groupId ? "Band linked to setlist" : "Band removed from setlist",
         tone: "success",
       });
       router.refresh();
@@ -387,14 +387,14 @@ export function EventPlaylistEditor({
         playlistsRef.current = previousPlaylists;
         setPlaylists(previousPlaylists);
         showToast({
-          title: "Playlist order not saved",
+          title: "Setlist order not saved",
           description: result.error.message,
           tone: "error",
         });
         return;
       }
 
-      showToast({ title: "Playlist order updated", tone: "success" });
+      showToast({ title: "Setlist order updated", tone: "success" });
       router.refresh();
     });
   }
@@ -411,14 +411,14 @@ export function EventPlaylistEditor({
     <div className="grid gap-5">
       <section className="rounded-2xl border border-[#e4e4e4] bg-white dark:border-[#303034] dark:bg-[#171719]">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-[#e4e4e4] px-5 py-4 dark:border-[#303034]">
-          <h2 className="min-w-0 text-[15px] font-bold">Event playlists</h2>
+          <h2 className="min-w-0 text-[15px] font-bold">Event setlists</h2>
           {canManage ? (
             <button
               type="button"
               disabled={isPending}
               onClick={handleEditingToggle}
-              aria-label={isEditing ? "Done editing event playlists" : "Edit event playlists"}
-              title={isEditing ? "Done editing" : "Edit event playlists"}
+              aria-label={isEditing ? "Done editing event setlists" : "Edit event setlists"}
+              title={isEditing ? "Done editing" : "Edit event setlists"}
               className={`inline-flex size-9 items-center justify-center justify-self-end rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-50 ${
                 isEditing
                   ? "bg-[#111] text-white hover:bg-[#2c2c2c] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
@@ -430,10 +430,10 @@ export function EventPlaylistEditor({
           ) : null}
           <p className="col-span-2 text-[12px] text-[#717171] dark:text-[#a1a1aa]">
             {isEditing
-              ? "Drag the handle to arrange playlists, assign bands, or remove playlists from this event."
+              ? "Drag the handle to arrange setlists, assign bands, or remove setlists from this event."
               : canManage
-                ? "Playlists run from top to bottom."
-                : "Playlists assigned to your band are available for stage mode."}
+                ? "Setlists run from top to bottom."
+                : "Setlists assigned to your band are available for stage mode."}
           </p>
           {canManage && isEditing ? (
             <span
@@ -587,9 +587,9 @@ export function EventPlaylistEditor({
           </ol>
         ) : (
           <div className="px-6 py-16 text-center">
-            <h2 className="text-[16px] font-bold">No playlists yet</h2>
+            <h2 className="text-[16px] font-bold">No setlists yet</h2>
             <p className="mx-auto mt-2 max-w-md text-[13px] leading-5 text-[#666] dark:text-[#b4b4bc]">
-              Add a playlist to this event, then link a band when one is ready.
+              Add a setlist to this event, then link a band when one is ready.
             </p>
           </div>
         )}
@@ -605,27 +605,27 @@ export function EventPlaylistEditor({
               onClick={() => setIsAddPlaylistOpen((open) => !open)}
               className="flex min-h-24 w-full items-center justify-center rounded-xl border-2 border-dashed border-[#d9d9d9] bg-[#fafafa] text-[14px] font-bold text-[#555] transition hover:border-[#ed1746] hover:bg-[#fff0f3] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-wait disabled:opacity-55 dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-[#d4d4d8] dark:hover:border-[#ed1746] dark:hover:bg-[#3a111d] dark:hover:text-white"
             >
-              {isPending ? "Adding playlist…" : "+ Add Playlist"}
+              {isPending ? "Adding setlist…" : "+ Add Setlist"}
             </button>
             {isAddPlaylistOpen ? (
               <div
                 ref={addPlaylistDialogRef}
                 id={`event-playlist-options-${event.id}`}
                 role="dialog"
-                aria-label="Choose a playlist"
+                aria-label="Choose a setlist"
                 aria-busy={isPending}
                 tabIndex={-1}
                 className="absolute bottom-full left-4 right-4 z-30 mb-2 rounded-xl border border-[#d9d9d9] bg-white p-2 shadow-xl sm:left-auto sm:right-5 sm:w-96 dark:border-[#3a3a3f] dark:bg-[#242427]"
               >
                 <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-                  <span className="text-[12px] font-bold">Choose a playlist</span>
+                  <span className="text-[12px] font-bold">Choose a setlist</span>
                   <button
                     type="button"
                     onClick={() => {
                       setIsAddPlaylistOpen(false);
                       addPlaylistTriggerRef.current?.focus();
                     }}
-                    aria-label="Close playlist selection"
+                    aria-label="Close setlist selection"
                     className="flex size-7 items-center justify-center rounded-full text-[18px] text-[#777] hover:bg-[#f2f2f2] hover:text-[#222] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#a1a1aa] dark:hover:bg-[#343438] dark:hover:text-white"
                   >
                     ×
@@ -650,7 +650,7 @@ export function EventPlaylistEditor({
                     ))
                   ) : (
                     <p className="px-3 py-4 text-center text-[12px] text-[#777] dark:text-[#a1a1aa]">
-                      No playlists available
+                      No setlists available
                     </p>
                   )}
                 </div>
