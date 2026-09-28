@@ -141,11 +141,21 @@ function parsePracticeResumeItem(value: string | null): PracticeResumeItem | nul
       return null;
     }
 
-    return item as PracticeResumeItem;
+    const practiceResumeItem = item as PracticeResumeItem;
+    const eventId = getEventIdFromHref(practiceResumeItem.href);
+
+    return eventId
+      ? { ...practiceResumeItem, eventId }
+      : practiceResumeItem;
   } catch (error) {
     console.warn("Practice resume state is invalid.", error);
     return null;
   }
+}
+
+function getEventIdFromHref(href: string): string | null {
+  const match = href.match(/^\/events\/([^/]+)\/playlists\/[^/]+\/stage(?:[?#]|$)/);
+  return match?.[1] ?? null;
 }
 
 function clearPracticeResume(): void {
