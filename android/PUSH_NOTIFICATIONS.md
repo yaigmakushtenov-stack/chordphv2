@@ -23,7 +23,7 @@ Run `pnpm db:generate`, `pnpm lint`, and `pnpm build`. With the Firebase Android
 
 Use JDK 21 for Android builds. The checked-in Gradle 8.14.3 wrapper does not run on the installed Java 25 runtime (`Unsupported class file major version 69`); point `JAVA_HOME` to a JDK 21 installation for the build. This implementation does not change your system Java installation or Gradle version.
 
-Open Settings in the Android app and select **Enable on this device**. Android 13 and newer ask for notification permission. Choose the two notification categories and save preferences. Registration resumes on app navigation, foregrounding, and network recovery after opting in; an old APK shows an update message.
+The first authenticated Android app visit automatically requests notification permission on Android 13 and newer. Granting permission registers the device; previously granted permission registers silently. Android 12 and earlier do not display a permission popup. Denial is respected without repeated automatic prompts. After allowing notifications in Android settings, registration resumes on foregrounding, navigation, or network recovery. An explicit **Disable on this device** choice persists until **Enable on this device** is selected in ChordPH Settings. Category preferences remain configurable there; an old APK shows an update message.
 
 ## Notification behavior
 
@@ -31,7 +31,7 @@ Open Settings in the Android app and select **Enable on this device**. Android 1
 - Creating an event with a band selected notifies its other accepted members only when the creator's verified band role is `OWNER`. Personal events and events created by moderators or members do not generate this notification. Assigning an existing event or playlist to a band is not a new-event trigger.
 - Category preferences apply to all of the user's Android devices. The enable/disable button affects the current device session.
 - Notification records are saved even when the user has no registered device or has opted out of push, to support the later in-app inbox. Enabling a device does not send historical notifications.
-- Device registrations belong to authenticated sessions. Logout or session revocation deletes registrations through database cascading; expired sessions are excluded from sending. Token rotation replaces the previous token for that session. Notification taps accept only internal band/event destinations and the intended recipient.
+- Device registrations belong to authenticated sessions. Android logout waits for in-flight token saves, removes the current session's registration on the server, deletes the native Firebase token, and clears delivered notifications before signing out. If server removal fails, logout reports an error and remains logged in for retry; native cleanup failure is reported but does not block logout after server removal. Failed sign-out resumes registration. Session revocation deletes registrations through database cascading; expired sessions are excluded from sending. Session validity is the active-state source of truth, so there is no separate `is_active` flag. Token rotation replaces the previous token for that session. Notification taps accept only internal band/event destinations and the intended recipient.
 - Push notifications show in the foreground and background using the `band_activity` channel. Android lock-screen content is private. Users can also disable this channel in Android settings.
 
 ## Delivery recovery
@@ -50,7 +50,7 @@ Run `node --test tests/push-notifications.test.mjs` for isolated server behavior
 
 On actual Android devices verify:
 
-1. Enable, deny, and revoke notification permission; save both categories independently.
+1. Log in on a fresh install: grant or deny the automatic permission request. Check that navigation does not repeat a denied request; enable permission in Android settings and foreground the app. Disable push in ChordPH, log in again, and verify it stays disabled until manually enabled. Save both categories independently.
 2. Add a user to a band: only the added user receives a notification and tapping it opens that band.
 3. Create a band event as an owner: other accepted members receive it. Repeat as a member/moderator and for a personal event: no band push is sent.
 4. Verify foreground, background, and cold-start notification taps.

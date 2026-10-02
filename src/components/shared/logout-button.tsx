@@ -39,28 +39,40 @@ export function LogoutButton({ variant = "header" }: LogoutButtonProps) {
     setError(undefined);
 
     try {
-      await prepareAndroidPushLogout();
+      const cleared = await prepareAndroidPushLogout();
+      if (!cleared) {
+        showToast({
+          title: "Couldn't clear Android notifications",
+          description: "This session's push registration was removed. Clear any remaining notifications in Android.",
+          tone: "error",
+        });
+      }
     } catch {
-      showToast({
-        title: "Couldn't clear Android notifications",
-        description: "Signing out will still remove this session's push registration.",
-        tone: "error",
-      });
+      resumeAndroidPushAfterFailedLogout();
+      setError("Couldn't disable notifications before logout. Check your connection and try again.");
+      setIsPending(false);
+      return;
     }
 
-    await authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          router.push("/");
-          router.refresh();
+    try {
+      await authClient.signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            router.push("/");
+            router.refresh();
+          },
+          onError: () => {
+            resumeAndroidPushAfterFailedLogout();
+            setError("Logout failed. Please try again.");
+            setIsPending(false);
+          },
         },
-        onError: () => {
-          resumeAndroidPushAfterFailedLogout();
-          setError("Logout failed. Please try again.");
-          setIsPending(false);
-        },
-      },
-    });
+      });
+    } catch {
+      resumeAndroidPushAfterFailedLogout();
+      setError("Logout failed. Please try again.");
+      setIsPending(false);
+    }
   }
 
   const buttonClassName =

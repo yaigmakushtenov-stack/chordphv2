@@ -27,6 +27,7 @@ type MenuItem = {
   icon: MenuIconName;
   label: string;
   note?: string;
+  requiresAuth?: boolean;
 };
 
 type SidebarUser = {
@@ -43,7 +44,8 @@ type MenuIconName =
   | "setlists"
   | "bands"
   | "events"
-  | "chords";
+  | "chords"
+  | "settings";
 
 const AppMenuContext = createContext<AppMenuContextValue | null>(null);
 
@@ -60,6 +62,7 @@ const MENU_ITEMS: MenuItem[] = [
   { href: "/bands", icon: "bands", label: "Bands" },
   { href: "/events", icon: "events", label: "Events" },
   { href: "/chord-chart", icon: "chords", label: "Chord chart" },
+  { href: "/settings", icon: "settings", label: "Settings", requiresAuth: true },
 ];
 
 export function AppMenuProvider({ children }: { children: ReactNode }) {
@@ -239,7 +242,7 @@ function MenuContent({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <nav aria-label="Main navigation" className="mt-6 grid gap-2">
-        {MENU_ITEMS.map((item) => {
+        {MENU_ITEMS.filter((item) => !item.requiresAuth || user !== null).map((item) => {
           const isActive = item.href
             ? isActivePath(pathname, item.href, item.activePrefixes)
             : false;
@@ -379,7 +382,7 @@ function SidebarUserMenu({ user }: { user: SidebarUser }) {
                 <circle cx="12" cy="8" r="3" />
                 <path d="M5 20c.6-4 2.9-6 7-6s6.4 2 7 6" />
               </svg>
-              Profile preferences
+              Settings
             </Link>
             <LogoutButton variant="menu" />
           </div>
@@ -452,6 +455,7 @@ function MenuIcon({ name }: { name: MenuIconName }) {
     bands: <><circle cx="8" cy="8" r="3" /><circle cx="17" cy="9" r="2.5" /><path d="M3 20c.4-4 2-6 5-6s4.6 2 5 6M14 15c3.5-.8 6 .8 7 4" /></>,
     events: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18M8 14h3M13 14h3M8 17h3" /></>,
     chords: <><path d="M5 4v16M10 4v16M15 4v16M20 4v16" /><path d="M5 8h15M5 13h15M5 18h15" /><circle cx="10" cy="8" r="1.5" fill="currentColor" stroke="none" /><circle cx="15" cy="13" r="1.5" fill="currentColor" stroke="none" /></>,
+    settings: <><path d="M4 6h16M4 12h16M4 18h16" /><circle cx="8" cy="6" r="2" fill="currentColor" /><circle cx="16" cy="12" r="2" fill="currentColor" /><circle cx="10" cy="18" r="2" fill="currentColor" /></>,
   };
 
   return (

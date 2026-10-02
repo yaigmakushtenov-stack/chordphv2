@@ -8,6 +8,7 @@ export type AndroidPushState = { status: PushStatus; message: string | null };
 type PushBinding = { key: string; userId: string; navigate: (href: string) => void };
 
 const OPT_IN_KEY = "chordph.android-push.enabled";
+const PERMISSION_REQUESTED_KEY = "chordph.android-push.permission-requested";
 const INITIAL_STATE: AndroidPushState = { status: "checking", message: null };
 const listeners = new Set<() => void>();
 let state = INITIAL_STATE;
@@ -19,6 +20,7 @@ let lastRegisteredKey: string | null = null;
 let lastRegisteredAt = 0;
 let registeringKey: string | null = null;
 let pendingTokenSave: Promise<void> = Promise.resolve();
+let permissionRequest: ReturnType<typeof PushNotifications.requestPermissions> | null = null;
 
 export function subscribeAndroidPush(listener: () => void): () => void {
   listeners.add(listener);
@@ -63,10 +65,11 @@ export async function enableAndroidPush(): Promise<void> {
   if (!current || !isAndroidPushAvailable()) {
     return;
   }
+  paused = false;
   try {
     await ensureListeners();
-    const permission = await PushNotifications.requestPermissions();
-    if (binding !== current) {
+    const permission = await requestPermission();
+    if (binding !== current || paused) {
       return;
     }
     if (permission.receive !== "granted") {
@@ -102,7 +105,7 @@ export async function disableAndroidPush(): Promise<void> {
     updateState("enabled", "Couldn't disable notifications. Check your connection and try again.");
     return;
   }
-  localStorage.removeItem(OPT_IN_KEY);
+  localStorage.setItem(OPT_IN_KEY, "false");
   lastRegisteredKey = null;
   registeringKey = null;
   try {
@@ -114,17 +117,24 @@ export async function disableAndroidPush(): Promise<void> {
   }
 }
 
-export async function prepareAndroidPushLogout(): Promise<void> {
+export async function prepareAndroidPushLogout(): Promise<boolean> {
   paused = true;
   clearTimeout(registrationTimeout);
   lastRegisteredKey = null;
   registeringKey = null;
   if (!isAndroidPushAvailable()) {
-    return;
+    return true;
   }
   await pendingTokenSave;
-  await PushNotifications.unregister();
-  await PushNotifications.removeAllDeliveredNotifications();
+  const result = await NotificationActions.unregisterDevice();
+  if (!result.ok) {
+    throw new Error("Couldn't remove this session's push registration.");
+  }
+  const cleanup = await Promise.allSettled([
+    PushNotifications.unregister(),
+    PushNotifications.removeAllDeliveredNotifications(),
+  ]);
+  return cleanup.every((result) => result.status === "fulfilled");
 }
 
 export function resumeAndroidPushAfterFailedLogout(): void {
@@ -155,12 +165,21 @@ async function resumeRegistration(current: PushBinding): Promise<void> {
   if (binding !== current || paused) {
     return;
   }
-  if (localStorage.getItem(OPT_IN_KEY) !== "true") {
+  if (localStorage.getItem(OPT_IN_KEY) === "false") {
     lastRegisteredKey = null;
     updateState("disabled");
     return;
   }
-  const permission = await PushNotifications.checkPermissions();
+  let permission = await PushNotifications.checkPermissions();
+  if (binding !== current || paused) {
+    return;
+  }
+  if (
+    (permission.receive === "prompt" || permission.receive === "prompt-with-rationale") &&
+    (permissionRequest || localStorage.getItem(PERMISSION_REQUESTED_KEY) !== "true")
+  ) {
+    permission = await requestPermission();
+  }
   if (binding !== current || paused) {
     return;
   }
@@ -174,6 +193,7 @@ async function resumeRegistration(current: PushBinding): Promise<void> {
     updateState("denied", "Allow notifications in Android settings to receive band activity.");
     return;
   }
+  localStorage.setItem(OPT_IN_KEY, "true");
   if (lastRegisteredKey === current.key && Date.now() - lastRegisteredAt < 5 * 60 * 1_000) {
     updateState("enabled");
     return;
@@ -182,6 +202,16 @@ async function resumeRegistration(current: PushBinding): Promise<void> {
     return;
   }
   await register(current);
+}
+
+async function requestPermission(): ReturnType<typeof PushNotifications.requestPermissions> {
+  if (!permissionRequest) {
+    localStorage.setItem(PERMISSION_REQUESTED_KEY, "true");
+    permissionRequest = PushNotifications.requestPermissions().finally(() => {
+      permissionRequest = null;
+    });
+  }
+  return await permissionRequest;
 }
 
 async function register(current: PushBinding): Promise<void> {
@@ -193,6 +223,12 @@ async function register(current: PushBinding): Promise<void> {
     visibility: 0,
   });
   if (binding !== current || paused) {
+    return;
+  }
+  if (
+    registeringKey === current.key ||
+    (lastRegisteredKey === current.key && Date.now() - lastRegisteredAt < 5 * 60 * 1_000)
+  ) {
     return;
   }
   updateState("registering");

@@ -265,9 +265,10 @@ test("notification actions derive the device owner and session from authenticati
   assert.equal(registrations.length, 1);
 });
 
-function androidFixture() {
+function androidFixture({ initialPermission = "granted", requestedPermission = "granted", optedOut = false } = {}) {
   const previous = { document: globalThis.document, window: globalThis.window, localStorage: globalThis.localStorage };
   const storage = new Map();
+  if (optedOut) storage.set("chordph.android-push.enabled", "false");
   globalThis.localStorage = {
     getItem: (key) => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, value),
@@ -277,7 +278,7 @@ function androidFixture() {
   globalThis.window = { addEventListener() {}, removeEventListener() {} };
   const callbacks = {};
   const calls = [];
-  let permission = "granted";
+  let permission = initialPermission;
   const actions = {
     registerAndroidToken: async () => { calls.push("save-token"); return { ok: true, data: null }; },
     unregisterDevice: async () => { calls.push("remove-token"); return { ok: true, data: null }; },
@@ -287,7 +288,7 @@ function androidFixture() {
     "@capacitor/push-notifications": { PushNotifications: {
       addListener: async (name, callback) => { callbacks[name] = callback; return { remove: async () => {} }; },
       checkPermissions: async () => ({ receive: permission }),
-      requestPermissions: async () => { calls.push("request-permission"); return { receive: permission }; },
+      requestPermissions: async () => { calls.push("request-permission"); permission = requestedPermission; return { receive: permission }; },
       createChannel: async () => {},
       register: async () => { calls.push("register"); callbacks.registration({ value: "test-token" }); },
       unregister: async () => { calls.push("native-unregister"); },
@@ -299,6 +300,7 @@ function androidFixture() {
   const unbind = service.bindAndroidPush("user-1", "session-1", (href) => navigate.push(href));
   return {
     service, actions, calls, callbacks, navigate,
+    bind: (userId, sessionId) => service.bindAndroidPush(userId, sessionId, (href) => navigate.push(href)),
     setPermission: (value) => { permission = value; },
     restore: async () => {
       await service.prepareAndroidPushLogout();
@@ -313,15 +315,13 @@ function androidFixture() {
 
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
-test("Android registration requires opt-in and taps only navigate for the intended account", async () => {
+test("Android login automatically registers granted permission and taps only navigate for the intended account", async () => {
   const fixture = androidFixture();
   try {
     await settle();
-    assert.equal(fixture.service.getAndroidPushState().status, "disabled");
-    assert.ok(!fixture.calls.includes("register"));
-    await fixture.service.enableAndroidPush();
-    await settle();
     assert.equal(fixture.service.getAndroidPushState().status, "enabled");
+    assert.ok(fixture.calls.includes("save-token"));
+    assert.ok(!fixture.calls.includes("request-permission"));
     const tap = (href, recipientId) => fixture.callbacks.pushNotificationActionPerformed({ notification: { data: { href, recipientId } } });
     tap("https://malicious.example", "user-1");
     tap("/bands/band-1", "another-user");
@@ -336,14 +336,90 @@ test("Android registration requires opt-in and taps only navigate for the intend
 });
 
 test("denied Android permission does not register a token", async () => {
+  const fixture = androidFixture({ initialPermission: "prompt", requestedPermission: "denied" });
+  try {
+    await settle();
+    assert.equal(fixture.service.getAndroidPushState().status, "denied");
+    assert.ok(!fixture.calls.includes("save-token"));
+    const unbind = fixture.bind("user-1", "session-1");
+    await settle();
+    unbind();
+    assert.equal(fixture.calls.filter((call) => call === "request-permission").length, 1);
+    fixture.setPermission("granted");
+    fixture.bind("user-1", "session-1");
+    await settle();
+    assert.equal(fixture.service.getAndroidPushState().status, "enabled");
+  } finally {
+    await fixture.restore();
+  }
+});
+
+test("first Android login prompts once and registers after permission is granted", async () => {
+  const fixture = androidFixture({ initialPermission: "prompt" });
+  try {
+    fixture.bind("user-1", "session-1");
+    await settle();
+    assert.equal(fixture.calls.filter((call) => call === "request-permission").length, 1);
+    assert.equal(fixture.calls.filter((call) => call === "register").length, 1);
+    assert.equal(fixture.service.getAndroidPushState().status, "enabled");
+  } finally {
+    await fixture.restore();
+  }
+});
+
+test("an explicit device opt-out survives login and can be enabled manually", async () => {
+  const fixture = androidFixture({ optedOut: true });
+  try {
+    await settle();
+    assert.equal(fixture.service.getAndroidPushState().status, "disabled");
+    assert.ok(!fixture.calls.includes("register"));
+    await fixture.service.enableAndroidPush();
+    await settle();
+    await fixture.service.disableAndroidPush();
+    fixture.bind("user-1", "another-session");
+    await settle();
+    assert.equal(fixture.calls.filter((call) => call === "register").length, 1);
+    assert.equal(fixture.service.getAndroidPushState().status, "disabled");
+    await fixture.service.enableAndroidPush();
+    await settle();
+    assert.equal(fixture.service.getAndroidPushState().status, "enabled");
+  } finally {
+    await fixture.restore();
+  }
+});
+
+test("Android logout removes the server registration and blocks late tokens until login resumes", async () => {
   const fixture = androidFixture();
   try {
     await settle();
-    fixture.setPermission("denied");
-    await fixture.service.enableAndroidPush();
-    assert.equal(fixture.service.getAndroidPushState().status, "denied");
+    fixture.calls.length = 0;
+    assert.equal(await fixture.service.prepareAndroidPushLogout(), true);
+    assert.ok(fixture.calls.indexOf("remove-token") < fixture.calls.indexOf("native-unregister"));
+    fixture.callbacks.registration({ value: "late-token" });
+    await settle();
     assert.ok(!fixture.calls.includes("save-token"));
+    fixture.bind("user-2", "session-2");
+    await settle();
+    assert.ok(fixture.calls.includes("save-token"));
   } finally {
+    await fixture.restore();
+  }
+});
+
+test("failed server unregistration prevents logout preparation and allows recovery", async () => {
+  const fixture = androidFixture();
+  const unregister = fixture.actions.unregisterDevice;
+  try {
+    await settle();
+    fixture.calls.length = 0;
+    fixture.actions.unregisterDevice = async () => ({ ok: false, error: { code: "UNAVAILABLE" } });
+    await assert.rejects(fixture.service.prepareAndroidPushLogout());
+    assert.ok(!fixture.calls.includes("native-unregister"));
+    fixture.service.resumeAndroidPushAfterFailedLogout();
+    await settle();
+    assert.ok(fixture.calls.includes("save-token"));
+  } finally {
+    fixture.actions.unregisterDevice = unregister;
     await fixture.restore();
   }
 });
