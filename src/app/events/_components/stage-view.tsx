@@ -754,6 +754,18 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
         isDark ? "bg-[#08090b] text-[#f5f3ed]" : "bg-[#f8f7f3] text-[#151515]"
       }`}
     >
+      <Link
+        href={`/events/${playlist.eventId}`}
+        aria-label="Close stage"
+        title="Close stage"
+        className={`fixed right-2 top-0.5 z-50 flex size-11 items-center justify-center rounded-full text-2xl backdrop-blur-md transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] sm:top-1.5 ${
+          isDark
+            ? "bg-[#08090b]/40 text-[#f5f3ed] hover:bg-white/10"
+            : "bg-[#f8f7f3]/40 text-[#151515] hover:bg-black/10"
+        }`}
+      >
+        <span aria-hidden="true">×</span>
+      </Link>
       <div className="grid min-h-0 min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div
           ref={scrollerRef}
@@ -763,7 +775,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           onTouchStart={handleLocalScrollIntent}
           onWheel={handleLocalScrollIntent}
           tabIndex={-1}
-          className="min-h-0 overflow-x-hidden overflow-y-auto px-0 pb-[42vh] pt-6 sm:px-8 lg:px-12"
+          className="min-h-0 overflow-x-hidden overflow-y-auto px-0 pb-[42vh] sm:px-8 lg:px-12"
         >
           <div className="mx-auto grid max-w-[980px] gap-2">
             {tracks.length ? (
@@ -773,7 +785,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                   className="grid min-w-0 gap-2"
                   data-stage-track-id={track.setListTrackId}
                 >
-                  <StageTrackHeader track={track} />
+                  <StageTrackHeader isDark={isDark} track={track} />
                   {track.isAvailable && track.sections.length ? (
                     <SongChart
                       sections={track.sections}
@@ -1327,20 +1339,29 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
 }
 
 function StageTrackHeader({
+  isDark,
   track,
 }: {
+  isDark: boolean;
   track: StageTrackDocument;
 }) {
   return (
     <header
-      className={`flex min-w-0 items-left justify-left gap-2 rounded-md px-3 py-2 text-center sm:mx-0 sm:justify-start sm:gap-4 sm:bg-transparent sm:px-1`}
+      className={`sticky top-0 z-20 flex h-12 min-w-0 self-start items-center justify-start gap-2 pl-3 pr-16 backdrop-blur-md sm:h-14 sm:gap-3 ${
+        isDark ? "bg-[#08090b]/60 text-[#f5f3ed]" : "bg-[#f8f7f3]/60 text-[#151515]"
+      }`}
     >
       {track.displayKey ? (
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#ed1746] text-[11px] font-black text-white shadow-[0_10px_24px_rgba(237,23,70,0.2)] sm:size-14 sm:text-[18px]">
-          {track.displayKey}
+        <span
+          aria-label={`Song key: ${track.displayKey}`}
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-[#ed1746] px-2.5 text-white sm:h-9 sm:px-3"
+        >
+          <span className="text-[16px] font-black leading-none sm:text-[18px]">
+            {track.displayKey}
+          </span>
         </span>
       ) : null}
-      <h2 className="min-w-0 truncate text-[16px] font-black leading-tight my-auto sm:text-[36px] sm:text-inherit">
+      <h2 className="min-w-0 truncate text-[14px] font-black leading-tight sm:text-[20px]">
         {track.title}
       </h2>
       {track.activeTranspose !== 0 ? (
@@ -1390,7 +1411,7 @@ function StageNavigator({
       }`}
     >
       <div
-        className={`flex items-start justify-between gap-3 border-b px-4 py-4 ${
+        className={`flex items-start justify-between gap-3 border-b px-4 py-4 lg:pr-16 ${
           isDark ? "border-[#23252a]" : "border-[#dedbd2]"
         }`}
       >

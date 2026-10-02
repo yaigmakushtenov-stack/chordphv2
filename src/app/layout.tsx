@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Roboto_Mono } from "next/font/google";
+import { SessionRefresh } from "@/providers/session-refresh";
 import { ThemeProvider } from "@/providers/theme-provider";
 import "./globals.css";
 
@@ -22,7 +23,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <SessionRefresh />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
