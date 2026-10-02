@@ -109,7 +109,6 @@ export type StageSyncEventBase = {
 export type StageSyncSnapshot = StageSyncEventBase & {
   position: StageRuntimePosition | null;
   speed: number;
-  trackTransposes: StageTrackTransposes;
   type: "snapshot";
 };
 
@@ -125,9 +124,4 @@ export type StageSyncEvent =
       position: StageRuntimePosition | null;
       speed: number;
       type: "speed";
-    })
-  | (StageSyncEventBase & {
-      setListTrackId: string;
-      transpose: number;
-      type: "track-transpose";
     });

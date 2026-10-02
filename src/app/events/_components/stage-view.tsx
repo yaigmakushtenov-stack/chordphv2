@@ -346,9 +346,8 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     () => ({
       position: stageStateRef.current?.position ?? stageState.position,
       speed: scrollSpeed,
-      trackTransposes,
     }),
-    [scrollSpeed, stageState.position, trackTransposes],
+    [scrollSpeed, stageState.position],
   );
 
   const stageSync = useStageSync({
@@ -358,8 +357,6 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     getSnapshot: getStageSyncSnapshot,
     lockState,
     onSnapshot: (event: StageSyncSnapshot) => {
-      setTrackTransposes(event.trackTransposes);
-
       if (syncMode === "unsynced") {
         return;
       }
@@ -370,16 +367,6 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
         event.sentAt,
       );
       setLockState("locked");
-    },
-    onTrackTranspose: (event) => {
-      if (!event.setListTrackId) {
-        return;
-      }
-
-      setTrackTransposes((current) => ({
-        ...current,
-        [event.setListTrackId]: clampTranspose(event.transpose),
-      }));
     },
     onViewport: (event) => {
       if (syncMode === "unsynced") {
@@ -398,7 +385,6 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     snapshot: {
       position: stageState.position,
       speed: scrollSpeed,
-      trackTransposes,
     },
     syncMode,
     userId: playlist.currentUser.id,
@@ -682,11 +668,6 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
         [activeSetListTrackId]: nextTranspose,
       };
 
-      stageSync.publishTrackTranspose({
-        setListTrackId: activeSetListTrackId,
-        transpose: nextTranspose,
-      });
-
       return nextTransposes;
     });
   }
@@ -701,11 +682,6 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
         ...current,
         [activeSetListTrackId]: 0,
       };
-
-      stageSync.publishTrackTranspose({
-        setListTrackId: activeSetListTrackId,
-        transpose: 0,
-      });
 
       return nextTransposes;
     });

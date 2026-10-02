@@ -13,25 +13,21 @@ import type {
   StageSyncMode,
   StageSyncPresenceData,
   StageSyncSnapshot,
-  StageTrackTransposes,
 } from "@/types/stage";
 
 const SNAPSHOT_EVENT = "stage:snapshot";
 const VIEWPORT_EVENT = "stage:viewport";
 const SPEED_EVENT = "stage:speed";
-const TRACK_TRANSPOSE_EVENT = "stage:track-transpose";
 
 type StageSyncSnapshotData = {
   position: StageRuntimePosition | null;
   speed: number;
-  trackTransposes: StageTrackTransposes;
 };
 
 type StageSyncEventDraft =
   | {
       position: StageRuntimePosition | null;
       speed: number;
-      trackTransposes: StageTrackTransposes;
       type: "snapshot";
     }
   | {
@@ -44,11 +40,6 @@ type StageSyncEventDraft =
       position: StageRuntimePosition | null;
       speed: number;
       type: "speed";
-    }
-  | {
-      setListTrackId: string;
-      transpose: number;
-      type: "track-transpose";
     };
 
 type UseStageSyncInput = {
@@ -58,7 +49,6 @@ type UseStageSyncInput = {
   getSnapshot?: () => StageSyncSnapshotData;
   lockState: StageSyncLockState;
   onSnapshot: (event: StageSyncSnapshot) => void;
-  onTrackTranspose: (event: Extract<StageSyncEvent, { type: "track-transpose" }>) => void;
   onViewport: (event: Extract<StageSyncEvent, { type: "viewport" | "speed" }>) => void;
   role: "OWNER" | "MODERATOR" | "MEMBER" | null;
   setListId: string;
@@ -74,10 +64,6 @@ type UseStageSyncResult = {
   publishSpeed: (input: {
     position: StageRuntimePosition | null;
     speed: number;
-  }) => void;
-  publishTrackTranspose: (input: {
-    setListTrackId: string;
-    transpose: number;
   }) => void;
   publishViewport: (input: {
     mode: "jump" | "scroll-end";
@@ -151,7 +137,6 @@ export function useStageSync(input: UseStageSyncInput): UseStageSyncResult {
     publishEvent({
       position: snapshot.position,
       speed: snapshot.speed,
-      trackTransposes: snapshot.trackTransposes,
       type: "snapshot",
     });
   }, [publishEvent]);
@@ -178,18 +163,6 @@ export function useStageSync(input: UseStageSyncInput): UseStageSyncResult {
     },
     [publishEvent],
   );
-
-  const publishTrackTranspose: UseStageSyncResult["publishTrackTranspose"] =
-    useCallback(
-      ({ setListTrackId, transpose }) => {
-        publishEvent({
-          setListTrackId,
-          transpose,
-          type: "track-transpose",
-        });
-      },
-      [publishEvent],
-    );
 
   useEffect(() => {
     if (!channelName || !input.bandId) {
@@ -258,11 +231,6 @@ export function useStageSync(input: UseStageSyncInput): UseStageSyncResult {
       };
       setLastControllerLabel(formatControllerLabel(event.sender.role));
 
-      if (event.type === "track-transpose") {
-        inputRef.current.onTrackTranspose(event);
-        return;
-      }
-
       if (event.type === "snapshot") {
         inputRef.current.onSnapshot(event);
         return;
@@ -287,11 +255,6 @@ export function useStageSync(input: UseStageSyncInput): UseStageSyncResult {
       }
 
       await channel.subscribe(SPEED_EVENT, handleMessage);
-      if (!isActive) {
-        return;
-      }
-
-      await channel.subscribe(TRACK_TRANSPOSE_EVENT, handleMessage);
       if (!isActive) {
         return;
       }
@@ -375,7 +338,6 @@ export function useStageSync(input: UseStageSyncInput): UseStageSyncResult {
     lastControllerLabel,
     publishSnapshot,
     publishSpeed,
-    publishTrackTranspose,
     publishViewport,
     status,
   };
@@ -390,11 +352,7 @@ function getEventName(type: StageSyncEvent["type"]): string {
     return VIEWPORT_EVENT;
   }
 
-  if (type === "speed") {
-    return SPEED_EVENT;
-  }
-
-  return TRACK_TRANSPOSE_EVENT;
+  return SPEED_EVENT;
 }
 
 function createEventPayload(
@@ -406,7 +364,6 @@ function createEventPayload(
       ...base,
       position: event.position,
       speed: event.speed,
-      trackTransposes: event.trackTransposes,
       type: event.type,
     };
   }
@@ -421,19 +378,10 @@ function createEventPayload(
     };
   }
 
-  if (event.type === "speed") {
-    return {
-      ...base,
-      position: event.position,
-      speed: event.speed,
-      type: event.type,
-    };
-  }
-
   return {
     ...base,
-    setListTrackId: event.setListTrackId,
-    transpose: event.transpose,
+    position: event.position,
+    speed: event.speed,
     type: event.type,
   };
 }
@@ -490,7 +438,6 @@ function isStageSyncEvent(value: unknown): value is StageSyncEvent {
     typeof event.sentAt === "number" &&
     (event.type === "snapshot" ||
       event.type === "viewport" ||
-      event.type === "speed" ||
-      event.type === "track-transpose")
+      event.type === "speed")
   );
 }
