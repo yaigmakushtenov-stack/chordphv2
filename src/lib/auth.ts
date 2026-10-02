@@ -17,7 +17,7 @@ export const auth = betterAuth({
   },
   session: {
     modelName: "betterAuthSession",
-    expiresIn: 60 * 60 * 24 * 365 * 2,
+    expiresIn: 60 * 60 * 24 * 365,
     updateAge: 60 * 60 * 24,
   },
   account: {
