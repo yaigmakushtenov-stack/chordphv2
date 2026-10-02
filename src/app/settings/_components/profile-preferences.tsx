@@ -9,25 +9,20 @@ import type {
   AccidentalPreference,
   ChartTextSize,
   DefaultInstrument,
-  NotificationPreferences,
 } from "@/app/settings/_components/preference-types";
 import { ProfileSection } from "@/app/settings/_components/profile-section";
+import type { PushPreferences } from "@/types/notifications";
 
 type ProfilePreferencesProps = {
   initialDisplayName: string;
   initialImage: string | null;
-};
-
-const DEFAULT_NOTIFICATIONS: NotificationPreferences = {
-  bandInvites: true,
-  bandUpdates: true,
-  eventReminders: true,
-  eventUpdates: true,
+  initialNotificationPreferences: PushPreferences;
 };
 
 export function ProfilePreferences({
   initialDisplayName,
   initialImage,
+  initialNotificationPreferences,
 }: ProfilePreferencesProps) {
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [image, setImage] = useState(initialImage);
@@ -37,7 +32,6 @@ export function ProfilePreferences({
     useState<AccidentalPreference>("sharps");
   const [chartTextSize, setChartTextSize] =
     useState<ChartTextSize>("comfortable");
-  const [notifications, setNotifications] = useState(DEFAULT_NOTIFICATIONS);
 
   return (
     <div>
@@ -50,7 +44,7 @@ export function ProfilePreferences({
             Preview mode
           </p>
           <p className="mt-0.5 text-[11px] leading-4 text-[#8a5060] dark:text-[#d3a4ae]">
-            Theme changes apply now. Other preferences remain on this screen until account sync is added.
+            Theme changes apply now, and notification preferences can be saved. Other preferences remain on this screen until account sync is added.
           </p>
         </div>
       </div>
@@ -72,8 +66,7 @@ export function ProfilePreferences({
         onChartTextSizeChange={setChartTextSize}
       />
       <NotificationPreferencesSection
-        notifications={notifications}
-        onChange={setNotifications}
+        initialPreferences={initialNotificationPreferences}
       />
     </div>
   );

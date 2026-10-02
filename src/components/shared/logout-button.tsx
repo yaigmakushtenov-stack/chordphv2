@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { prepareAndroidPushLogout, resumeAndroidPushAfterFailedLogout } from "@/lib/client/android-push";
+import { showToast } from "@/components/shared/toast";
 
 type LogoutButtonProps = {
   variant?: "header" | "menu";
@@ -36,6 +38,16 @@ export function LogoutButton({ variant = "header" }: LogoutButtonProps) {
     setIsPending(true);
     setError(undefined);
 
+    try {
+      await prepareAndroidPushLogout();
+    } catch {
+      showToast({
+        title: "Couldn't clear Android notifications",
+        description: "Signing out will still remove this session's push registration.",
+        tone: "error",
+      });
+    }
+
     await authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
@@ -43,6 +55,7 @@ export function LogoutButton({ variant = "header" }: LogoutButtonProps) {
           router.refresh();
         },
         onError: () => {
+          resumeAndroidPushAfterFailedLogout();
           setError("Logout failed. Please try again.");
           setIsPending(false);
         },

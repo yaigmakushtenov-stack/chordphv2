@@ -4,6 +4,7 @@ import "server-only";
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { after } from "next/server";
 
 import { GroupInstrument, type GroupRole } from "@/generated/prisma/client";
 import {
@@ -17,6 +18,7 @@ import {
   GroupServiceError,
   type GroupMemberSuggestion,
 } from "@/services/group-service";
+import { dispatchAfterMutation } from "@/services/notification-service";
 
 export type CreateGroupActionInput = {
   name: string;
@@ -113,6 +115,7 @@ export async function addMember(
       instrument: input.instrument,
       invitedById: session.user.id,
     });
+    after(dispatchAfterMutation);
     revalidatePath(`/bands/${input.groupId}`);
 
     return actionSuccess(null);

@@ -3,11 +3,13 @@ import "server-only";
 import {
   GroupMembershipStatus,
   GroupRole,
+  NotificationType,
   Prisma,
   PublicityStatus,
   VisibilityStatus,
 } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
+import { queueNotifications } from "@/services/notification-service";
 
 const MAX_EVENT_TITLE_LENGTH = 120;
 const MAX_EVENT_DESCRIPTION_LENGTH = 1_000;
@@ -538,6 +540,7 @@ export async function createEvent(
   }
 
   return prisma.$transaction(async (transaction) => {
+    let ownerGroupName: string | null = null;
     if (groupId) {
       const membership = await transaction.groupMembership.findUnique({
         where: {
@@ -546,7 +549,7 @@ export async function createEvent(
             userId: ownerId,
           },
         },
-        select: { status: true },
+        select: { status: true, role: true, group: { select: { name: true } } },
       });
 
       if (membership?.status !== GroupMembershipStatus.ACCEPTED) {
@@ -555,9 +558,12 @@ export async function createEvent(
           "You do not have access to this band.",
         );
       }
+      if (membership.role === GroupRole.OWNER) {
+        ownerGroupName = membership.group.name;
+      }
     }
 
-    return transaction.event.create({
+    const event = await transaction.event.create({
       data: {
         ownerId,
         title: requireText(input.title, "title", MAX_EVENT_TITLE_LENGTH),
@@ -592,6 +598,26 @@ export async function createEvent(
       },
       select: eventSummarySelect,
     });
+    if (groupId && ownerGroupName !== null) {
+      const members = await transaction.groupMembership.findMany({
+        where: {
+          groupId,
+          status: GroupMembershipStatus.ACCEPTED,
+          userId: { not: ownerId },
+        },
+        select: { userId: true },
+      });
+      await queueNotifications(transaction, {
+        userIds: members.map((member) => member.userId),
+        groupId,
+        eventId: event.id,
+        type: NotificationType.BAND_EVENT_CREATED,
+        title: "New band event",
+        body: `${ownerGroupName}: ${event.title}`,
+        href: `/events/${event.id}`,
+      });
+    }
+    return event;
   });
 }
 

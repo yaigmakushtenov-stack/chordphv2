@@ -6,6 +6,7 @@ import { ProfilePreferences } from "@/app/settings/_components/profile-preferenc
 import { AppShell } from "@/components/shared/app-shell";
 import { Dashboard } from "@/components/shared/dashboard";
 import { auth } from "@/lib/auth";
+import { getPreferences } from "@/services/notification-service";
 
 export const metadata: Metadata = {
   title: "Profile Preferences | ChordPH",
@@ -18,6 +19,7 @@ export default async function SettingsPage() {
   if (!session?.user?.id) {
     redirect("/login");
   }
+  const notificationPreferences = await getPreferences(session.user.id);
 
   return (
     <AppShell mobileDocumentScroll>
@@ -31,6 +33,7 @@ export default async function SettingsPage() {
           <ProfilePreferences
             initialDisplayName={session.user.name}
             initialImage={session.user.image ?? null}
+            initialNotificationPreferences={notificationPreferences}
           />
         </div>
       </Dashboard>

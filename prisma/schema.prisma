@@ -40,23 +40,26 @@ enum UserRole {
 }
 
 model BetterAuthUser {
-  id               String              @id
-  name             String
-  email            String              @unique
-  emailVerified    Boolean             @default(false)
-  image            String?
-  role             UserRole            @default(USER)
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  sessions         BetterAuthSession[]
-  accounts         BetterAuthAccount[]
-  musicFiles       MusicFile[]
-  tracks           Track[]
-  setLists         SetList[]
-  events           Event[]
-  createdGroups    Group[]             @relation("GroupCreator")
-  groupMemberships GroupMembership[]
-  groupInvitesSent GroupMembership[]   @relation("GroupMembershipInviter")
+  id                      String                  @id
+  name                    String
+  email                   String                  @unique
+  emailVerified           Boolean                 @default(false)
+  image                   String?
+  role                    UserRole                @default(USER)
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  sessions                BetterAuthSession[]
+  accounts                BetterAuthAccount[]
+  musicFiles              MusicFile[]
+  tracks                  Track[]
+  setLists                SetList[]
+  events                  Event[]
+  createdGroups           Group[]                 @relation("GroupCreator")
+  groupMemberships        GroupMembership[]
+  groupInvitesSent        GroupMembership[]       @relation("GroupMembershipInviter")
+  pushDevices             PushDevice[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference?
 
   @@map("better_auth_users")
 }
@@ -71,6 +74,7 @@ model Group {
   memberships        GroupMembership[]
   eventGroups        EventGroups[]
   eventGroupSetLists EventGroupSetList[]
+  notifications      Notification[]
 
   @@index([createdById, createdAt])
   @@map("groups")
@@ -100,18 +104,95 @@ model GroupMembership {
 }
 
 model BetterAuthSession {
-  id        String         @id
-  expiresAt DateTime
-  token     String         @unique
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      BetterAuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String         @id
+  expiresAt   DateTime
+  token       String         @unique
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  ipAddress   String?
+  userAgent   String?
+  userId      String
+  user        BetterAuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pushDevices PushDevice[]
 
   @@index([userId])
   @@map("better_auth_sessions")
+}
+
+enum NotificationType {
+  BAND_ADDED
+  BAND_EVENT_CREATED
+}
+
+enum PushDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+model NotificationPreference {
+  userId      String         @id
+  bandInvites Boolean        @default(true)
+  newEvents   Boolean        @default(true)
+  user        BetterAuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model PushDevice {
+  id         String            @id @default(cuid())
+  userId     String
+  sessionId  String            @unique
+  token      String            @unique
+  lastSeenAt DateTime          @default(now())
+  user       BetterAuthUser    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session    BetterAuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  deliveries PushDelivery[]
+
+  @@index([userId])
+  @@map("push_devices")
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  groupId    String
+  eventId    String?
+  type       NotificationType
+  title      String
+  body       String
+  href       String
+  createdAt  DateTime         @default(now())
+  readAt     DateTime?
+  user       BetterAuthUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group      Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  event      Event?           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  deliveries PushDelivery[]
+
+  @@index([userId, createdAt])
+  @@index([groupId])
+  @@index([eventId])
+  @@map("notifications")
+}
+
+model PushDelivery {
+  id             String             @id @default(cuid())
+  notificationId String
+  deviceId       String
+  status         PushDeliveryStatus @default(PENDING)
+  attempts       Int                @default(0)
+  nextAttemptAt  DateTime           @default(now())
+  leaseId        String?
+  leaseUntil     DateTime?
+  sentAt         DateTime?
+  errorCode      String?
+  notification   Notification       @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  device         PushDevice         @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, deviceId])
+  @@index([status, nextAttemptAt, leaseUntil])
+  @@map("push_deliveries")
 }
 
 model BetterAuthAccount {
@@ -297,6 +378,7 @@ model Event {
   eventGroups        EventGroups[]
   eventSetLists      EventSetList[]
   eventGroupSetLists EventGroupSetList[]
+  notifications      Notification[]
 
   @@index([ownerId, startDate])
   @@map("events")

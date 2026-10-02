@@ -4,10 +4,12 @@ import "server-only";
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { after } from "next/server";
 
 import { actionFailure, actionSuccess, type ActionResult } from "@/lib/actions";
 import { auth } from "@/lib/auth";
 import { EventService, EventServiceError } from "@/services/event-service";
+import { dispatchAfterMutation } from "@/services/notification-service";
 
 export type CreateEventActionInput = {
   title: string;
@@ -72,6 +74,7 @@ export async function createNew(
       latitude: input.latitude,
       longitude: input.longitude,
     });
+    after(dispatchAfterMutation);
 
     revalidatePath("/events");
     revalidatePath("/");

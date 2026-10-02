@@ -4,6 +4,9 @@
   "webDir": "native-web",
   "loggingBehavior": "none",
   "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["alert"]
+    },
     "SocialLogin": {
       "providers": {
         "google": true,

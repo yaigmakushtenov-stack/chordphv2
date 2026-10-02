@@ -10,6 +10,7 @@ import {
 import { StickyMusicPlayer } from "@/components/shared/app-shell/sticky-music-player";
 import { MobileAutoHideHeader } from "@/components/shared/app-shell/mobile-auto-hide-header";
 import { NotificationButton } from "@/components/shared/notifications";
+import { AndroidPushRegistration } from "@/components/shared/notifications/android-push-registration";
 import { ToastProvider } from "@/components/shared/toast";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { auth } from "@/lib/auth";
@@ -117,6 +118,9 @@ export async function AppShell({
         }
       >
         <ToastProvider />
+        {session?.user?.id ? (
+          <AndroidPushRegistration userId={session.user.id} sessionId={session.session.id} />
+        ) : null}
         <MobileAutoHideHeader enabled={autoHideMobileHeader}>
           <div className="flex flex-col gap-2">
             <div className="flex min-h-14 min-w-0 items-center gap-2">

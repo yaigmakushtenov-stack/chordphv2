@@ -4,6 +4,7 @@ import {
   GroupInstrument,
   GroupMembershipStatus,
   GroupRole,
+  NotificationType,
   Prisma,
 } from "@/generated/prisma/client";
 import {
@@ -12,6 +13,7 @@ import {
   type GroupPermission as GroupPermissionValue,
 } from "@/lib/groups/permissions";
 import prisma from "@/lib/prisma";
+import { queueNotifications } from "@/services/notification-service";
 
 const MAX_GROUP_NAME_LENGTH = 100;
 const MAX_EMAIL_LENGTH = 320;
@@ -215,6 +217,7 @@ export async function addGroupMember(input: AddGroupMemberInput): Promise<void> 
       select: {
         role: true,
         status: true,
+        group: { select: { name: true } },
       },
     });
 
@@ -276,6 +279,14 @@ export async function addGroupMember(input: AddGroupMemberInput): Promise<void> 
         status: GroupMembershipStatus.ACCEPTED,
         userId: user.id,
       },
+    });
+    await queueNotifications(transaction, {
+      userIds: user.id === invitedById ? [] : [user.id],
+      groupId,
+      type: NotificationType.BAND_ADDED,
+      title: "You were added to a band",
+      body: `You are now a member of ${inviterMembership.group.name}.`,
+      href: `/bands/${groupId}`,
     });
   });
 }

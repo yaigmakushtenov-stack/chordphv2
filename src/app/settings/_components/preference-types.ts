@@ -8,10 +8,3 @@ export type DefaultInstrument =
   | "VOCALS"
   | "KEYS"
   | "BASS";
-
-export type NotificationPreferences = {
-  bandInvites: boolean;
-  bandUpdates: boolean;
-  eventReminders: boolean;
-  eventUpdates: boolean;
-};
