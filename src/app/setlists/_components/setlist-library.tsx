@@ -62,7 +62,7 @@ export function SetListLibrary({ items }: SetListLibraryProps) {
     <div className="grid gap-5">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-[15px] font-bold">Your setlists</h2>
+          <h2 className="text-[15px] font-bold">Your Setlists</h2>
           <p className="mt-1 text-[12px] text-[#717171] dark:text-[#a1a1aa]">
             {items.length} {items.length === 1 ? "setlist" : "setlists"}
           </p>

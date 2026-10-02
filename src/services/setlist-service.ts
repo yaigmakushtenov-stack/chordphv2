@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  GroupMembershipStatus,
   Prisma,
   PublicityStatus,
   VisibilityStatus,
@@ -32,6 +33,22 @@ const setListSummarySelect = {
     },
   },
 } satisfies Prisma.SetListSelect;
+
+const bandSetListSummarySelect = {
+  id: true,
+  group: { select: { name: true } },
+  event: { select: { title: true } },
+  setList: {
+    select: {
+      title: true,
+      _count: { select: { tracks: true } },
+    },
+  },
+} satisfies Prisma.EventGroupSetListSelect;
+
+export type BandSetListSummaryRecord = Prisma.EventGroupSetListGetPayload<{
+  select: typeof bandSetListSummarySelect;
+}>;
 
 const setListTrackSelect = {
   id: true,
@@ -108,6 +125,85 @@ const setListDetailSelect = {
   },
 } satisfies Prisma.SetListSelect;
 
+const bandSetListDetailSelect = {
+  group: { select: { name: true } },
+  event: { select: { title: true } },
+  setList: { select: { ...setListDetailSelect, ownerId: true } },
+} satisfies Prisma.EventGroupSetListSelect;
+
+const bandSetListTrackSelect = {
+  id: true,
+  settings: true,
+  setList: { select: { title: true, ownerId: true } },
+  track: {
+    select: {
+      title: true,
+      artistName: true,
+      ownerId: true,
+      visibilityStatus: true,
+      publicityStatus: true,
+      key: true,
+      annotation: { select: { lyricsAndChords: true } },
+    },
+  },
+} satisfies Prisma.SetListTrackSelect;
+
+export type BandSetListDetailRecord = Prisma.EventGroupSetListGetPayload<{
+  select: typeof bandSetListDetailSelect;
+}>;
+
+export type BandSetListTrackRecord = Prisma.SetListTrackGetPayload<{
+  select: typeof bandSetListTrackSelect;
+}>;
+
+function bandAssignmentWhere(userId: string, assignmentId: string): Prisma.EventGroupSetListWhereInput {
+  return {
+    id: requireId(assignmentId, "assignmentId"),
+    group: {
+      memberships: {
+        some: {
+          userId: requireId(userId, "userId"),
+          status: GroupMembershipStatus.ACCEPTED,
+        },
+      },
+    },
+  };
+}
+
+export async function getBandSetListForUser(
+  userId: string,
+  assignmentId: string,
+): Promise<BandSetListDetailRecord | null> {
+  return prisma.eventGroupSetList.findFirst({
+    where: bandAssignmentWhere(userId, assignmentId),
+    select: bandSetListDetailSelect,
+  });
+}
+
+export async function getBandSetListTrackForUser(
+  userId: string,
+  assignmentId: string,
+  setListTrackId: string,
+): Promise<BandSetListTrackRecord | null> {
+  const item = await prisma.setListTrack.findFirst({
+    where: {
+      id: requireId(setListTrackId, "setListTrackId"),
+      setList: {
+        eventGroupSetLists: { some: bandAssignmentWhere(userId, assignmentId) },
+      },
+    },
+    select: bandSetListTrackSelect,
+  });
+
+  if (!item || (item.track.ownerId !== item.setList.ownerId &&
+    !(item.track.visibilityStatus === VisibilityStatus.PUBLIC &&
+      item.track.publicityStatus === PublicityStatus.APPROVED))) {
+    return null;
+  }
+
+  return item;
+}
+
 export type SetListSummaryRecord = Prisma.SetListGetPayload<{
   select: typeof setListSummarySelect;
 }>;
@@ -167,6 +263,26 @@ export async function listSetListsForUser(
     where: { ownerId: requireId(ownerId, "ownerId") },
     select: setListSummarySelect,
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    take: 100,
+  });
+}
+
+export async function listBandSetListsForUser(
+  userId: string,
+): Promise<BandSetListSummaryRecord[]> {
+  return prisma.eventGroupSetList.findMany({
+    where: {
+      group: {
+        memberships: {
+          some: {
+            userId: requireId(userId, "userId"),
+            status: GroupMembershipStatus.ACCEPTED,
+          },
+        },
+      },
+    },
+    select: bandSetListSummarySelect,
+    orderBy: [{ setList: { updatedAt: "desc" } }, { id: "desc" }],
     take: 100,
   });
 }
@@ -1062,6 +1178,9 @@ function haveEqualArrangements(
 }
 
 export const SetListService = {
+  getBandSetListForUser,
+  getBandSetListTrackForUser,
+  listBandSetListsForUser,
   changeSetListTrackSections,
   addTrackToSetList,
   copySetListTrackArrangement,

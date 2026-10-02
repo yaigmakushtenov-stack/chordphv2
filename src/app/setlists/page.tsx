@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { SetListLibrary } from "@/app/setlists/_components/setlist-library";
+import { BandSetListLibrary } from "@/app/setlists/_components/band-setlist-library";
 import { AppShell } from "@/components/shared/app-shell";
 import { Dashboard } from "@/components/shared/dashboard";
 import { auth } from "@/lib/auth";
@@ -13,7 +14,7 @@ import {
 import type { SetListSummaryData } from "@/types/setlist";
 
 export const metadata: Metadata = {
-  title: "Your Setlists | ChordPH",
+  title: "Setlists | ChordPH",
   description: "Create and organize track setlists for practice and performance.",
 };
 
@@ -24,19 +25,24 @@ export default async function SetListsPage() {
     redirect("/login");
   }
 
-  const setLists = (
-    await SetListService.listSetListsForUser(session.user.id)
-  ).map(toSetListSummaryData);
+  const [personalSetLists, bandSetLists] = await Promise.all([
+    SetListService.listSetListsForUser(session.user.id),
+    SetListService.listBandSetListsForUser(session.user.id),
+  ]);
+  const setLists = personalSetLists.map(toSetListSummaryData);
 
   return (
     <AppShell mobileDocumentScroll>
       <Dashboard
         mobileDocumentScroll
-        eyebrow="YOUR SETLISTS"
+        eyebrow="SETLISTS"
         title="Plan what you’ll play"
-        description="Build ordered lists from your own tracks and approved public tracks shared by other ChordPH users."
+        description="Organize your own setlists and find the setlists assigned to your bands."
       >
-        <SetListLibrary items={setLists} />
+        <div className="grid gap-10">
+          <SetListLibrary items={setLists} />
+          <BandSetListLibrary items={bandSetLists} />
+        </div>
       </Dashboard>
     </AppShell>
   );
