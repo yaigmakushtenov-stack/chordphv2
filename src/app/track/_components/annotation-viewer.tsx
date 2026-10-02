@@ -8,6 +8,7 @@ import * as SetListActions from "@/actions/setlist-actions";
 import * as TrackActions from "@/actions/track-actions";
 import { ChordCard } from "@/components/shared/chords/chord-card";
 import { ChordFullscreenPerformanceLauncher } from "@/components/shared/chords/chord-fullscreen-performance";
+import { TrackAutoScroll } from "@/app/track/_components/track-auto-scroll";
 import { ChordPopover } from "@/app/track/_components/chord-popover";
 import { BackButton } from "@/components/shared/back-button";
 import { BackLink } from "@/components/shared/back-link";
@@ -41,10 +42,12 @@ const MIN_CHART_FONT_SIZE = 11;
 const MAX_CHART_FONT_SIZE = 18;
 
 export function AnnotationViewer({
+  autoScroll = false,
   quickAddSetLists,
   setListContext,
   track,
 }: {
+  autoScroll?: boolean;
   quickAddSetLists: QuickAddSetListData[];
   setListContext?: {
     canArrangeSections: boolean;
@@ -59,6 +62,7 @@ export function AnnotationViewer({
   track: AnnotationViewerData;
 }) {
   const router = useRouter();
+  const chartRef = useRef<HTMLDivElement>(null);
   const [transpose, setTranspose] = useState(
     setListContext?.transposeSemitones ?? 0,
   );
@@ -258,7 +262,9 @@ export function AnnotationViewer({
           }}
         />
       ) : null}
-      <ChordFullscreenPerformanceLauncher
+      {autoScroll ? (
+        source.trim() ? <TrackAutoScroll key={track.id} chartRef={chartRef} /> : null
+      ) : <ChordFullscreenPerformanceLauncher
         chordInstrument={chordInstrument}
         onVariationChange={handleVariationChange}
         track={{
@@ -268,8 +274,8 @@ export function AnnotationViewer({
           lyricsAndChords: setListContext ? source : track.lyricsAndChords,
         }}
         trackPreference={trackPreference}
-      />
-      <section className="min-w-0 p-3 sm:p-6 xl:min-h-0 xl:overflow-y-auto">
+      />}
+      <section className={`min-w-0 p-3 sm:p-6 xl:min-h-0 xl:overflow-y-auto ${autoScroll ? "pb-44 sm:pb-44" : ""}`}>
         <div className="mb-4 flex items-center justify-between gap-3">
           {setListContext ? (
             <BackLink href={`/setlists/${setListContext.setListId}`}>
@@ -502,6 +508,7 @@ export function AnnotationViewer({
         {source.trim() ? (
           <div
             id="song-chart"
+            ref={chartRef}
             className="min-w-0 scroll-mt-4 overflow-x-hidden text-[12px] sm:text-[13px]"
           >
             {setListContext?.canArrangeSections ? (

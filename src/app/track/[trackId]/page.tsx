@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/shared/app-shell";
 import { AnnotationViewer } from "@/app/track/_components/annotation-viewer";
 import { PracticeResumeTracker } from "@/components/shared/practice-resume-tracker";
+import { ScreenWakeLock } from "@/components/shared/screen-wake-lock";
 import { auth } from "@/lib/auth";
 import { SetListService } from "@/services/setlist-service";
 import { TrackService, type AnnotationTrack } from "@/services/track-service";
@@ -39,6 +40,7 @@ export default async function TrackPage({
 
   return (
     <AppShell>
+      <ScreenWakeLock />
       <PracticeResumeTracker
         item={{
           href: `/track/${track.id}#song-chart`,
@@ -51,6 +53,7 @@ export default async function TrackPage({
         }}
       />
       <AnnotationViewer
+        autoScroll
         quickAddSetLists={quickAddSetLists}
         track={toViewerData(track, {
           isOwner,

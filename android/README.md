@@ -46,6 +46,12 @@ provides a retry link when the main page cannot load. External origins use
 Android's external URL handler; no wildcard navigation access is configured.
 Android back navigation goes through WebView history and exits at the root.
 
+Track and event stage pages use the local `ScreenWakeLock` plugin to keep the
+screen on while visible, including when auto-scroll is paused. Leaving these
+pages clears the native screen-on flag. Android permits normal screen timeout
+while the app is in the background. Install a rebuilt APK and deploy the matching
+web changes together; older APKs continue using the browser wake-lock fallback.
+
 Native Google login uses the Android account picker and exchanges Google's
 ID token through Better Auth on the hosted website. Follow
 [the Google login setup guide](GOOGLE_LOGIN.md) before testing. Deploy the web

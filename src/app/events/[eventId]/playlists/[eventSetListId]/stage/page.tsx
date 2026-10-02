@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { StageView } from "@/app/events/_components/stage-view";
 import { PracticeResumeTracker } from "@/components/shared/practice-resume-tracker";
+import { ScreenWakeLock } from "@/components/shared/screen-wake-lock";
 import {
   canViewStageTrack,
   EventService,
@@ -63,6 +64,7 @@ export default async function EventPlaylistStagePage({
 
   return (
     <>
+      <ScreenWakeLock />
       <PracticeResumeTracker
         item={{
           href: `/events/${eventId}/playlists/${eventSetListId}/stage`,
