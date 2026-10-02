@@ -3,6 +3,7 @@
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 
 import { transposeChord } from "@/lib/chords/chord-pro";
+import { getSectionTitle } from "@/lib/chords/song-sections";
 
 export type SongChartLine = { id: string; text: string };
 export type SongChartSection = {
@@ -27,6 +28,8 @@ type SongChartProps = {
   onSectionElement?: (sectionId: string, element: HTMLElement | null) => void;
   renderChord: (value: string) => ReactNode;
   renderWord?: (value: string, lineId: string, wordIndex: number) => ReactNode;
+  renderSectionControls?: (section: SongChartSection) => ReactNode;
+  sectionPlaceholderId?: string;
   theme?: "auto" | "dark" | "light";
 };
 
@@ -39,6 +42,8 @@ export function SongChart({
   onSectionElement,
   renderChord,
   renderWord = (value) => value,
+  renderSectionControls,
+  sectionPlaceholderId,
   theme = "auto",
 }: SongChartProps) {
   const chartSections = useMemo(
@@ -70,31 +75,39 @@ export function SongChart({
           <section
             key={section.id}
             ref={(element) => onSectionElement?.(section.id, element)}
-            className={`min-w-0 scroll-mt-20 border-l-4 pl-3 ${active ? "border-[#ed1746]" : borderClass}`}
+            className={`relative min-w-0 scroll-mt-20 border-l-4 pl-3 ${active ? "border-[#ed1746]" : borderClass}`}
             aria-current={active ? "true" : undefined}
           >
-            {section.showTitle !== false ? (
-              <div className="mb-2 flex min-w-0 items-center gap-2">
-                <span className={`inline-flex max-w-full flex-wrap items-center gap-2 rounded-full px-3 py-1 text-[0.85em] font-black uppercase tracking-[0.08em] ${active ? "bg-[#ed1746] text-white" : titleClass}`}>
-                  <span>{section.number}</span>
-                  <span className="min-w-0 break-words">{section.title}</span>
-                </span>
+            {sectionPlaceholderId === section.id ? (
+              <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center rounded-xl border-2 border-dashed border-[#ed1746] bg-[#fff0f3] text-[12px] font-bold text-[#c90f39] dark:bg-[#3a111d] dark:text-[#fb7185]">
+                Drop section here
               </div>
             ) : null}
-            <div className={`min-w-0 rounded-xl px-3 py-3 ${surfaceClass}`}>
-              {section.rows.map((row) => (
-                <div
-                  key={row.id}
-                  ref={(element) => onLineElement?.(row.lineIds, element)}
-                  className="min-h-[1.5em] min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]"
-                >
-                  {row.kind === "paired" ? (
-                    <PairedRow row={row} renderChord={renderChord} renderWord={renderWord} />
-                  ) : (
-                    <StandaloneRow row={row} renderChord={renderChord} renderWord={renderWord} />
-                  )}
+            <div className={sectionPlaceholderId === section.id ? "invisible" : undefined}>
+              {section.showTitle !== false || renderSectionControls ? (
+                <div className="mb-2 flex min-w-0 items-center gap-2">
+                  {section.showTitle !== false ? <span className={`inline-flex max-w-full flex-wrap items-center gap-2 rounded-full px-3 py-1 text-[0.85em] font-black uppercase tracking-[0.08em] ${active ? "bg-[#ed1746] text-white" : titleClass}`}>
+                    <span>{section.number}</span>
+                    <span className="min-w-0 break-words">{section.title}</span>
+                  </span> : null}
+                  {renderSectionControls ? <div className="ml-auto shrink-0">{renderSectionControls(section)}</div> : null}
                 </div>
-              ))}
+              ) : null}
+              <div className={`min-w-0 rounded-xl px-3 py-3 ${surfaceClass}`}>
+                {section.rows.map((row) => (
+                  <div
+                    key={row.id}
+                    ref={(element) => onLineElement?.(row.lineIds, element)}
+                    className="min-h-[1.5em] min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]"
+                  >
+                    {row.kind === "paired" ? (
+                      <PairedRow row={row} renderChord={renderChord} renderWord={renderWord} />
+                    ) : (
+                      <StandaloneRow row={row} renderChord={renderChord} renderWord={renderWord} />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
         );
@@ -302,13 +315,6 @@ function getChordAnchors(line: string): ChordAnchor[] {
   const words = [...line.matchAll(/\S+/g)];
   if (!words.length || words.some((word) => !transposeChord(word[0], 0, "sharps"))) return [];
   return words.map((word) => ({ column: Array.from(line.slice(0, word.index)).length, sourceLength: Array.from(word[0]).length, value: word[0] }));
-}
-
-function getSectionTitle(line: string): string | null {
-  const match = /^\s*\[([^\]\r\n]+)\]\s*$/.exec(line);
-  if (!match) return null;
-  const value = match[1].trim();
-  return transposeChord(value, 0, "sharps") ? null : value;
 }
 
 function expandTabs(line: string): string {

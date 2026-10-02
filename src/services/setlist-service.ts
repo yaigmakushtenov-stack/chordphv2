@@ -13,6 +13,8 @@ import {
   parseSetListTrackArrangement,
   parseSetListTrackTranspose,
 } from "@/lib/setlists/setlist-track-settings";
+import { changeSongSections } from "@/lib/chords/song-sections";
+import type { ChangeSetListTrackSectionsInput } from "@/types/setlist";
 import type { SetListTrackArrangement } from "@/types/setlist";
 
 const MAX_SETLIST_TITLE_LENGTH = 120;
@@ -56,6 +58,7 @@ const setListTrackArrangementSelect = {
     select: {
       id: true,
       title: true,
+      ownerId: true,
     },
   },
   track: {
@@ -284,7 +287,7 @@ async function cloneSetListEntry(
   ownerId: string,
   setListId: string,
   entryId: string,
-): Promise<void> {
+): Promise<string> {
   const item = await transaction.setListTrack.findFirst({
     where: { id: entryId, setListId, setList: { ownerId } },
     select: {
@@ -323,7 +326,7 @@ async function cloneSetListEntry(
     source.visibilityStatus === VisibilityStatus.SETLIST_ONLY &&
     source.copyForEntryId === entryId
   ) {
-    return;
+    return source.id;
   }
   if (
     source.ownerId !== ownerId &&
@@ -369,6 +372,59 @@ async function cloneSetListEntry(
     select: { id: true },
   });
   await transaction.setListTrack.update({ where: { id: entryId }, data: { trackId: copy.id } });
+  return copy.id;
+}
+
+export async function changeSetListTrackSections(
+  input: ChangeSetListTrackSectionsInput & { ownerId: string },
+): Promise<void> {
+  const ownerId = requireId(input.ownerId, "ownerId");
+  const setListId = requireId(input.setListId, "setListId");
+  const entryId = requireId(input.setListTrackId, "setListTrackId");
+  await runSerializableTransaction(async (transaction) => {
+    const item = await transaction.setListTrack.findFirst({
+      where: {
+        id: entryId,
+        setListId,
+        setList: { ownerId },
+        track: {
+          OR: [
+            { ownerId },
+            { visibilityStatus: VisibilityStatus.PUBLIC, publicityStatus: PublicityStatus.APPROVED },
+          ],
+        },
+      },
+      select: {
+        trackId: true,
+        settings: true,
+        track: { select: { visibilityStatus: true, copyForEntryId: true, annotation: { select: { lyricsAndChords: true } } } },
+      },
+    });
+    if (!item?.track.annotation) throw new SetListServiceError("NOT_FOUND", "Setlist track not found.");
+    const source = parseSetListTrackArrangement(item.settings)?.lyricsAndChords ?? item.track.annotation.lyricsAndChords;
+    if (source !== input.expectedSource) {
+      throw new SetListServiceError("CONFLICT", "This arrangement changed. Refresh and try again.");
+    }
+    const updatedSource = changeSongSections(source, input.operation);
+    if (updatedSource === null) throw new SetListServiceError("INVALID_INPUT", "The section change is invalid or would exceed the chart size limit.");
+    if (updatedSource === source) return;
+
+    if (item.track.visibilityStatus === VisibilityStatus.SETLIST_ONLY && item.track.copyForEntryId !== entryId) {
+      throw new SetListServiceError("FORBIDDEN", "This arrangement does not belong to this setlist entry.");
+    }
+    const copyId = item.track.visibilityStatus === VisibilityStatus.SETLIST_ONLY
+      ? item.trackId
+      : await cloneSetListEntry(transaction, ownerId, setListId, entryId);
+    await transaction.trackAnnotation.update({
+      where: { trackId: copyId },
+      data: { lyricsAndChords: updatedSource },
+    });
+    const settings = isJsonObject(item.settings) ? { ...item.settings } : {};
+    delete settings.arrangement;
+    await transaction.setListTrack.update({ where: { id: entryId }, data: { settings: settings as Prisma.InputJsonObject } });
+    await transaction.track.update({ where: { id: copyId }, data: { updatedAt: new Date() } });
+    await transaction.setList.update({ where: { id: setListId }, data: { updatedAt: new Date() } });
+  });
 }
 
 export async function resetSetListTrackCopy(input: {
@@ -1006,6 +1062,7 @@ function haveEqualArrangements(
 }
 
 export const SetListService = {
+  changeSetListTrackSections,
   addTrackToSetList,
   copySetListTrackArrangement,
   createSetList,

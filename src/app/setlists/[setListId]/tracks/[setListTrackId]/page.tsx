@@ -82,6 +82,7 @@ export default async function SetListTrackArrangementPage({
       <AnnotationViewer
         quickAddSetLists={quickAddSetLists}
         setListContext={{
+          canArrangeSections: item.setList.ownerId === session.user.id,
           isSetListCopy: item.track.visibilityStatus === "SETLIST_ONLY",
           canResetToOriginal: Boolean(item.track.originalTrack && (
             item.track.originalTrack.ownerId === session.user.id ||

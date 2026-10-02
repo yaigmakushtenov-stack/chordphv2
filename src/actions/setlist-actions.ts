@@ -16,6 +16,7 @@ import {
   SetListServiceError,
 } from "@/services/setlist-service";
 import type {
+  ChangeSetListTrackSectionsInput,
   MoveSetListTrackInput,
   CopySetListTrackArrangementInput,
   ReorderSetListTracksInput,
@@ -242,6 +243,29 @@ export async function reorderTracks(
   try {
     await SetListService.reorderSetListTracks({ ...input, ownerId: userId });
     revalidateSetList(input.setListId);
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleSetListServiceError(error);
+  }
+}
+
+export async function changeTrackSections(
+  input: ChangeSetListTrackSectionsInput,
+): Promise<ActionResult<null>> {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) return actionFailure("UNAUTHENTICATED", "Sign in to arrange this track.");
+  if (!isRecord(input) || !isId(input.setListId) || !isId(input.setListTrackId) ||
+      typeof input.expectedSource !== "string" || input.expectedSource.length > 100_000 ||
+      !isRecord(input.operation) || !Number.isInteger(input.operation.sectionIndex) ||
+      (input.operation.type !== "duplicate" && input.operation.type !== "move" && input.operation.type !== "delete") ||
+      (input.operation.type === "move" && !Number.isInteger(input.operation.targetIndex))) {
+    return actionFailure("VALIDATION_ERROR", "The section change is invalid.");
+  }
+  try {
+    await SetListService.changeSetListTrackSections({ ...input, ownerId: userId });
+    revalidateSetList(input.setListId);
+    revalidatePath(`/setlists/${input.setListId}/tracks/${input.setListTrackId}`, "layout");
+    revalidatePath("/events/[eventId]/playlists/[eventSetListId]/stage", "page");
     return actionSuccess(null);
   } catch (error: unknown) {
     return handleSetListServiceError(error);

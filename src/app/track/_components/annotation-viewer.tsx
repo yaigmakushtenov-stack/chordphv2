@@ -12,6 +12,7 @@ import { ChordPopover } from "@/app/track/_components/chord-popover";
 import { BackButton } from "@/components/shared/back-button";
 import { BackLink } from "@/components/shared/back-link";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
+import { SetListSectionChart } from "@/app/track/_components/setlist-section-chart";
 import { SongChart, parseSongChartSource } from "@/components/shared/chords/song-chart";
 import { ShareLinkButton } from "@/components/shared/share-link-button";
 import { showToast } from "@/components/shared/toast";
@@ -46,6 +47,7 @@ export function AnnotationViewer({
 }: {
   quickAddSetLists: QuickAddSetListData[];
   setListContext?: {
+    canArrangeSections: boolean;
     isSetListCopy: boolean;
     canResetToOriginal: boolean;
     arrangementLabel: string | null;
@@ -228,6 +230,19 @@ export function AnnotationViewer({
         },
       };
     });
+  }
+
+  function renderChartChord(value: string): ReactNode {
+    return (
+      <ChordLine
+        line={`[${value}]`}
+        chordInstrument={chordInstrument}
+        fitChordToLabel
+        wrapLine
+        trackPreference={trackPreference}
+        onVariationChange={handleVariationChange}
+      />
+    );
   }
 
   return (
@@ -489,20 +504,22 @@ export function AnnotationViewer({
             id="song-chart"
             className="min-w-0 scroll-mt-4 overflow-x-hidden text-[12px] sm:text-[13px]"
           >
-            <SongChart
-              fontSize={`${chartFontSize}px`}
-              sections={chartSections}
-              renderChord={(value) => (
-                <ChordLine
-                  line={`[${value}]`}
-                  chordInstrument={chordInstrument}
-                  fitChordToLabel
-                  wrapLine
-                  trackPreference={trackPreference}
-                  onVariationChange={handleVariationChange}
-                />
-              )}
-            />
+            {setListContext?.canArrangeSections ? (
+              <SetListSectionChart
+                rawSource={track.lyricsAndChords}
+                setListId={setListContext.setListId}
+                setListTrackId={setListContext.setListTrackId}
+                fontSize={`${chartFontSize}px`}
+                sections={chartSections}
+                renderChord={renderChartChord}
+              />
+            ) : (
+              <SongChart
+                fontSize={`${chartFontSize}px`}
+                sections={chartSections}
+                renderChord={renderChartChord}
+              />
+            )}
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-[#d9d9d9] px-5 py-16 text-center dark:border-[#3a3a3f]">

@@ -1,3 +1,4 @@
+import type { SectionOperation } from "@/lib/chords/song-sections";
 import type { TrackBrowseItemData } from "@/types/track";
 
 export type SetListSummaryData = {
@@ -92,4 +93,11 @@ export type MoveSetListTrackInput = {
 export type ReorderSetListTracksInput = {
   setListId: string;
   setListTrackIds: string[];
+};
+
+export type ChangeSetListTrackSectionsInput = {
+  setListId: string;
+  setListTrackId: string;
+  expectedSource: string;
+  operation: SectionOperation;
 };
