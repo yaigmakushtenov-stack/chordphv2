@@ -3,6 +3,8 @@ import { betterAuth } from "better-auth";
 
 import prisma from "@/lib/prisma";
 
+export const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID;
+
 export const auth = betterAuth({
   appName: "ChordPH",
   baseURL: process.env.BETTER_AUTH_URL,
@@ -23,8 +25,7 @@ export const auth = betterAuth({
   },
   socialProviders: {
     google: {
-      clientId: (process.env.GOOGLE_CLIENT_ID ||
-        process.env.AUTH_GOOGLE_ID) as string,
+      clientId: googleClientId as string,
       clientSecret: (process.env.GOOGLE_CLIENT_SECRET ||
         process.env.AUTH_GOOGLE_SECRET) as string,
     },

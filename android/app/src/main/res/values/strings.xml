@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ChordPH</string>
+    <string name="title_activity_main">ChordPH</string>
+    <string name="package_name">com.chordph.app</string>
+    <string name="custom_url_scheme">com.chordph.app</string>
+</resources>

@@ -1,5 +1,6 @@
 "use client";
 
+import { Capacitor } from "@capacitor/core";
 import { useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
@@ -15,7 +16,11 @@ function GoogleMark() {
   );
 }
 
-export function GoogleSignInButton() {
+type GoogleSignInButtonProps = {
+  googleClientId: string | undefined;
+};
+
+export function GoogleSignInButton({ googleClientId }: GoogleSignInButtonProps) {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -23,14 +28,64 @@ export function GoogleSignInButton() {
     setIsPending(true);
     setError(undefined);
 
-    const result = await authClient.signIn.social({
-      provider: "google",
-      callbackURL: "/",
-      errorCallbackURL: "/login?error=oauth",
-    });
+    try {
+      if (Capacitor.getPlatform() === "android") {
+        if (!googleClientId || !Capacitor.isPluginAvailable("SocialLogin")) {
+          setError("Google sign-in is unavailable in this app. Please update the app and try again.");
+          return;
+        }
 
-    if (result.error) {
-      setError("We couldn't start Google sign-in. Please try again.");
+        const { SocialLogin } = await import("@capgo/capacitor-social-login");
+        await SocialLogin.initialize({
+          google: { webClientId: googleClientId, mode: "online" },
+        });
+
+        const nonce = crypto.randomUUID();
+        const response = await SocialLogin.login({
+          provider: "google",
+          options: { style: "standard", nonce },
+        });
+
+        if (response.result.responseType !== "online" || !response.result.idToken) {
+          setError("We couldn't complete Google sign-in. Please try again.");
+          return;
+        }
+
+        const result = await authClient.signIn.social({
+          provider: "google",
+          idToken: { token: response.result.idToken, nonce },
+        });
+
+        if (result.error) {
+          setError("We couldn't complete Google sign-in. Please try again.");
+          return;
+        }
+
+        window.location.replace("/");
+        return;
+      }
+
+      const result = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/",
+        errorCallbackURL: "/login?error=oauth",
+      });
+
+      if (result.error) {
+        setError("We couldn't start Google sign-in. Please try again.");
+      }
+    } catch (error: unknown) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "USER_CANCELLED"
+      ) {
+        return;
+      }
+
+      setError("We couldn't complete Google sign-in. Please try again.");
+    } finally {
       setIsPending(false);
     }
   }

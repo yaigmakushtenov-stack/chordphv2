@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { GoogleSignInButton } from "@/app/_components/auth/google-sign-in-button";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { auth } from "@/lib/auth";
+import { auth, googleClientId } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Sign up | ChordPH",
@@ -62,7 +62,7 @@ export default async function SignupPage() {
         </header>
 
         <div className="mt-10 rounded-[18px] border border-[#dedede] bg-white p-8 shadow-[0_2px_5px_rgba(0,0,0,0.035)] dark:border-[#343438] dark:bg-[#171719] dark:shadow-[0_12px_35px_rgba(0,0,0,0.25)] sm:p-9">
-          <GoogleSignInButton />
+          <GoogleSignInButton googleClientId={googleClientId} />
 
           <div className="my-7 flex items-center gap-3" aria-hidden="true">
             <div className="h-px flex-1 bg-[#e3e3e3] dark:bg-[#343438]" />

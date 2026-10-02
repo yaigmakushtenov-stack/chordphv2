@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import { LogoutButton } from "@/components/shared/logout-button";
+import { InstallAppButton } from "@/components/shared/install-app-button";
 
 type AppMenuContextValue = {
   closeMenu: () => void;
@@ -295,6 +296,11 @@ function MenuContent({
           );
         })}
       </nav>
+      <InstallAppButton
+        variant="menu"
+        className="mt-4"
+        onDownload={onNavigate}
+      />
       {user ? (
         <div className="mt-auto border-t border-[#e8e8e8] pt-4 dark:border-[#29292d]">
           <SidebarUserMenu user={user} />

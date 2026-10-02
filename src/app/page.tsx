@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 
 import { Dashboard } from "@/components/shared/dashboard";
+import { InstallAppButton } from "@/components/shared/install-app-button";
 import { DashboardHome } from "@/app/_components/dashboard-home";
 import { AppShell } from "@/components/shared/app-shell";
 import { ServerRefreshPulse } from "@/components/shared/server-refresh-pulse";
@@ -84,6 +85,7 @@ export default async function Home() {
       <Dashboard
         mobileDocumentScroll
         title="Dashboard"
+        actions={<InstallAppButton />}
         description="Resume practice, catch up on band activity, and prepare for what you’re playing next."
       >
         <DashboardHome

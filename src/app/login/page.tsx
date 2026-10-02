@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 
 import { GoogleSignInButton } from "@/app/_components/auth/google-sign-in-button";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { auth } from "@/lib/auth";
+import { InstallAppButton } from "@/components/shared/install-app-button";
+import { auth, googleClientId } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Log in | ChordPH",
@@ -80,7 +81,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </div>
           ) : null}
 
-          <GoogleSignInButton />
+          <GoogleSignInButton googleClientId={googleClientId} />
+          <InstallAppButton className="mt-5 w-full" />
 
           <div className="my-7 flex items-center gap-3" aria-hidden="true">
             <div className="h-px flex-1 bg-[#e3e3e3] dark:bg-[#343438]" />
