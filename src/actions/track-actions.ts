@@ -2,6 +2,7 @@
 
 import "server-only";
 
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { actionFailure, actionSuccess, type ActionResult } from "@/lib/actions";
@@ -83,6 +84,7 @@ export async function saveDetails(
       spotifyLink: emptyToNull(input.spotifyLink),
     });
 
+    revalidateCustomArrangement(track.copyForEntry);
     return actionSuccess({ updatedAt: track.updatedAt.toISOString() });
   } catch (error: unknown) {
     return handleTrackServiceError(error, "Track not found.");
@@ -108,6 +110,7 @@ export async function saveAnnotation(
       ownerId: userId,
     });
 
+    revalidateCustomArrangement(track.copyForEntry);
     return actionSuccess({
       updatedAt:
         track.annotation?.updatedAt.toISOString() ?? new Date().toISOString(),
@@ -187,6 +190,13 @@ export async function publishAsAdmin(
   } catch (error: unknown) {
     return handleTrackServiceError(error, "Track not found.");
   }
+}
+
+function revalidateCustomArrangement(entry: { id: string; setListId: string } | null): void {
+  if (!entry) return;
+  revalidatePath(`/setlists/${entry.setListId}`);
+  revalidatePath(`/setlists/${entry.setListId}/tracks/${entry.id}`, "layout");
+  revalidatePath("/events/[eventId]/playlists/[eventSetListId]/stage", "page");
 }
 
 async function getAuthenticatedUserId(): Promise<string | null> {

@@ -52,6 +52,7 @@ const annotationTrackSelect = {
   metadata: true,
   visibilityStatus: true,
   publicityStatus: true,
+  copyForEntry: { select: { id: true, setListId: true } },
   owner: {
     select: { role: true },
   },
@@ -311,8 +312,64 @@ export async function getAnnotationTrack(
     where: {
       id: requireText(trackId, "trackId", 255),
       ownerId: requireText(ownerId, "ownerId", 255),
+      visibilityStatus: { not: VisibilityStatus.SETLIST_ONLY },
     },
     select: annotationTrackSelect,
+  });
+}
+
+export async function getCustomArrangementTrack(
+  ownerId: string,
+  setListId: string,
+  setListTrackId: string,
+): Promise<AnnotationTrack | null> {
+  const actingOwnerId = requireText(ownerId, "ownerId", 255);
+  const entryId = requireText(setListTrackId, "setListTrackId", 255);
+  const entry = await prisma.setListTrack.findFirst({
+    where: {
+      id: entryId,
+      setListId: requireText(setListId, "setListId", 255),
+      setList: { ownerId: actingOwnerId },
+      track: {
+        ownerId: actingOwnerId,
+        visibilityStatus: VisibilityStatus.SETLIST_ONLY,
+        copyForEntryId: entryId,
+      },
+    },
+    select: { track: { select: annotationTrackSelect } },
+  });
+  return entry?.track ?? null;
+}
+
+function editableTrackWhere(ownerId: string, trackId: string): Prisma.TrackWhereInput {
+  return {
+    id: trackId,
+    ownerId,
+    OR: [
+      { visibilityStatus: { not: VisibilityStatus.SETLIST_ONLY } },
+      {
+        visibilityStatus: VisibilityStatus.SETLIST_ONLY,
+        copyForEntry: { trackId, setList: { ownerId } },
+      },
+    ],
+  };
+}
+
+async function clearCustomArrangementOverrides(
+  transaction: Prisma.TransactionClient,
+  track: {
+    visibilityStatus: VisibilityStatus;
+    copyForEntry: { id: string; settings: Prisma.JsonValue } | null;
+  },
+): Promise<void> {
+  if (track.visibilityStatus !== VisibilityStatus.SETLIST_ONLY || !track.copyForEntry) return;
+  const settings = toMetadataObject(track.copyForEntry.settings);
+  if (!("arrangement" in settings)) return;
+  const updatedSettings = { ...settings };
+  delete updatedSettings.arrangement;
+  await transaction.setListTrack.update({
+    where: { id: track.copyForEntry.id },
+    data: { settings: updatedSettings as Prisma.InputJsonObject },
   });
 }
 
@@ -339,6 +396,7 @@ export async function getViewableAnnotationTrack(
     where: {
       id: requireText(trackId, "trackId", 255),
       annotation: { isNot: null },
+      visibilityStatus: { not: VisibilityStatus.SETLIST_ONLY },
       ...visibilityWhere,
     },
     select: annotationTrackSelect,
@@ -351,6 +409,7 @@ export async function listPersonalAnnotationTracks(
   return prisma.track.findMany({
     where: {
       ownerId: requireText(ownerId, "ownerId", 255),
+      visibilityStatus: { not: VisibilityStatus.SETLIST_ONLY },
       annotation: { isNot: null },
     },
     select: personalTrackSelect,
@@ -419,6 +478,7 @@ export async function searchViewableTracks(
     where: {
       annotation: { isNot: null },
       AND: [accessWhere, searchWhere],
+      visibilityStatus: { not: VisibilityStatus.SETLIST_ONLY },
     },
     select: browseTrackSelect,
     orderBy: [{ title: "asc" }, { id: "asc" }],
@@ -552,15 +612,13 @@ export async function saveTrackDetails(
 
   return prisma.$transaction(async (transaction) => {
     const currentTrack = await transaction.track.findFirst({
-      where: {
-        id: values.trackId,
-        ownerId: values.ownerId,
-      },
+      where: editableTrackWhere(values.ownerId, values.trackId),
       select: {
         id: true,
         metadata: true,
         visibilityStatus: true,
         publicityStatus: true,
+        copyForEntry: { select: { id: true, settings: true } },
         owner: {
           select: { role: true },
         },
@@ -588,6 +646,8 @@ export async function saveTrackDetails(
           ),
         ])
       : [null, []];
+
+    await clearCustomArrangementOverrides(transaction, currentTrack);
 
     return transaction.track.update({
       where: { id: currentTrack.id },
@@ -629,11 +689,12 @@ export async function saveTrackAnnotation(
 
   return prisma.$transaction(async (transaction) => {
     const track = await transaction.track.findFirst({
-      where: { id: trackId, ownerId },
+      where: editableTrackWhere(ownerId, trackId),
       select: {
         id: true,
         visibilityStatus: true,
         publicityStatus: true,
+        copyForEntry: { select: { id: true, settings: true } },
         owner: {
           select: { role: true },
         },
@@ -669,6 +730,8 @@ export async function saveTrackAnnotation(
       });
     }
 
+    await clearCustomArrangementOverrides(transaction, track);
+
     const updatedTrack = await transaction.track.findUnique({
       where: { id: track.id },
       select: annotationTrackSelect,
@@ -694,6 +757,7 @@ export async function publishAdminTrack(
       where: {
         id: normalizedTrackId,
         ownerId: normalizedOwnerId,
+        visibilityStatus: { not: VisibilityStatus.SETLIST_ONLY },
         annotation: { isNot: null },
       },
       select: {
@@ -1004,6 +1068,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export const TrackService = {
+  getCustomArrangementTrack,
   copyPublicTrackToPersonalLibrary,
   createTrackWithAnnotation,
   getAnnotationTrack,

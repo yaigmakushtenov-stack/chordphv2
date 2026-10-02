@@ -74,6 +74,7 @@ export default async function SetListPage({
         transposeSemitones: isViewable ? transposeSemitones : 0,
         tuning: isViewable ? (arrangement?.tuning ?? item.track.tuning) : "—",
         arrangementLabel: isViewable ? (arrangement?.label || null) : null,
+        isSetListCopy: item.track.visibilityStatus === "SETLIST_ONLY",
         isOwnerTrack,
         isPublicTrack,
         orderNumber: item.orderNumber,

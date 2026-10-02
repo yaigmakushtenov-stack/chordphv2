@@ -73,6 +73,10 @@ const setListTrackArrangementSelect = {
       youtubeLink: true,
       spotifyLink: true,
       publicityStatus: true,
+      visibilityStatus: true,
+      originalTrack: {
+        select: { id: true, ownerId: true, visibilityStatus: true, publicityStatus: true },
+      },
       updatedAt: true,
       musicFile: {
         select: {
@@ -262,6 +266,133 @@ export async function getSetListTrackArrangement(
   });
 }
 
+export async function createSetListTrackCopy(input: {
+  ownerId: string;
+  setListId: string;
+  setListTrackId: string;
+}): Promise<void> {
+  const ownerId = requireId(input.ownerId, "ownerId");
+  const setListId = requireId(input.setListId, "setListId");
+  const entryId = requireId(input.setListTrackId, "setListTrackId");
+  await runSerializableTransaction(async (transaction) => {
+    await cloneSetListEntry(transaction, ownerId, setListId, entryId);
+  });
+}
+
+async function cloneSetListEntry(
+  transaction: Prisma.TransactionClient,
+  ownerId: string,
+  setListId: string,
+  entryId: string,
+): Promise<void> {
+  const item = await transaction.setListTrack.findFirst({
+    where: { id: entryId, setListId, setList: { ownerId } },
+    select: {
+      settings: true,
+      track: {
+        select: {
+          id: true,
+          ownerId: true,
+          visibilityStatus: true,
+          publicityStatus: true,
+          originalTrackId: true,
+          copyForEntryId: true,
+          title: true,
+          artistName: true,
+          artistId: true,
+          key: true,
+          tuning: true,
+          capo: true,
+          tempo: true,
+          timeSignature: true,
+          tags: true,
+          youtubeLink: true,
+          spotifyLink: true,
+          metadata: true,
+          additionalArtists: { select: { artistId: true, joinPhrase: true } },
+          annotation: { select: { type: true, lyricsAndChords: true, notes: true, formatVersion: true } },
+        },
+      },
+    },
+  });
+  if (!item) {
+    throw new SetListServiceError("NOT_FOUND", "Setlist track not found.");
+  }
+  const source = item.track;
+  if (
+    source.visibilityStatus === VisibilityStatus.SETLIST_ONLY &&
+    source.copyForEntryId === entryId
+  ) {
+    return;
+  }
+  if (
+    source.ownerId !== ownerId &&
+    !(source.visibilityStatus === VisibilityStatus.PUBLIC &&
+      source.publicityStatus === PublicityStatus.APPROVED)
+  ) {
+    throw new SetListServiceError("FORBIDDEN", "This track is unavailable.");
+  }
+  const arrangement = parseSetListTrackArrangement(item.settings);
+  const copy = await transaction.track.create({
+    data: {
+      ownerId,
+      copyForEntryId: entryId,
+      originalTrackId: source.visibilityStatus === VisibilityStatus.SETLIST_ONLY
+        ? source.originalTrackId
+        : source.id,
+      visibilityStatus: VisibilityStatus.SETLIST_ONLY,
+      publicityStatus: PublicityStatus.PRIVATE,
+      title: source.title,
+      artistName: source.artistName,
+      artistId: source.artistId,
+      key: arrangement?.key ?? source.key,
+      tuning: arrangement?.tuning ?? source.tuning,
+      capo: arrangement ? arrangement.capo : source.capo,
+      tempo: arrangement ? arrangement.tempo : source.tempo,
+      timeSignature: arrangement?.timeSignature ?? source.timeSignature,
+      tags: source.tags,
+      youtubeLink: source.youtubeLink,
+      spotifyLink: source.spotifyLink,
+      metadata: isJsonObject(source.metadata) && Array.isArray(source.metadata.additionalArtists)
+        ? { additionalArtists: source.metadata.additionalArtists }
+        : {},
+      additionalArtists: { create: source.additionalArtists },
+      annotation: source.annotation ? {
+        create: {
+          type: source.annotation.type,
+          formatVersion: source.annotation.formatVersion,
+          lyricsAndChords: arrangement?.lyricsAndChords ?? source.annotation.lyricsAndChords,
+          notes: arrangement?.notes ?? (source.ownerId === ownerId ? source.annotation.notes : ""),
+        },
+      } : undefined,
+    },
+    select: { id: true },
+  });
+  await transaction.setListTrack.update({ where: { id: entryId }, data: { trackId: copy.id } });
+}
+
+export async function resetSetListTrackCopy(input: {
+  ownerId: string;
+  setListId: string;
+  setListTrackId: string;
+}): Promise<void> {
+  const ownerId = requireId(input.ownerId, "ownerId");
+  const setListId = requireId(input.setListId, "setListId");
+  const entryId = requireId(input.setListTrackId, "setListTrackId");
+  await runSerializableTransaction(async (transaction) => {
+    const item = await transaction.setListTrack.findFirst({
+      where: { id: entryId, setListId, setList: { ownerId }, track: { visibilityStatus: VisibilityStatus.SETLIST_ONLY, copyForEntryId: entryId } },
+      select: { trackId: true, track: { select: { originalTrack: { select: { id: true, ownerId: true, visibilityStatus: true, publicityStatus: true } } } } },
+    });
+    const original = item?.track.originalTrack;
+    if (!item || !original || (original.ownerId !== ownerId && !(original.visibilityStatus === VisibilityStatus.PUBLIC && original.publicityStatus === PublicityStatus.APPROVED))) {
+      throw new SetListServiceError("NOT_FOUND", "The original track is unavailable.");
+    }
+    await transaction.setListTrack.update({ where: { id: entryId }, data: { trackId: original.id, settings: {} } });
+    await transaction.track.delete({ where: { id: item.trackId } });
+  });
+}
+
 export async function saveSetListTrackArrangement(input: {
   ownerId: string;
   setListId: string;
@@ -278,6 +409,7 @@ export async function saveSetListTrackArrangement(input: {
         id: setListTrackId,
         setListId,
         setList: { ownerId },
+        track: { visibilityStatus: { not: VisibilityStatus.SETLIST_ONLY } },
       },
       select: { id: true, settings: true },
     });
@@ -383,7 +515,7 @@ export async function copySetListTrackArrangement(input: {
             ],
           },
         },
-        select: { trackId: true, settings: true },
+        select: { trackId: true, settings: true, track: { select: { visibilityStatus: true } } },
       }),
       transaction.setList.findFirst({
         where: { id: targetSetListId, ownerId },
@@ -404,28 +536,14 @@ export async function copySetListTrackArrangement(input: {
       );
     }
 
-    const sourceArrangement = parseSetListTrackArrangement(source.settings);
-
-    if (!sourceArrangement) {
-      throw new SetListServiceError(
-        "CONFLICT",
-        "Save this arrangement before copying it.",
-      );
-    }
+    const isCustomArrangement = source.track.visibilityStatus === VisibilityStatus.SETLIST_ONLY;
 
     if (targetCount >= MAX_SETLIST_TRACKS) {
       throw new SetListServiceError("CONFLICT", "This setlist has reached its track limit.");
     }
 
-    const existing = await transaction.setListTrack.findFirst({
-      where: {
-        setListId: targetSetListId,
-        trackId: source.trackId,
-        settings: {
-          path: ["arrangement"],
-          equals: sourceArrangement as unknown as Prisma.InputJsonObject,
-        },
-      },
+    const existing = isCustomArrangement ? null : await transaction.setListTrack.findFirst({
+      where: { setListId: targetSetListId, trackId: source.trackId },
       select: { id: true },
     });
 
@@ -436,16 +554,19 @@ export async function copySetListTrackArrangement(input: {
       );
     }
 
-    await transaction.setListTrack.create({
+    const entry = await transaction.setListTrack.create({
       data: {
         setListId: targetSetListId,
         trackId: source.trackId,
         orderNumber: (lastTrack?.orderNumber ?? 0) + 1,
-        settings: (isJsonObject(source.settings)
+        settings: (isCustomArrangement && isJsonObject(source.settings)
           ? source.settings
           : {}) as Prisma.InputJsonObject,
       },
     });
+    if (isCustomArrangement) {
+      await cloneSetListEntry(transaction, ownerId, targetSetListId, entry.id);
+    }
   });
 }
 
@@ -508,6 +629,7 @@ export async function searchTracksForSetList(
       where: {
         ...searchWhere,
         ownerId: normalizedOwnerId,
+        visibilityStatus: { not: VisibilityStatus.SETLIST_ONLY },
       },
       select: browseTrackSelect,
       orderBy: [{ title: "asc" }, { id: "asc" }],
@@ -599,6 +721,7 @@ export async function addTrackToSetList(input: {
         transaction.track.findFirst({
           where: {
             id: trackId,
+            visibilityStatus: { not: VisibilityStatus.SETLIST_ONLY },
             OR: [
               { ownerId },
               {
@@ -886,6 +1009,8 @@ export const SetListService = {
   addTrackToSetList,
   copySetListTrackArrangement,
   createSetList,
+  createSetListTrackCopy,
+  resetSetListTrackCopy,
   deleteSetList,
   getSetListForOwner,
   getSetListTrackArrangement,

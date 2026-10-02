@@ -342,6 +342,9 @@ export function SetListEditor({ setList }: SetListEditorProps) {
                     <span className="mt-0.5 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
                       {item.artistName} · Key {item.key} · {item.tuning}
                     </span>
+                    {item.isSetListCopy ? (
+                      <span className="mt-1 inline-flex rounded-full border border-[#f5b5c4] bg-[#fff0f3] px-2 py-0.5 text-[10px] font-bold text-[#c90f39] dark:border-[#682234] dark:bg-[#3a111d] dark:text-[#fb7185]">Custom Arrangement</span>
+                    ) : null}
                     {item.arrangementLabel ? (
                       <span className="mt-1 block truncate text-[10px] font-bold uppercase tracking-[0.08em] text-[#ed1746]">
                         {item.arrangementLabel}
@@ -364,13 +367,15 @@ export function SetListEditor({ setList }: SetListEditorProps) {
                     </span>
                   </span>
                 )}
-                <span className="hidden rounded-full bg-[#f1f1f1] px-2.5 py-1 text-[10px] font-bold sm:inline dark:bg-[#28282c]">
-                  {item.isOwnerTrack
-                    ? "Your track"
-                    : item.isPublicTrack
-                      ? "Public"
-                      : "Unavailable"}
-                </span>
+                {!item.isSetListCopy ? (
+                  <span className="hidden rounded-full bg-[#f1f1f1] px-2.5 py-1 text-[10px] font-bold sm:inline dark:bg-[#28282c]">
+                    {item.isOwnerTrack
+                      ? "Your track"
+                      : item.isPublicTrack
+                        ? "Public"
+                        : "Unavailable"}
+                  </span>
+                ) : null}
                 {isEditing ? (
                   <div className="flex shrink-0 gap-1">
                     {item.trackId ? (

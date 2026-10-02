@@ -46,6 +46,8 @@ export function AnnotationViewer({
 }: {
   quickAddSetLists: QuickAddSetListData[];
   setListContext?: {
+    isSetListCopy: boolean;
+    canResetToOriginal: boolean;
     arrangementLabel: string | null;
     setListId: string;
     setListTitle: string;
@@ -69,6 +71,7 @@ export function AnnotationViewer({
     useState<TrackChordInstrument>("guitar");
   const [chartFontSize, setChartFontSize] = useState(13);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const [isArrangementDialogOpen, setIsArrangementDialogOpen] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
   const optionsPanelRef = useRef<HTMLDivElement>(null);
   const optionsTriggerRef = useRef<HTMLButtonElement>(null);
@@ -143,6 +146,23 @@ export function AnnotationViewer({
     });
   }
 
+  function handleSetListCopy(reset: boolean): void {
+    if (!setListContext || isPending) return;
+    setIsOptionsOpen(false);
+    startTransition(async () => {
+      const action = reset ? SetListActions.resetTrackCopy : SetListActions.createTrackCopy;
+      const result = await action(setListContext.setListId, setListContext.setListTrackId);
+      if (!result.ok) {
+        showToast({ title: "Setlist not updated", description: result.error.message, tone: "error" });
+        return;
+      }
+      setIsArrangementDialogOpen(false);
+      showToast({ title: reset ? "Reset to original" : "Custom arrangement created", tone: "success" });
+      if (reset) setTranspose(0);
+      router.refresh();
+    });
+  }
+
   function handleCopy(): void {
     startTransition(async () => {
       const result = await TrackActions.copyPublicAnnotation(track.id);
@@ -212,6 +232,17 @@ export function AnnotationViewer({
 
   return (
     <div className="grid h-full min-h-0 w-full overflow-y-auto bg-white dark:bg-[#121214] xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-hidden">
+      {isArrangementDialogOpen && setListContext ? (
+        <CreateArrangementDialog
+          isPending={isPending}
+          setListTitle={setListContext.setListTitle}
+          onConfirm={() => handleSetListCopy(false)}
+          onClose={() => {
+            setIsArrangementDialogOpen(false);
+            optionsTriggerRef.current?.focus();
+          }}
+        />
+      ) : null}
       <ChordFullscreenPerformanceLauncher
         chordInstrument={chordInstrument}
         onVariationChange={handleVariationChange}
@@ -272,6 +303,24 @@ export function AnnotationViewer({
                       Edit
                     </Link>
                   ) : null}
+                  {setListContext ? (
+                    <button
+                      type="button"
+                      disabled={isPending || (setListContext.isSetListCopy && !setListContext.canResetToOriginal)}
+                      title={setListContext.isSetListCopy && !setListContext.canResetToOriginal ? "The original track is unavailable" : undefined}
+                      onClick={() => {
+                        if (setListContext.isSetListCopy) {
+                          handleSetListCopy(true);
+                        } else {
+                          setIsOptionsOpen(false);
+                          setIsArrangementDialogOpen(true);
+                        }
+                      }}
+                      className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold transition hover:bg-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#343438]"
+                    >
+                      {setListContext.isSetListCopy ? "Reset to original" : "Create New Arrangement"}
+                    </button>
+                  ) : null}
                   {!setListContext && track.isOwner &&
                   (publicityStatus === "PRIVATE" ||
                     publicityStatus === "REJECTED") ? (
@@ -317,7 +366,7 @@ export function AnnotationViewer({
                     )
                   ) : null}
                   {setListContext ? (
-                    <CopyArrangementToSetList context={setListContext} setLists={quickAddSetLists} />
+                    <CopyArrangementToSetList key={track.id} context={setListContext} setLists={quickAddSetLists} />
                   ) : track.isAuthenticated ? (
                     <QuickAddToSetList setLists={quickAddSetLists} trackId={track.id} />
                   ) : (
@@ -330,6 +379,9 @@ export function AnnotationViewer({
         </div>
         <div className="border-b border-[#e6e6e6] pb-5 dark:border-[#303034]">
           <div className="min-w-0">
+            {setListContext?.isSetListCopy ? (
+              <span className="mb-2 inline-flex rounded-full border border-[#f5b5c4] bg-[#fff0f3] px-2.5 py-1 text-[10px] font-bold text-[#c90f39] dark:border-[#682234] dark:bg-[#3a111d] dark:text-[#fb7185]">Custom Arrangement</span>
+            ) : null}
             <div className="flex min-w-0 items-center gap-2">
               <h2 className="truncate text-2xl font-black">
                 {track.title}
@@ -808,6 +860,50 @@ function LinkAddIcon() {
   );
 }
 
+function CreateArrangementDialog({
+  isPending,
+  setListTitle,
+  onConfirm,
+  onClose,
+}: {
+  isPending: boolean;
+  setListTitle: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="create-arrangement-title"
+      aria-describedby="create-arrangement-description"
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!isPending) onClose();
+      }}
+      className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-2xl border border-[#dedede] bg-white p-5 text-[#18181b] shadow-2xl backdrop:bg-black/60 dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-[#f4f4f5]"
+    >
+      <h2 id="create-arrangement-title" className="text-lg font-black">Create New Arrangement</h2>
+      <div id="create-arrangement-description" className="mt-3 space-y-3 text-sm text-[#666] dark:text-[#b4b4bc]">
+        <p>This will create an independent copy for this occurrence in <strong className="text-[#18181b] dark:text-[#f4f4f5]">{setListTitle}</strong>. The original track stays unchanged.</p>
+        <p>The custom arrangement stays out of search and your track library, and survives changes to or deletion of the original.</p>
+        <p>Use Edit to update song details, lyrics, chords, and notes. Uploaded audio stays with the original; YouTube and Spotify links are copied.</p>
+      </div>
+      <div className="mt-5 flex flex-wrap justify-end gap-2">
+        <button type="button" disabled={isPending} onClick={onClose} className="rounded-full border border-[#dedede] px-4 py-2 text-xs font-bold transition hover:bg-[#f2f2f2] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] dark:hover:bg-[#343438]">Cancel</button>
+        <button type="button" disabled={isPending} onClick={onConfirm} className="rounded-full bg-[#ed1746] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#d90f3b] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#ed1746] dark:hover:bg-[#d90f3b]">{isPending ? "Creating…" : "Create arrangement"}</button>
+      </div>
+    </dialog>
+  );
+}
+
 function CopyArrangementToSetList({
   context,
   setLists,
@@ -815,6 +911,7 @@ function CopyArrangementToSetList({
   context: {
     setListId: string;
     setListTrackId: string;
+    isSetListCopy: boolean;
   };
   setLists: QuickAddSetListData[];
 }) {
@@ -825,7 +922,7 @@ function CopyArrangementToSetList({
     () =>
       new Set(
         setLists
-          .filter((setList) => setList.containsMatchingArrangement)
+          .filter((setList) => !context.isSetListCopy && setList.containsTrack)
           .map((setList) => setList.id),
       ),
   );
@@ -842,7 +939,7 @@ function CopyArrangementToSetList({
 
       if (!result.ok) {
         showToast({
-          title: "Arrangement not copied",
+          title: "Track not added",
           description: result.error.message,
           tone: "error",
         });
@@ -852,7 +949,7 @@ function CopyArrangementToSetList({
 
       setAddedSetListIds((current) => new Set(current).add(targetSetListId));
       setPendingSetListId(null);
-      showToast({ title: "Arrangement copied to setlist", tone: "success" });
+      showToast({ title: "Track added to setlist", tone: "success" });
       router.refresh();
     });
   }
@@ -870,14 +967,16 @@ function CopyArrangementToSetList({
       </button>
       {isOpen ? (
         <SetListPickerSurface
-          title="Copy arrangement"
-          description="The copied version can be edited independently."
+          title="Copy to setlist"
+          description={context.isSetListCopy
+            ? "Create an independent custom arrangement in the selected setlist."
+            : "Add a reference to this track in the selected setlist."}
           ariaLabel="Copy arrangement to another setlist"
           onClose={() => setIsOpen(false)}
         >
           <div className="max-h-72 divide-y divide-[#ececec] overflow-y-auto dark:divide-[#38383c]">
             {setLists.map((setList) => {
-              const isAdded = addedSetListIds.has(setList.id);
+              const isAdded = addedSetListIds.has(setList.id) || setList.id === context.setListId;
               const isCurrentPending = pendingSetListId === setList.id;
 
               return (

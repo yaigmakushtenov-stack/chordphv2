@@ -26,6 +26,7 @@ export type SetListTrackData = {
   transposeSemitones: number;
   tuning: string;
   arrangementLabel: string | null;
+  isSetListCopy: boolean;
   isOwnerTrack: boolean;
   isPublicTrack: boolean;
   orderNumber: number;

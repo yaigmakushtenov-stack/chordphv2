@@ -178,6 +178,7 @@ enum VisibilityStatus {
   DRAFT
   PRIVATE
   PUBLIC
+  SETLIST_ONLY
 }
 
 enum PublicityStatus {
@@ -213,10 +214,16 @@ model Track {
   annotation        TrackAnnotation?
   additionalArtists AdditionalArtist[]
   setListTracks     SetListTrack[]
+  copyForEntryId    String?            @unique
+  copyForEntry      SetListTrack?      @relation("SetListEntryCopy", fields: [copyForEntryId], references: [id], onDelete: Cascade)
+  originalTrackId   String?
+  originalTrack     Track?             @relation("TrackOriginal", fields: [originalTrackId], references: [id], onDelete: SetNull)
+  setListCopies     Track[]            @relation("TrackOriginal")
 
   @@index([ownerId, updatedAt])
   @@index([ownerId, visibilityStatus])
   @@index([artistId])
+  @@index([originalTrackId])
   @@index([visibilityStatus, updatedAt])
   @@index([publicityStatus, updatedAt])
   @@map("tracks")
@@ -371,6 +378,7 @@ model SetListTrack {
   settings    Json     @default("{}")
   setList     SetList  @relation(fields: [setListId], references: [id], onDelete: Cascade)
   track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  dedicatedCopy Track? @relation("SetListEntryCopy")
 
   @@unique([setListId, orderNumber])
   @@index([setListId, trackId])

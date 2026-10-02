@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState, useTransition } from "react";
 
+import * as MediaLinkActions from "@/actions/media-link-actions";
 import * as TrackActions from "@/actions/track-actions";
 import { AudioUpload } from "@/app/track/_components/audio/audio-upload";
 import {
@@ -28,6 +29,11 @@ import {
 } from "@/lib/chords/chord-pro";
 import type { MusicFileListItemData } from "@/types/music";
 import type {
+  MediaLinkCandidate,
+  MediaLinkProviderResult,
+  MediaLinkSearchResult,
+} from "@/types/media-link";
+import type {
   AnnotationEditorData,
   SaveTrackAnnotationActionInput,
   SaveTrackDetailsActionInput,
@@ -38,6 +44,7 @@ type AnnotationEditorProps = {
   initialArtistNames: string[];
   initialData: AnnotationEditorData;
   mode?: "create" | "edit";
+  returnHref?: string;
 };
 
 type TrackDetailsDraft = Omit<SaveTrackDetailsActionInput, "trackId">;
@@ -68,6 +75,7 @@ export function AnnotationEditor({
   initialArtistNames,
   initialData,
   mode = "edit",
+  returnHref,
 }: AnnotationEditorProps) {
   const router = useRouter();
   const isCreateMode = mode === "create";
@@ -328,7 +336,7 @@ export function AnnotationEditor({
         description: "Your lyrics, chords, and notes are up to date.",
         tone: "success",
       });
-      router.replace(`/track/${initialData.trackId}`);
+      router.replace(returnHref ?? `/track/${initialData.trackId}`);
     });
   }
 
@@ -1025,14 +1033,86 @@ function TrackReferencesSection({
   onAudioSelect: (audio: SelectedTrackAudio) => void;
   onAudioRemove: () => void;
 }) {
+  const [searchResult, setSearchResult] =
+    useState<MediaLinkSearchResult | null>(null);
+  const [isFindingLinks, startFindingLinksTransition] = useTransition();
+  const canFindLinks = Boolean(
+    details.title.trim() && details.artistName.trim(),
+  );
+
+  function findLinks(): void {
+    startFindingLinksTransition(async () => {
+      const result = await MediaLinkActions.findForTrack({
+        artistName: details.artistName,
+        title: details.title,
+      });
+
+      if (!result.ok) {
+        showToast({
+          title: "Could not find media links",
+          description: result.error.message,
+          tone: "error",
+        });
+        return;
+      }
+
+      setSearchResult(result.data);
+    });
+  }
+
+  function applyCandidate(candidate: MediaLinkCandidate): void {
+    onUpdate(
+      candidate.provider === "youtube" ? "youtubeLink" : "spotifyLink",
+      candidate.url,
+    );
+    showToast({
+      title: `${candidate.provider === "youtube" ? "YouTube" : "Spotify"} link added`,
+      description: isCreateMode
+        ? "Review the match before finishing the chord chart/tab."
+        : "Review the match, then save the track details.",
+      tone: "success",
+    });
+  }
+
   return (
     <section className="rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]">
-      <div>
-        <h2 className="text-[16px] font-bold">Track references</h2>
-        <p className="mt-1 text-[12px] text-[#717171] dark:text-[#a1a1aa]">
-          Add any optional source that can help identify the track or guide the chart.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-[16px] font-bold">Track references</h2>
+          <p className="mt-1 text-[12px] text-[#717171] dark:text-[#a1a1aa]">
+            Add links manually or search using the song title and primary artist.
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={!canFindLinks || isFindingLinks}
+          onClick={findLinks}
+          title={
+            canFindLinks
+              ? "Search YouTube and Spotify"
+              : "Add a song title and primary artist first"
+          }
+          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-[#ed1746] px-4 text-[11px] font-bold text-[#ed1746] transition hover:bg-[#fff0f3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:border-[#d9d9d9] disabled:text-[#999] disabled:hover:bg-transparent dark:disabled:border-[#3a3a3f] dark:hover:bg-[#35141c]"
+        >
+          {isFindingLinks ? "Finding links…" : "Auto-find links"}
+        </button>
       </div>
+
+      {searchResult ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <MediaLinkSuggestions
+            currentUrl={details.youtubeLink}
+            onSelect={applyCandidate}
+            result={searchResult.youtube}
+          />
+          <MediaLinkSuggestions
+            currentUrl={details.spotifyLink}
+            onSelect={applyCandidate}
+            result={searchResult.spotify}
+          />
+        </div>
+      ) : null}
+
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Field label="YouTube link (optional)">
           <input
@@ -1064,6 +1144,85 @@ function TrackReferencesSection({
         </div>
       ) : null}
     </section>
+  );
+}
+
+function MediaLinkSuggestions({
+  currentUrl,
+  onSelect,
+  result,
+}: {
+  currentUrl: string;
+  onSelect: (candidate: MediaLinkCandidate) => void;
+  result: MediaLinkProviderResult;
+}) {
+  const label = result.provider === "youtube" ? "YouTube" : "Spotify";
+  const providerClassName =
+    result.provider === "youtube"
+      ? "bg-red-50 text-red-700 dark:bg-red-950/45 dark:text-red-300"
+      : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-300";
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-[#e2e2e2] dark:border-[#343438]">
+      <div className="flex items-center gap-2 border-b border-[#ececec] px-3 py-2.5 dark:border-[#343438]">
+        <span
+          aria-hidden="true"
+          className={`size-2 rounded-full ${
+            result.provider === "youtube" ? "bg-red-600" : "bg-emerald-500"
+          }`}
+        />
+        <p className="text-[12px] font-bold">{label} matches</p>
+      </div>
+
+      {result.status === "found" ? (
+        <div className="divide-y divide-[#ececec] dark:divide-[#343438]">
+          {result.candidates.map((candidate) => {
+            const isSelected = currentUrl === candidate.url;
+
+            return (
+              <div key={candidate.url} className="flex items-center gap-3 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12px] font-bold">
+                    {candidate.title}
+                  </p>
+                  <p className="mt-0.5 truncate text-[10px] text-[#717171] dark:text-[#a1a1aa]">
+                    {candidate.artistName}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <a
+                    href={candidate.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-8 items-center rounded-full px-2 text-[10px] font-bold text-[#717171] transition hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#a1a1aa]"
+                  >
+                    Open
+                  </a>
+                  <button
+                    type="button"
+                    disabled={isSelected}
+                    onClick={() => onSelect(candidate)}
+                    className={`h-8 rounded-full px-3 text-[10px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-default ${
+                      isSelected
+                        ? "bg-[#111] text-white dark:bg-white dark:text-[#111]"
+                        : providerClassName
+                    }`}
+                  >
+                    {isSelected ? "Selected" : "Use link"}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="px-3 py-4 text-[11px] leading-4 text-[#717171] dark:text-[#a1a1aa]">
+          {result.status === "not_found"
+            ? `No ${label} matches found.`
+            : result.message}
+        </p>
+      )}
+    </div>
   );
 }
 

@@ -29,6 +29,58 @@ type SetListIdData = {
   setListId: string;
 };
 
+export async function createTrackCopy(
+  setListId: string,
+  setListTrackId: string,
+): Promise<ActionResult<null>> {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to update this setlist.");
+  }
+  if (!isId(setListId) || !isId(setListTrackId)) {
+    return actionFailure("VALIDATION_ERROR", "The selected setlist track is invalid.");
+  }
+  try {
+    await SetListService.createSetListTrackCopy({
+      ownerId: userId,
+      setListId,
+      setListTrackId,
+    });
+    revalidateSetList(setListId);
+    revalidatePath(`/setlists/${setListId}/tracks/${setListTrackId}`, "layout");
+    revalidatePath("/events/[eventId]/playlists/[eventSetListId]/stage", "page");
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleSetListServiceError(error);
+  }
+}
+
+export async function resetTrackCopy(
+  setListId: string,
+  setListTrackId: string,
+): Promise<ActionResult<null>> {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to update this setlist.");
+  }
+  if (!isId(setListId) || !isId(setListTrackId)) {
+    return actionFailure("VALIDATION_ERROR", "The selected setlist track is invalid.");
+  }
+  try {
+    await SetListService.resetSetListTrackCopy({
+      ownerId: userId,
+      setListId,
+      setListTrackId,
+    });
+    revalidateSetList(setListId);
+    revalidatePath(`/setlists/${setListId}/tracks/${setListTrackId}`, "layout");
+    revalidatePath("/events/[eventId]/playlists/[eventSetListId]/stage", "page");
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleSetListServiceError(error);
+  }
+}
+
 export async function createNew(
   input: SetListDetailsInput,
 ): Promise<ActionResult<SetListIdData>> {

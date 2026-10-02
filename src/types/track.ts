@@ -96,7 +96,7 @@ export type PersonalTrackListItem = {
   tuning: string;
   tags: string[];
   hasAudio: boolean;
-  visibilityStatus: "DRAFT" | "PRIVATE" | "PUBLIC";
+  visibilityStatus: "DRAFT" | "PRIVATE" | "PUBLIC" | "SETLIST_ONLY";
   publicityStatus: "PRIVATE" | "PENDING" | "REJECTED" | "APPROVED";
   updatedAt: string;
 };
