@@ -109,6 +109,7 @@ export async function AppShell({
   return (
     <AppMenuProvider>
       <div
+        data-scroll-mode={documentScroll ? "document" : mobileDocumentScroll ? "responsive" : "contained"}
         style={{ paddingBottom: "var(--music-player-height, 0px)" }}
         className={
           documentScroll

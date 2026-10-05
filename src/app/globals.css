@@ -31,6 +31,22 @@ body {
   touch-action: manipulation;
 }
 
+html:has(.app-shell[data-scroll-mode="contained"]),
+body:has(.app-shell[data-scroll-mode="contained"]) {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior-y: none;
+}
+
+@media (min-width: 64rem) {
+  html:has(.app-shell[data-scroll-mode="responsive"]),
+  body:has(.app-shell[data-scroll-mode="responsive"]) {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior-y: none;
+  }
+}
+
 @media (max-width: 767px) {
   .app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
   .app-shell select,

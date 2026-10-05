@@ -152,7 +152,7 @@ export function LeftLibraryPanel({
       <aside
         className={
           showDesktop
-            ? "hidden min-h-0 flex-col rounded-xl bg-white p-4 dark:bg-[#121214] lg:flex"
+            ? "hidden min-h-0 flex-col overflow-hidden rounded-xl bg-white p-4 dark:bg-[#121214] lg:flex"
             : "hidden"
         }
       >
@@ -185,7 +185,7 @@ export function LeftLibraryPanel({
             menu.isOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="flex items-center justify-between border-b border-[#e8e8e8] px-5 py-4 dark:border-[#29292d]">
+          <div className="flex shrink-0 items-center justify-between border-b border-[#e8e8e8] px-5 py-4 dark:border-[#29292d]">
             <div id="mobile-app-menu-title">
               <MenuHeading />
             </div>
@@ -199,7 +199,7 @@ export function LeftLibraryPanel({
               ×
             </button>
           </div>
-          <div className="flex min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="flex min-h-0 flex-1 p-4">
             <MenuContent
               user={user}
               onNavigate={menu.closeMenu}
@@ -213,7 +213,7 @@ export function LeftLibraryPanel({
 
 function MenuHeading() {
   return (
-    <div className="flex items-center gap-2 text-[15px] font-bold">
+    <div className="flex shrink-0 items-center gap-2 text-[15px] font-bold">
       <svg
         aria-hidden="true"
         viewBox="0 0 24 24"
@@ -241,71 +241,73 @@ function MenuContent({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <nav aria-label="Main navigation" className="mt-6 grid gap-2">
-        {MENU_ITEMS.filter((item) => !item.requiresAuth || user !== null).map((item) => {
-          const isActive = item.href
-            ? isActivePath(pathname, item.href, item.activePrefixes)
-            : false;
-          const content = (
-            <>
-              <span
-                className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
+      <div className="-mx-1 mt-5 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-1 py-1">
+        <nav aria-label="Main navigation" className="grid gap-2">
+          {MENU_ITEMS.filter((item) => !item.requiresAuth || user !== null).map((item) => {
+            const isActive = item.href
+              ? isActivePath(pathname, item.href, item.activePrefixes)
+              : false;
+            const content = (
+              <>
+                <span
+                  className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
+                    isActive
+                      ? "bg-[#ed1746] text-white"
+                      : "bg-[#f1f1f1] text-[#555] dark:bg-[#242428] dark:text-[#d4d4d8]"
+                  }`}
+                >
+                  <MenuIcon name={item.icon} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-bold">
+                    {item.label}
+                  </span>
+                  {item.note ? (
+                    <span className="mt-0.5 block text-[10px] text-[#777] dark:text-[#a1a1aa]">
+                      {item.note}
+                    </span>
+                  ) : null}
+                </span>
+              </>
+            );
+
+            if (!item.href) {
+              return (
+                <div
+                  key={item.label}
+                  aria-disabled="true"
+                  className="flex min-w-0 items-center gap-3 rounded-xl px-2 py-2 opacity-65"
+                >
+                  {content}
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={isActive ? "page" : undefined}
+                onClick={onNavigate}
+                className={`flex min-w-0 items-center gap-3 rounded-xl px-2 py-2 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
                   isActive
-                    ? "bg-[#ed1746] text-white"
-                    : "bg-[#f1f1f1] text-[#555] dark:bg-[#242428] dark:text-[#d4d4d8]"
+                    ? "bg-[#fff0f3] text-[#c90f39] dark:bg-[#3a111d] dark:text-[#fb7185]"
+                    : "hover:bg-[#f5f5f5] dark:hover:bg-[#1f1f22]"
                 }`}
               >
-                <MenuIcon name={item.icon} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-bold">
-                  {item.label}
-                </span>
-                {item.note ? (
-                  <span className="mt-0.5 block text-[10px] text-[#777] dark:text-[#a1a1aa]">
-                    {item.note}
-                  </span>
-                ) : null}
-              </span>
-            </>
-          );
-
-          if (!item.href) {
-            return (
-              <div
-                key={item.label}
-                aria-disabled="true"
-                className="flex min-w-0 items-center gap-3 rounded-xl px-2 py-2 opacity-65"
-              >
                 {content}
-              </div>
+              </Link>
             );
-          }
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive ? "page" : undefined}
-              onClick={onNavigate}
-              className={`flex min-w-0 items-center gap-3 rounded-xl px-2 py-2 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
-                isActive
-                  ? "bg-[#fff0f3] text-[#c90f39] dark:bg-[#3a111d] dark:text-[#fb7185]"
-                  : "hover:bg-[#f5f5f5] dark:hover:bg-[#1f1f22]"
-              }`}
-            >
-              {content}
-            </Link>
-          );
-        })}
-      </nav>
-      <InstallAppButton
-        variant="menu"
-        className="mt-4"
-        onDownload={onNavigate}
-      />
+          })}
+        </nav>
+        <InstallAppButton
+          variant="menu"
+          className="mt-4"
+          onDownload={onNavigate}
+        />
+      </div>
       {user ? (
-        <div className="mt-auto border-t border-[#e8e8e8] pt-4 dark:border-[#29292d]">
+        <div className="mt-4 shrink-0 border-t border-[#e8e8e8] pt-4 dark:border-[#29292d]">
           <SidebarUserMenu user={user} />
         </div>
       ) : null}

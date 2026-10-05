@@ -593,7 +593,7 @@ function TrackMediaReferences({ track, configuration }: {
     ? getYouTubeVideoId(track.youtubeLink)
     : null;
   return (
-    <div className="@container/media mt-4">
+    <div className="@container/media mt-4 w-full min-w-0 max-w-[560px]">
       <div className="grid grid-cols-3 items-start gap-2">
         {track.youtubeLink ? (
           youtubeVideoId ? (

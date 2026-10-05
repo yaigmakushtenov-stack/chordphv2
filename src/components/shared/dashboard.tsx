@@ -31,7 +31,7 @@ export function Dashboard({
           : "flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-white text-[#111] shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:bg-[#121214] dark:text-[#f5f5f5]"
       }
     >
-      <div className="border-b border-[#ececec] px-4 py-5 sm:px-6 dark:border-[#29292c]">
+      <div className="shrink-0 border-b border-[#ececec] px-4 py-5 sm:px-6 dark:border-[#29292c]">
         {headerNavigation ? <div className="mb-4">{headerNavigation}</div> : null}
         {eyebrow ? (
           <p className="text-[11px] font-semibold tracking-[0.22em] text-[#ed1746]">
@@ -56,8 +56,8 @@ export function Dashboard({
           documentScroll
             ? "flex-1 p-4 sm:p-6"
             : mobileDocumentScroll
-            ? "flex-1 p-4 sm:p-6 lg:min-h-0 lg:overflow-y-auto"
-            : "min-h-0 flex-1 overflow-y-auto p-4 sm:p-6"
+            ? "flex-1 p-4 sm:p-6 lg:min-h-0 lg:overflow-y-auto lg:overscroll-y-contain"
+            : "min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 sm:p-6"
         }
       >
         {children}
