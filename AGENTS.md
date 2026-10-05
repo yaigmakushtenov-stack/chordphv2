@@ -5,7 +5,9 @@
 - Before making edits, the user should declare `Role: Core` or `Role: Vibe` for the session.
 - If no role is declared, ask for the role before editing. Read-only inspection may continue while waiting.
 - `Role: Core` sessions follow all project rules but do not receive role-based protected-path warnings.
-- `Role: Vibe` sessions may work throughout the project, but changes to protected paths or privileged server behavior require a warning and explicit confirmation before editing.
+- `Role: Vibe` sessions may work throughout the project except for Prisma schema-related changes. Changes to protected paths or privileged server behavior require a warning and explicit confirmation before editing, except for service changes allowed below.
+- `Role: Vibe` sessions may edit `src/services/**`, including database queries using the existing Prisma schema and client, without a role-based warning. All authorization, security, and service rules still apply. Changes to other protected paths and Server Actions still require the warnings below.
+- `Role: Vibe` sessions must not modify Prisma schema files, migrations, `prisma.config.ts`, or generated Prisma code, or run commands that change the schema, create or apply migrations, or regenerate the Prisma client. These changes require a `Role: Core` session; protected-path confirmation does not authorize them in a Vibe session.
 
 ## Vibe Protected-Path Warnings
 
@@ -14,11 +16,9 @@ For a `Role: Vibe` session, warn before modifying any of these paths:
 - `AGENTS.md`
 - `.env*`
 - `package.json` and `pnpm-lock.yaml`
-- `prisma/**` and `prisma.config.ts`
 - `src/generated/**`
 - `src/app/api/**`
 - `src/actions/**`
-- `src/services/**`
 - `src/app/layout.tsx`
 - `src/app/login/**`
 - `src/lib/prisma.ts`
@@ -39,6 +39,7 @@ Use this warning format:
 - Do not modify the protected path or privileged behavior until the user explicitly confirms.
 - Confirmation applies only to the named path or behavior for the current task.
 - All unlisted paths remain subject to the normal project rules but do not require a role-based warning.
+- The Prisma schema-related prohibition above takes precedence over protected-path confirmation, including for generated Prisma code under `src/generated/**`.
 
 ## Version-Specific Guidance
 
