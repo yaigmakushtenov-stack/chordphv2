@@ -9,9 +9,12 @@ import { actionFailure, actionSuccess, type ActionResult } from "@/lib/actions";
 import { auth } from "@/lib/auth";
 import {
   TrackAnnotationServiceError,
+  TrackAudioServiceError,
+  TrackDeletionServiceError,
   TrackService,
 } from "@/services/track-service";
 import type {
+  AttachTrackAudioActionInput,
   CreatedTrackAnnotationData,
   CreateTrackAnnotationActionInput,
   SavedTrackData,
@@ -22,6 +25,88 @@ import type {
 type TrackActionData = {
   trackId: string;
 };
+
+export async function deleteChordChart(trackId: string): Promise<ActionResult<null>> {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) return actionFailure("UNAUTHENTICATED", "Sign in to delete a chord chart.");
+  if (!isTrackId(trackId) || trackId.trim().length > 255) {
+    return actionFailure("VALIDATION_ERROR", "The chord chart is invalid.");
+  }
+  try {
+    await TrackService.deleteTrackAsSuperAdmin(userId, trackId.trim());
+  } catch (error: unknown) {
+    if (!(error instanceof TrackDeletionServiceError)) throw error;
+    switch (error.code) {
+      case "FORBIDDEN":
+        return actionFailure("FORBIDDEN", "Only the verified super-admin account can delete chord charts.");
+      case "NOT_FOUND":
+        return actionFailure("NOT_FOUND", "Chord chart not found.");
+      case "IN_USE":
+        return actionFailure("CONFLICT", "This chart is used in a setlist or custom arrangement. Remove those references before deleting it.");
+      case "CONFLICT":
+        return actionFailure("CONFLICT", "The chart changed while deleting. Refresh the page and try again.");
+    }
+  }
+  revalidatePath(`/track/${trackId.trim()}`, "layout");
+  revalidatePath("/annotation");
+  revalidatePath("/browse");
+  revalidatePath("/");
+  return actionSuccess(null);
+}
+
+export async function attachAudio(
+  input: AttachTrackAudioActionInput,
+): Promise<ActionResult<null>> {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to attach audio.");
+  }
+  if (
+    !isRecord(input) ||
+    !isTrackId(input.trackId) ||
+    input.trackId.trim().length > 255 ||
+    !isTrackId(input.musicFileId) ||
+    input.musicFileId.trim().length > 255
+  ) {
+    return actionFailure("VALIDATION_ERROR", "The audio attachment is invalid.");
+  }
+
+  let track: Awaited<ReturnType<typeof TrackService.attachTrackAudio>>;
+  try {
+    track = await TrackService.attachTrackAudio({
+      ownerId: userId,
+      trackId: input.trackId.trim(),
+      musicFileId: input.musicFileId.trim(),
+    });
+  } catch (error: unknown) {
+    if (!(error instanceof TrackAudioServiceError)) throw error;
+    switch (error.code) {
+      case "NOT_FOUND":
+        return actionFailure("NOT_FOUND", "Track not found.");
+      case "ALREADY_ATTACHED":
+        return actionFailure(
+          "CONFLICT",
+          "This track already has audio. Refresh the page.",
+        );
+      case "AUDIO_UNAVAILABLE":
+        return actionFailure(
+          "VALIDATION_ERROR",
+          "This audio is unavailable or already attached to another track. Upload a separate copy.",
+        );
+      case "CONFLICT":
+        return actionFailure(
+          "CONFLICT",
+          "Audio changed while attaching. Refresh the page or retry.",
+        );
+    }
+  }
+
+  revalidateCustomArrangement(track.copyForEntry);
+  revalidatePath(`/track/${input.trackId.trim()}`);
+  revalidatePath(`/track/${input.trackId.trim()}/annotate`);
+  revalidatePath("/annotation");
+  return actionSuccess(null);
+}
 
 export async function createNew(
   input: CreateTrackAnnotationActionInput,

@@ -1,5 +1,7 @@
 export type MediaLinkProvider = "spotify" | "youtube";
 
+export type MediaLinkConfiguration = Record<MediaLinkProvider, boolean>;
+
 export type MediaLinkSearchInput = {
   artistName: string;
   title: string;
@@ -25,7 +27,7 @@ export type MediaLinkProviderResult =
   | {
       message: string;
       provider: MediaLinkProvider;
-      status: "unavailable";
+      status: "unavailable" | "disabled";
     };
 
 export type MediaLinkSearchResult = {

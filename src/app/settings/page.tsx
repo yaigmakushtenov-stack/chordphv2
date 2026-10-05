@@ -7,6 +7,7 @@ import { AppShell } from "@/components/shared/app-shell";
 import { Dashboard } from "@/components/shared/dashboard";
 import { auth } from "@/lib/auth";
 import { getPreferences } from "@/services/notification-service";
+import { getMediaLinkConfiguration } from "@/services/media-link-service";
 
 export const metadata: Metadata = {
   title: "Profile Preferences | ChordPH",
@@ -34,6 +35,7 @@ export default async function SettingsPage() {
             initialDisplayName={session.user.name}
             initialImage={session.user.image ?? null}
             initialNotificationPreferences={notificationPreferences}
+            mediaLinkConfiguration={getMediaLinkConfiguration()}
           />
         </div>
       </Dashboard>

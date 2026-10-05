@@ -109,6 +109,7 @@ export async function AppShell({
   return (
     <AppMenuProvider>
       <div
+        style={{ paddingBottom: "var(--music-player-height, 0px)" }}
         className={
           documentScroll
             ? "app-shell flex min-h-dvh flex-col bg-[#f4f4f4] text-[#111] dark:bg-black dark:text-[#f5f5f5]"

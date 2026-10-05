@@ -19,11 +19,13 @@ const ACCEPTED_AUDIO_TYPES = Array.from(SUPPORTED_AUDIO_TYPES).join(",");
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 
 type AudioUploadProps = {
+  allowOverwrite?: boolean;
   description?: string;
   embedded?: boolean;
   heading?: string;
   multiple?: boolean;
   onUploadComplete?: (file: MusicFileListItemData) => void;
+  onUploadingChange?: (isUploading: boolean) => void;
 };
 
 type UploadStatus = "queued" | "preparing" | "uploading" | "complete" | "error" | "duplicate";
@@ -51,11 +53,13 @@ type PreparedUploadDraft = {
 };
 
 export function AudioUpload({
+  allowOverwrite = true,
   description = "MP3, M4A, Ogg, FLAC, and WAV files up to 50 MB.",
   embedded = false,
   heading = "Upload audio",
   multiple = true,
   onUploadComplete,
+  onUploadingChange,
 }: AudioUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<UploadItem[]>([]);
@@ -63,13 +67,14 @@ export function AudioUpload({
   const [isUploading, setIsUploading] = useState(false);
 
   async function uploadFiles(files: FileList | File[]) {
-    const audioFiles = Array.from(files);
+    const audioFiles = multiple ? Array.from(files) : Array.from(files).slice(0, 1);
 
     if (!audioFiles.length || isUploading) {
       return;
     }
 
     setIsUploading(true);
+    onUploadingChange?.(true);
 
     try {
       for (const file of audioFiles) {
@@ -82,6 +87,7 @@ export function AudioUpload({
       }
     } finally {
       setIsUploading(false);
+      onUploadingChange?.(false);
       inputRef.current?.form?.reset();
     }
   }
@@ -183,19 +189,27 @@ export function AudioUpload({
     }
   }
 
-  function continueDuplicateUpload(
+  async function continueDuplicateUpload(
     item: UploadItem,
     strategy: DuplicateUploadStrategy,
   ) {
+    if (isUploading) return;
     if (!item.draft) {
       updateItem(item.id, "error", "Upload details are missing.");
       return;
     }
 
-    void uploadPreparedFile(item.id, item.file, {
-      ...item.draft,
-      duplicateStrategy: strategy,
-    });
+    setIsUploading(true);
+    onUploadingChange?.(true);
+    try {
+      await uploadPreparedFile(item.id, item.file, {
+        ...item.draft,
+        duplicateStrategy: strategy,
+      });
+    } finally {
+      setIsUploading(false);
+      onUploadingChange?.(false);
+    }
   }
 
   function updateItem(
@@ -301,13 +315,13 @@ export function AudioUpload({
                     durationSeconds={item.duplicateFile.durationSeconds}
                   />
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <button
+                    {allowOverwrite ? <button
                       type="button"
                       onClick={() => continueDuplicateUpload(item, "overwrite")}
                       className="inline-flex h-9 items-center justify-center rounded-full bg-[#111] px-4 text-[12px] font-bold text-white transition hover:bg-[#2c2c2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-white dark:text-[#111] dark:hover:bg-[#e4e4e7]"
                     >
                       Overwrite
-                    </button>
+                    </button> : null}
                     <button
                       type="button"
                       onClick={() => continueDuplicateUpload(item, "create")}

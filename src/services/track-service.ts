@@ -26,6 +26,60 @@ export type TemporaryTrackArtist = {
 const MUSICAL_KEY_SET = new Set<string>(MUSICAL_KEYS);
 const TRACK_TUNING_SET = new Set<string>(TRACK_TUNINGS);
 const TRACK_TAG_SET = new Set<string>(TRACK_TAGS);
+const TRACK_SUPER_ADMIN_EMAIL = "yaigmakushtenov@gmail.com";
+
+export class TrackDeletionServiceError extends Error {
+  constructor(
+    public readonly code: "FORBIDDEN" | "NOT_FOUND" | "IN_USE" | "CONFLICT",
+    options?: ErrorOptions,
+  ) {
+    super("Chord chart deletion failed.", options);
+    this.name = "TrackDeletionServiceError";
+  }
+}
+
+export async function isTrackSuperAdmin(userId: string): Promise<boolean> {
+  const user = await prisma.betterAuthUser.findUnique({
+    where: { id: userId },
+    select: { email: true, emailVerified: true },
+  });
+  return Boolean(user?.emailVerified && user.email.toLowerCase() === TRACK_SUPER_ADMIN_EMAIL);
+}
+
+export async function deleteTrackAsSuperAdmin(userId: string, trackId: string): Promise<void> {
+  const actingUserId = requireText(userId, "userId", 255);
+  const normalizedTrackId = requireText(trackId, "trackId", 255);
+  try {
+    await prisma.$transaction(async (transaction) => {
+      const user = await transaction.betterAuthUser.findUnique({
+        where: { id: actingUserId },
+        select: { email: true, emailVerified: true },
+      });
+      if (!user?.emailVerified || user.email.toLowerCase() !== TRACK_SUPER_ADMIN_EMAIL) {
+        throw new TrackDeletionServiceError("FORBIDDEN");
+      }
+      const track = await transaction.track.findUnique({
+        where: { id: normalizedTrackId },
+        select: { id: true },
+      });
+      if (!track) throw new TrackDeletionServiceError("NOT_FOUND");
+      const result = await transaction.track.deleteMany({
+        where: {
+          id: normalizedTrackId,
+          copyForEntryId: null,
+          setListTracks: { none: {} },
+          setListCopies: { none: {} },
+        },
+      });
+      if (result.count !== 1) throw new TrackDeletionServiceError("IN_USE");
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+      throw new TrackDeletionServiceError("CONFLICT", { cause: error });
+    }
+    throw error;
+  }
+}
 
 const trackAnnotationSelect = {
   id: true,
@@ -184,6 +238,63 @@ export class TrackAnnotationServiceError extends Error {
   ) {
     super(message);
     this.name = "TrackAnnotationServiceError";
+  }
+}
+
+export class TrackAudioServiceError extends Error {
+  constructor(
+    public readonly code: "NOT_FOUND" | "AUDIO_UNAVAILABLE" | "ALREADY_ATTACHED" | "CONFLICT",
+    options?: ErrorOptions,
+  ) {
+    super("Track audio attachment failed.", options);
+    this.name = "TrackAudioServiceError";
+  }
+}
+
+export async function attachTrackAudio(input: {
+  ownerId: string;
+  trackId: string;
+  musicFileId: string;
+}): Promise<{ copyForEntry: { id: string; setListId: string } | null }> {
+  const ownerId = requireText(input.ownerId, "ownerId", 255);
+  const trackId = requireText(input.trackId, "trackId", 255);
+  const musicFileId = requireText(input.musicFileId, "musicFileId", 255);
+
+  try {
+    return await prisma.$transaction(async (transaction) => {
+      const track = await transaction.track.findFirst({
+        where: editableTrackWhere(ownerId, trackId),
+        select: {
+          id: true,
+          musicFileId: true,
+          copyForEntry: { select: { id: true, setListId: true } },
+        },
+      });
+
+      if (!track) throw new TrackAudioServiceError("NOT_FOUND");
+      if (track.musicFileId === musicFileId) return { copyForEntry: track.copyForEntry };
+      if (track.musicFileId !== null) throw new TrackAudioServiceError("ALREADY_ATTACHED");
+
+      const musicFile = await transaction.musicFile.findFirst({
+        where: { id: musicFileId, ownerId, status: MusicFileStatus.READY, track: { is: null } },
+        select: { id: true },
+      });
+
+      if (!musicFile) throw new TrackAudioServiceError("AUDIO_UNAVAILABLE");
+
+      const result = await transaction.track.updateMany({
+        where: { ...editableTrackWhere(ownerId, trackId), musicFileId: null },
+        data: { musicFileId: musicFile.id },
+      });
+
+      if (result.count !== 1) throw new TrackAudioServiceError("CONFLICT");
+      return { copyForEntry: track.copyForEntry };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2002" || error.code === "P2034")) {
+      throw new TrackAudioServiceError("CONFLICT", { cause: error });
+    }
+    throw error;
   }
 }
 
@@ -1068,6 +1179,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export const TrackService = {
+  isTrackSuperAdmin,
+  deleteTrackAsSuperAdmin,
+  attachTrackAudio,
   getCustomArrangementTrack,
   copyPublicTrackToPersonalLibrary,
   createTrackWithAnnotation,

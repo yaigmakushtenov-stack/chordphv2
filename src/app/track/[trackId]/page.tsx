@@ -7,6 +7,7 @@ import { AnnotationViewer } from "@/app/track/_components/annotation-viewer";
 import { PracticeResumeTracker } from "@/components/shared/practice-resume-tracker";
 import { ScreenWakeLock } from "@/components/shared/screen-wake-lock";
 import { auth } from "@/lib/auth";
+import { getMediaLinkConfiguration } from "@/services/media-link-service";
 import { SetListService } from "@/services/setlist-service";
 import { TrackService, type AnnotationTrack } from "@/services/track-service";
 import type { AnnotationViewerData } from "@/types/track";
@@ -25,11 +26,12 @@ export default async function TrackPage({
 
   const { trackId } = await params;
   const viewerId = session?.user?.id ?? null;
-  const [track, quickAddSetLists] = await Promise.all([
+  const [track, quickAddSetLists, canDeleteChordChart] = await Promise.all([
     TrackService.getViewableAnnotationTrack(trackId, viewerId),
     viewerId
       ? SetListService.listSetListsForQuickAdd(viewerId, trackId)
       : Promise.resolve([]),
+    viewerId ? TrackService.isTrackSuperAdmin(viewerId) : Promise.resolve(false),
   ]);
 
   if (!track) {
@@ -53,6 +55,8 @@ export default async function TrackPage({
         }}
       />
       <AnnotationViewer
+        canDeleteChordChart={canDeleteChordChart}
+        mediaLinkConfiguration={getMediaLinkConfiguration()}
         autoScroll
         quickAddSetLists={quickAddSetLists}
         track={toViewerData(track, {

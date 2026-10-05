@@ -5,6 +5,8 @@ import { useEffect, useId, useMemo, useState, useTransition } from "react";
 
 import * as MediaLinkActions from "@/actions/media-link-actions";
 import * as TrackActions from "@/actions/track-actions";
+import Link from "next/link";
+import { useMediaLinkPreferences } from "@/lib/client/use-media-link-preferences";
 import { AudioUpload } from "@/app/track/_components/audio/audio-upload";
 import {
   ChordLine,
@@ -13,6 +15,7 @@ import {
 } from "@/app/track/_components/annotation-viewer";
 import { PairedChordPreview } from "@/app/track/_components/paired-chord-preview";
 import { showToast } from "@/components/shared/toast";
+import { PracticeAudioPlayer } from "@/components/shared/practice-audio-player";
 import {
   MUSICAL_KEYS,
   MAX_TRACK_TAGS,
@@ -1036,8 +1039,11 @@ function TrackReferencesSection({
   const [searchResult, setSearchResult] =
     useState<MediaLinkSearchResult | null>(null);
   const [isFindingLinks, startFindingLinksTransition] = useTransition();
+  const mediaLinkPreferences = useMediaLinkPreferences();
+  const isAutoFindEnabled = mediaLinkPreferences.enabled &&
+    (mediaLinkPreferences.youtube || mediaLinkPreferences.spotify);
   const canFindLinks = Boolean(
-    details.title.trim() && details.artistName.trim(),
+    isAutoFindEnabled && details.title.trim() && details.artistName.trim(),
   );
 
   function findLinks(): void {
@@ -1088,15 +1094,19 @@ function TrackReferencesSection({
           disabled={!canFindLinks || isFindingLinks}
           onClick={findLinks}
           title={
-            canFindLinks
-              ? "Search YouTube and Spotify"
-              : "Add a song title and primary artist first"
+            !isAutoFindEnabled
+              ? "Enable Auto Find and choose a provider in Settings"
+              : canFindLinks ? "Search your selected providers" : "Add a song title and primary artist first"
           }
           className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-[#ed1746] px-4 text-[11px] font-bold text-[#ed1746] transition hover:bg-[#fff0f3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:border-[#d9d9d9] disabled:text-[#999] disabled:hover:bg-transparent dark:disabled:border-[#3a3a3f] dark:hover:bg-[#35141c]"
         >
           {isFindingLinks ? "Finding links…" : "Auto-find links"}
         </button>
       </div>
+
+      <Link href="/settings#auto-find-links" className="mt-3 inline-block text-[12px] font-semibold text-[#ed1746] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#fb7185]">
+        {isAutoFindEnabled ? "Configure Auto Find in Settings" : "Auto Find is off — enable it in Settings"}
+      </Link>
 
       {searchResult ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -1563,12 +1573,10 @@ function OptionalAudioSection({
               Detach
             </button>
           </div>
-          <audio
-            controls
-            preload="metadata"
+          <PracticeAudioPlayer
             src={selectedAudio.playbackUrl}
             className="mt-3 w-full"
-            aria-label={`Audio preview for ${selectedAudio.title}`}
+            title={selectedAudio.title}
           />
         </section>
       ) : null}
@@ -1615,12 +1623,10 @@ function AudioPanel({
         </p>
       </div>
       {audio ? (
-        <audio
-          controls
-          preload="metadata"
+        <PracticeAudioPlayer
           src={audio.playbackUrl}
           className="mt-4 w-full"
-          aria-label={`Audio player for ${title}`}
+          title={title}
         />
       ) : (
         <div className="mt-4 rounded-xl border border-dashed border-[#d9d9d9] px-4 py-6 text-center text-[12px] text-[#717171] dark:border-[#3a3a3f] dark:text-[#a1a1aa]">

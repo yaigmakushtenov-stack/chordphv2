@@ -1,7 +1,14 @@
 import "server-only";
 
+import { cookies } from "next/headers";
+import {
+  MEDIA_LINK_PREFERENCES_COOKIE,
+  parseMediaLinkPreferences,
+} from "@/lib/music/media-link-preferences";
+
 import type {
   MediaLinkCandidate,
+  MediaLinkConfiguration,
   MediaLinkProvider,
   MediaLinkProviderResult,
   MediaLinkSearchInput,
@@ -177,8 +184,22 @@ export async function findMediaLinks(
   input: MediaLinkSearchInput,
   finders: MediaLinkFinder[] = DEFAULT_FINDERS,
 ): Promise<MediaLinkSearchResult> {
+  const cookieStore = await cookies();
+  const preferences = parseMediaLinkPreferences(
+    cookieStore.get(MEDIA_LINK_PREFERENCES_COOKIE)?.value,
+  );
   const results = await Promise.all(
-    finders.map((finder) => findProviderLinks(finder, input)),
+    finders.map((finder): Promise<MediaLinkProviderResult> => {
+      if (!preferences.enabled || !preferences[finder.provider]) {
+        const label = finder.provider === "youtube" ? "YouTube" : "Spotify";
+        return Promise.resolve({
+          provider: finder.provider,
+          status: "disabled",
+          message: `${label} search is turned off in Settings.`,
+        });
+      }
+      return findProviderLinks(finder, input);
+    }),
   );
 
   return {
@@ -188,6 +209,15 @@ export async function findMediaLinks(
     youtube:
       results.find((result) => result.provider === "youtube") ??
       unavailableResult("youtube"),
+  };
+}
+
+export function getMediaLinkConfiguration(): MediaLinkConfiguration {
+  return {
+    youtube: Boolean(process.env.YOUTUBE_DATA_API_KEY?.trim()),
+    spotify: Boolean(
+      process.env.SPOTIFY_CLIENT_ID?.trim() && process.env.SPOTIFY_CLIENT_SECRET?.trim(),
+    ),
   };
 }
 
@@ -355,4 +385,5 @@ function decodeHtmlEntities(value: string): string {
 
 export const MediaLinkService = {
   findMediaLinks,
+  getMediaLinkConfiguration,
 };

@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 
 import * as SetListActions from "@/actions/setlist-actions";
 import * as TrackActions from "@/actions/track-actions";
+import { TrackAudioAttachment } from "@/app/track/_components/audio/track-audio-attachment";
+import { DeleteChordChartDialog } from "@/app/track/_components/delete-chord-chart-dialog";
+import { useMediaLinkPreferences } from "@/lib/client/use-media-link-preferences";
 import { ChordCard } from "@/components/shared/chords/chord-card";
 import { ChordFullscreenPerformanceLauncher } from "@/components/shared/chords/chord-fullscreen-performance";
 import { TrackAutoScroll } from "@/app/track/_components/track-auto-scroll";
@@ -16,6 +19,7 @@ import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
 import { SetListSectionChart } from "@/app/track/_components/setlist-section-chart";
 import { SongChart, parseSongChartSource } from "@/components/shared/chords/song-chart";
 import { ShareLinkButton } from "@/components/shared/share-link-button";
+import { PracticeAudioPlayer } from "@/components/shared/practice-audio-player";
 import { showToast } from "@/components/shared/toast";
 import { MAX_SETLIST_TRANSPOSE } from "@/lib/setlists/setlist-track-settings";
 
@@ -36,6 +40,7 @@ import {
 import { APP_CONSTANTS } from "@/lib/app-constants";
 import type { QuickAddSetListData } from "@/types/setlist";
 import type { AnnotationViewerData } from "@/types/track";
+import type { MediaLinkConfiguration } from "@/types/media-link";
 import type { TrackPreference } from "@/types/track-preference";
 
 const MIN_CHART_FONT_SIZE = 11;
@@ -43,11 +48,15 @@ const MAX_CHART_FONT_SIZE = 18;
 
 export function AnnotationViewer({
   autoScroll = false,
+  canDeleteChordChart = false,
+  mediaLinkConfiguration,
   quickAddSetLists,
   setListContext,
   track,
 }: {
   autoScroll?: boolean;
+  canDeleteChordChart?: boolean;
+  mediaLinkConfiguration: MediaLinkConfiguration;
   quickAddSetLists: QuickAddSetListData[];
   setListContext?: {
     canArrangeSections: boolean;
@@ -77,6 +86,7 @@ export function AnnotationViewer({
     useState<TrackChordInstrument>("guitar");
   const [chartFontSize, setChartFontSize] = useState(13);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isArrangementDialogOpen, setIsArrangementDialogOpen] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
   const optionsPanelRef = useRef<HTMLDivElement>(null);
@@ -393,6 +403,13 @@ export function AnnotationViewer({
                   ) : (
                     <Link href="/login" className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold transition hover:bg-[#f2f2f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#343438]">Copy to setlist</Link>
                   )}
+                  {!setListContext && canDeleteChordChart ? (
+                    <button
+                      type="button"
+                      onClick={() => { setIsOptionsOpen(false); setIsDeleteDialogOpen(true); }}
+                      className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[12px] font-bold text-red-700 transition hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-red-300 dark:hover:bg-red-950/30"
+                    >Delete chord chart</button>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -443,7 +460,15 @@ export function AnnotationViewer({
               </p>
             ) : null}
           </div>
-          <TrackMediaReferences track={track} />
+          <TrackMediaReferences track={track} configuration={mediaLinkConfiguration} />
+          {isDeleteDialogOpen ? (
+            <DeleteChordChartDialog
+              trackId={track.id}
+              title={track.title}
+              artistName={track.artistName}
+              onClose={() => { setIsDeleteDialogOpen(false); optionsTriggerRef.current?.focus(); }}
+            />
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 py-4">
@@ -555,46 +580,30 @@ export function AnnotationViewer({
   );
 }
 
-function TrackMediaReferences({ track }: { track: AnnotationViewerData }) {
+function TrackMediaReferences({ track, configuration }: {
+  track: AnnotationViewerData;
+  configuration: MediaLinkConfiguration;
+}) {
   const [isYouTubePlayerOpen, setIsYouTubePlayerOpen] = useState(false);
+  const [isAudioPlayerOpen, setIsAudioPlayerOpen] = useState(false);
+  const [hasOpenedAudioPlayer, setHasOpenedAudioPlayer] = useState(false);
+  const audioPlayerId = useId();
+  const preferences = useMediaLinkPreferences();
   const youtubeVideoId = track.youtubeLink
     ? getYouTubeVideoId(track.youtubeLink)
     : null;
-  const hasReferences = Boolean(
-    track.audio || track.youtubeLink || track.spotifyLink,
-  );
-
-  if (!hasReferences) {
-    return track.isOwner ? (
-      <Link
-        href={`/track/${track.id}/annotate#track-references`}
-        className="mt-4 flex items-center gap-3 rounded-xl border border-dashed border-[#c9c9c9] bg-[#fafafa] p-3 text-left transition hover:border-[#ed1746] hover:bg-[#fff7f8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#48484e] dark:bg-[#1d1d20] dark:hover:border-[#ed1746] dark:hover:bg-[#271217]"
-      >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-[#ed1746] shadow-sm dark:bg-[#29292d]">
-          <LinkAddIcon />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-[12px] font-black text-[#171717] dark:text-white">
-            Add YouTube or Spotify link
-          </span>
-          <span className="mt-0.5 block text-[10px] text-[#777] dark:text-[#92929a]">
-            Add a listening reference for this track.
-          </span>
-        </span>
-      </Link>
-    ) : null;
-  }
-
   return (
-    <div className="mt-4">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="@container/media mt-4">
+      <div className="grid grid-cols-3 items-start gap-2">
         {track.youtubeLink ? (
           youtubeVideoId ? (
             <button
               type="button"
               aria-expanded={isYouTubePlayerOpen}
+              aria-label={isYouTubePlayerOpen ? "Hide YouTube player" : "Play YouTube"}
+              title={isYouTubePlayerOpen ? "Hide YouTube player" : "Play YouTube"}
               onClick={() => setIsYouTubePlayerOpen((open) => !open)}
-              className={`inline-flex h-9 items-center gap-2 rounded-full border px-3 text-[11px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+              className={`inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full border px-2 text-[11px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
                 isYouTubePlayerOpen
                   ? "border-[#ff0000] bg-[#ff0000] text-white"
                   : "border-red-200 bg-red-50 text-red-700 hover:border-[#ff0000] dark:border-red-950 dark:bg-red-950/30 dark:text-red-300"
@@ -603,7 +612,7 @@ function TrackMediaReferences({ track }: { track: AnnotationViewerData }) {
               <span className="flex size-5 items-center justify-center rounded-full bg-[#ff0000] text-white">
                 <YouTubeIcon />
               </span>
-              {isYouTubePlayerOpen ? "Hide YouTube" : "Play YouTube"}
+              <span className="hidden @[480px]/media:inline">{isYouTubePlayerOpen ? "Hide YouTube" : "Play YouTube"}</span>
             </button>
           ) : (
             <MediaExternalLink
@@ -613,7 +622,9 @@ function TrackMediaReferences({ track }: { track: AnnotationViewerData }) {
               trackTitle={track.title}
             />
           )
-        ) : null}
+        ) : (
+          <MissingMediaLink track={track} provider="youtube" canAutoFind={configuration.youtube && preferences.enabled && preferences.youtube} />
+        )}
         {track.spotifyLink ? (
           <MediaExternalLink
             href={track.spotifyLink}
@@ -621,11 +632,39 @@ function TrackMediaReferences({ track }: { track: AnnotationViewerData }) {
             provider="spotify"
             trackTitle={track.title}
           />
-        ) : null}
+        ) : (
+          <MissingMediaLink track={track} provider="spotify" canAutoFind={configuration.spotify && preferences.enabled && preferences.spotify} />
+        )}
         {track.audio ? (
-          <span className="inline-flex h-9 items-center gap-2 rounded-full border border-[#dedede] bg-white px-3 text-[11px] font-black text-[#555] dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-[#d4d4d8]">
+          <button
+            type="button"
+            aria-expanded={isAudioPlayerOpen}
+            aria-controls={audioPlayerId}
+            aria-label={isAudioPlayerOpen ? "Hide MP3 player" : "Show MP3 player"}
+            title={isAudioPlayerOpen ? "Hide MP3 player" : "Show MP3 player"}
+            onClick={() => {
+              setHasOpenedAudioPlayer(true);
+              setIsAudioPlayerOpen((open) => !open);
+            }}
+            className={`inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full border px-2 text-[11px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${isAudioPlayerOpen
+              ? "border-[#ed1746] bg-[#fff0f3] text-[#ed1746] hover:bg-[#ffe4ea] dark:border-[#ed1746] dark:bg-[#3a111d] dark:text-[#fb7185] dark:hover:bg-[#501426]"
+              : "border-[#dedede] bg-white text-[#555] hover:border-[#ed1746] hover:text-[#ed1746] dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-[#d4d4d8] dark:hover:border-[#fb7185] dark:hover:text-[#fb7185]"}`}
+          >
             <AudioIcon />
-            MP3 attached
+            <span className="hidden @[480px]/media:inline">{isAudioPlayerOpen ? "Hide MP3" : "Show MP3"}</span>
+          </button>
+        ) : null}
+        {track.isOwner && !track.audio ? (
+          <TrackAudioAttachment
+            icon={<AudioIcon muted />}
+            onAttach={(musicFileId) =>
+              TrackActions.attachAudio({ trackId: track.id, musicFileId })
+            }
+          />
+        ) : null}
+        {!track.isOwner && !track.audio ? (
+          <span title="MP3 not added" aria-label="MP3 not added" className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full border border-dashed border-[#dedede] bg-white px-2 text-[11px] font-black text-[#777] dark:border-[#3a3a3f] dark:bg-[#202023] dark:text-[#a1a1aa]">
+            <AudioIcon muted /> <span className="hidden @[480px]/media:inline">MP3 not added</span>
           </span>
         ) : null}
       </div>
@@ -645,16 +684,43 @@ function TrackMediaReferences({ track }: { track: AnnotationViewerData }) {
       ) : null}
 
       {track.audio ? (
-        <audio
-          controls
-          preload="metadata"
-          src={track.audio.playbackUrl}
-          aria-label={`Audio player for ${track.title}`}
-          className="mt-3 w-full"
-        />
+        <div id={audioPlayerId} hidden={!isAudioPlayerOpen} className="mt-3 w-full">
+          {hasOpenedAudioPlayer ? (
+            <PracticeAudioPlayer
+              src={track.audio.playbackUrl}
+              title={track.title}
+              hidden={!isAudioPlayerOpen}
+            />
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
+}
+
+function MissingMediaLink({ track, provider, canAutoFind }: {
+  track: AnnotationViewerData;
+  provider: "youtube" | "spotify";
+  canAutoFind: boolean;
+}) {
+  const label = provider === "youtube" ? "YouTube" : "Spotify";
+  const className = "inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full border border-dashed border-[#c9c9c9] bg-white px-2 text-[11px] font-bold text-[#555] dark:border-[#48484e] dark:bg-[#202023] dark:text-[#d4d4d8]";
+  const content = (
+    <>
+      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#71717a] text-white dark:bg-[#71717a] dark:text-white">
+        {provider === "youtube" ? <YouTubeIcon muted /> : <SpotifyIcon />}
+      </span>
+      <span className="hidden truncate @[480px]/media:inline">{track.isOwner ? (canAutoFind ? "Add link or Auto Find" : "Add link") : `${label} not added`}</span>
+    </>
+  );
+  return track.isOwner ? (
+    <Link
+      href={`/track/${track.id}/annotate#track-references`}
+      aria-label={`Add ${label} link${canAutoFind ? " or find a match automatically" : ""}`}
+      title={`Open track references to add a ${label} link${canAutoFind ? " or use Auto Find" : ""}`}
+      className={`${className} transition hover:border-[#999] hover:bg-[#f4f4f5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:border-[#71717a] dark:hover:bg-[#29292d]`}
+    >{content}</Link>
+  ) : <span title={`${label} not added`} aria-label={`${label} not added`} className={className}>{content}</span>;
 }
 
 function TrackMetadataSeparator() {
@@ -770,7 +836,8 @@ function MediaExternalLink({
       target="_blank"
       rel="noreferrer"
       aria-label={`${label} for ${trackTitle}`}
-      className={`inline-flex h-9 items-center gap-2 rounded-full border px-3 text-[11px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+      title={`${label} for ${trackTitle}`}
+      className={`inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full border px-2 text-[11px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
         isYouTube
           ? "border-red-200 bg-red-50 text-red-700 hover:border-[#ff0000] dark:border-red-950 dark:bg-red-950/30 dark:text-red-300"
           : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-[#1db954] dark:border-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-300"
@@ -783,7 +850,7 @@ function MediaExternalLink({
       >
         {isYouTube ? <YouTubeIcon /> : <SpotifyIcon />}
       </span>
-      {label}
+      <span className="hidden @[480px]/media:inline">{label}</span>
     </a>
   );
 }
@@ -814,7 +881,7 @@ function getYouTubeVideoId(value: string): string | null {
   }
 }
 
-function YouTubeIcon() {
+function YouTubeIcon({ muted = false }: { muted?: boolean }) {
   return (
     <svg
       aria-hidden="true"
@@ -823,7 +890,7 @@ function YouTubeIcon() {
       className="size-3.5"
     >
       <rect x="2.5" y="6" width="19" height="12" rx="4" fill="currentColor" />
-      <path d="m10 9 5 3-5 3V9Z" fill="#ff0000" />
+      <path d="m10 9 5 3-5 3V9Z" fill={muted ? "#71717a" : "#ff0000"} />
     </svg>
   );
 }
@@ -846,13 +913,13 @@ function SpotifyIcon() {
   );
 }
 
-function AudioIcon() {
+function AudioIcon({ muted = false }: { muted?: boolean }) {
   return (
     <svg
       aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
-      className="size-4 text-[#ed1746]"
+      className={`size-4 ${muted ? "text-[#777] dark:text-[#a1a1aa]" : "text-[#ed1746] dark:text-[#fb7185]"}`}
       stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
@@ -861,25 +928,6 @@ function AudioIcon() {
       <path d="M9 18V5l10-2v13" />
       <circle cx="6" cy="18" r="3" />
       <circle cx="16" cy="16" r="3" />
-    </svg>
-  );
-}
-
-function LinkAddIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="size-5"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2" />
-      <path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2" />
-      <path d="M19 17v4M17 19h4" />
     </svg>
   );
 }

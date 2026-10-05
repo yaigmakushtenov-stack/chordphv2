@@ -1,6 +1,12 @@
 import "server-only";
 
-import { MusicFileStatus, Prisma } from "@/generated/prisma/client";
+import {
+  GroupMembershipStatus,
+  MusicFileStatus,
+  Prisma,
+  PublicityStatus,
+  VisibilityStatus,
+} from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { storage } from "@/lib/storage";
 import type { SignedUpload } from "@/lib/storage";
@@ -124,6 +130,93 @@ export class MusicFileServiceError extends Error {
     super(message);
     this.name = "MusicFileServiceError";
   }
+}
+
+export class MusicWaveformServiceError extends Error {
+  constructor(options?: ErrorOptions) {
+    super("Waveform audio is unavailable.", options);
+    this.name = "MusicWaveformServiceError";
+  }
+}
+
+export async function loadReadyMusicWaveformAudio(
+  fileId: string,
+  viewerId: string | null,
+  requestSignal: AbortSignal,
+): Promise<{ body: ReadableStream<Uint8Array>; contentType: string } | null> {
+  const normalizedFileId = requireText(fileId, "fileId", 255);
+  const access: Prisma.MusicFileWhereInput[] = [{
+    track: {
+      visibilityStatus: VisibilityStatus.PUBLIC,
+      publicityStatus: PublicityStatus.APPROVED,
+    },
+  }];
+  if (viewerId) {
+    const userId = requireText(viewerId, "viewerId", 255);
+    const setListScope: Prisma.SetListWhereInput = {
+      OR: [
+        { ownerId: userId },
+        {
+          eventGroupSetLists: {
+            some: {
+              group: {
+                memberships: { some: { userId, status: GroupMembershipStatus.ACCEPTED } },
+              },
+            },
+          },
+        },
+      ],
+    };
+    access.push({ ownerId: userId }, {
+      track: {
+        OR: [
+          { setListTracks: { some: { setList: setListScope } } },
+          { copyForEntry: { setList: setListScope } },
+        ],
+      },
+    });
+  }
+  const file = await prisma.musicFile.findFirst({
+    where: { id: normalizedFileId, status: MusicFileStatus.READY, OR: access },
+    select: {
+      objectKey: true,
+      contentType: true,
+      storedSizeBytes: true,
+      sourceSizeBytes: true,
+    },
+  });
+  if (!file) return null;
+  const maxBytes = STORAGE_RULES.music.maxBytes;
+  const size = file.storedSizeBytes ?? file.sourceSizeBytes;
+  if (size < 1 || size > maxBytes || !STORAGE_RULES.music.allowedContentTypes.has(file.contentType)) {
+    throw new MusicWaveformServiceError();
+  }
+  const downloadUrl = await storage.createDownloadUrl(file.objectKey);
+  let response: Response;
+  try {
+    response = await fetch(downloadUrl, {
+      cache: "no-store",
+      redirect: "error",
+      signal: AbortSignal.any([requestSignal, AbortSignal.timeout(30_000)]),
+    });
+  } catch (error: unknown) {
+    if (!(error instanceof TypeError) && !(error instanceof DOMException)) throw error;
+    throw new MusicWaveformServiceError({ cause: error });
+  }
+  const reportedLength = Number(response.headers.get("content-length"));
+  if (!response.ok || !response.body || reportedLength > maxBytes) {
+    await response.body?.cancel();
+    throw new MusicWaveformServiceError();
+  }
+  let transferredBytes = 0;
+  const body = response.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      transferredBytes += chunk.byteLength;
+      if (transferredBytes > maxBytes) throw new MusicWaveformServiceError();
+      controller.enqueue(chunk);
+    },
+  }));
+  return { body, contentType: file.contentType };
 }
 
 export async function findMusicFileByHash(
@@ -619,6 +712,7 @@ function normalizeLimit(limit: number | undefined) {
 }
 
 export const MusicService = {
+  loadReadyMusicWaveformAudio,
   completeMusicUpload,
   createReadyMusicFileDownloadUrl,
   findMusicFileByHash,

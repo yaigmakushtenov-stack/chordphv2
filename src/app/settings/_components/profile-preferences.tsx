@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { AppearanceSection } from "@/app/settings/_components/appearance-section";
 import { MusicPreferencesSection } from "@/app/settings/_components/music-preferences-section";
+import { MediaLinkPreferencesSection } from "@/app/settings/_components/media-link-preferences-section";
 import { NotificationPreferencesSection } from "@/app/settings/_components/notification-preferences-section";
 import type {
   AccidentalPreference,
@@ -12,17 +13,20 @@ import type {
 } from "@/app/settings/_components/preference-types";
 import { ProfileSection } from "@/app/settings/_components/profile-section";
 import type { PushPreferences } from "@/types/notifications";
+import type { MediaLinkConfiguration } from "@/types/media-link";
 
 type ProfilePreferencesProps = {
   initialDisplayName: string;
   initialImage: string | null;
   initialNotificationPreferences: PushPreferences;
+  mediaLinkConfiguration: MediaLinkConfiguration;
 };
 
 export function ProfilePreferences({
   initialDisplayName,
   initialImage,
   initialNotificationPreferences,
+  mediaLinkConfiguration,
 }: ProfilePreferencesProps) {
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [image, setImage] = useState(initialImage);
@@ -44,7 +48,7 @@ export function ProfilePreferences({
             Preview mode
           </p>
           <p className="mt-0.5 text-[11px] leading-4 text-[#8a5060] dark:text-[#d3a4ae]">
-            Theme changes apply now, and notification preferences can be saved. Other preferences remain on this screen until account sync is added.
+            Theme changes apply now, Auto Find choices save in this browser, and notification preferences can be saved. Other preferences remain on this screen until account sync is added.
           </p>
         </div>
       </div>
@@ -61,6 +65,7 @@ export function ProfilePreferences({
         onAccidentalPreferenceChange={setAccidentalPreference}
         onDefaultInstrumentChange={setDefaultInstrument}
       />
+      <MediaLinkPreferencesSection configuration={mediaLinkConfiguration} />
       <AppearanceSection
         chartTextSize={chartTextSize}
         onChartTextSizeChange={setChartTextSize}

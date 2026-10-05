@@ -101,6 +101,8 @@ export function MiniAudioPlayer({
         src={src}
         seed={title}
         progress={progress}
+        durationSeconds={resolvedDuration}
+        disabled={resolvedDuration <= 0}
         barCount={WAVE_BAR_COUNT}
         ariaLabel="Seek duplicate track"
         onSeek={handleWaveSeek}

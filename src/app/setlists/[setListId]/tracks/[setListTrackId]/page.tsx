@@ -10,6 +10,7 @@ import {
   parseSetListTrackTranspose,
 } from "@/lib/setlists/setlist-track-settings";
 import { SetListService } from "@/services/setlist-service";
+import { getMediaLinkConfiguration } from "@/services/media-link-service";
 import type { AnnotationViewerData } from "@/types/track";
 
 export const metadata: Metadata = {
@@ -80,6 +81,7 @@ export default async function SetListTrackArrangementPage({
   return (
     <AppShell>
       <AnnotationViewer
+        mediaLinkConfiguration={getMediaLinkConfiguration()}
         quickAddSetLists={quickAddSetLists}
         setListContext={{
           canArrangeSections: item.setList.ownerId === session.user.id,

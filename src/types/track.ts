@@ -1,5 +1,10 @@
 import type { TrackJoinPhrase } from "@/lib/music/track-options";
 
+export type AttachTrackAudioActionInput = {
+  trackId: string;
+  musicFileId: string;
+};
+
 export type TrackAdditionalArtistInput = {
   artistName: string;
   joinPhrase: TrackJoinPhrase;
