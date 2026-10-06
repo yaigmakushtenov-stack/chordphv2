@@ -3,16 +3,20 @@
 import { showToast } from "@/components/shared/toast";
 
 type ShareLinkButtonProps = {
+  className?: string;
   iconOnly?: boolean;
   label?: string;
   path: string;
+  showIcon?: boolean;
   title: string;
 };
 
 export function ShareLinkButton({
+  className,
   iconOnly = true,
   label = "Share",
   path,
+  showIcon = true,
   title,
 }: ShareLinkButtonProps) {
   async function handleShare(): Promise<void> {
@@ -51,11 +55,11 @@ export function ShareLinkButton({
       onClick={() => void handleShare()}
       aria-label={iconOnly ? label : undefined}
       title={iconOnly ? label : undefined}
-      className={`inline-flex h-9 items-center justify-center rounded-full border border-[#d9d9d9] text-[11px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] ${
+      className={className ?? `inline-flex h-9 items-center justify-center rounded-full border border-[#d9d9d9] text-[11px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] ${
         iconOnly ? "w-9" : "gap-1.5 px-3.5"
       }`}
     >
-      <ShareIcon large={iconOnly} />
+      {iconOnly || showIcon ? <ShareIcon large={iconOnly} /> : null}
       {iconOnly ? null : label}
     </button>
   );

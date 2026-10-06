@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "chordph-reader-";
-const CACHE_NAME = `${CACHE_PREFIX}v9`;
+const CACHE_NAME = `${CACHE_PREFIX}v12`;
 const READER_URL = "/offline";
 let preparation;
 

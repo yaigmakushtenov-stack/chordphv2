@@ -201,7 +201,7 @@ export function OfflineLibrary() {
           {!activeSong ? <OfflineOptions label="Saved setlist options" onEdit={() => openEdit(requestedDownload)} /> : null}
         </div>
         {activeSong?.chart ? <>
-          <OfflineChart key={`${requestedDownload.id}:${activeSong.id}`} chart={activeSong.chart} />
+          <OfflineChart key={`${requestedDownload.id}:${activeSong.id}`} chart={activeSong.chart} playbackAreaRef={mainRef} />
           {requestedDownload.kind === "setlist" ? <div className="mt-6 flex flex-wrap gap-2">{requestedDownload.songs.map((song, index) => <button key={song.id} type="button" disabled={!song.chart} aria-current={song.id === activeSong.id ? "true" : undefined} className={`${offlineButtonClass} ${song.id === activeSong.id ? "border-[#ed1746]!" : ""}`} onClick={() => navigate(requestedDownload, song.id)}>{index + 1}. {song.chart?.title ?? "Unavailable song"}</button>)}</div> : null}
         </> : <>
           <div className="flex items-center gap-3"><h1 className="min-w-0 break-words text-2xl font-black">{requestedDownload.title}</h1><OfflineStageButton download={requestedDownload} onPlay={() => openStage(requestedDownload)} /></div>

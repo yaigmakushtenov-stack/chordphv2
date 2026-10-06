@@ -4,12 +4,10 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { SetListEditor } from "@/app/setlists/_components/setlist-editor";
-import { SetListDetailsDrawer } from "@/app/setlists/_components/setlist-details-drawer";
 import { AppShell } from "@/components/shared/app-shell";
 import { BackLink } from "@/components/shared/back-link";
 import { Dashboard } from "@/components/shared/dashboard";
 import { PracticeResumeTracker } from "@/components/shared/practice-resume-tracker";
-import { ShareLinkButton } from "@/components/shared/share-link-button";
 import { SetListOptions } from "@/app/setlists/_components/setlist-options";
 import { auth } from "@/lib/auth";
 import {
@@ -101,17 +99,7 @@ export default async function SetListPage({
         headerNavigation={
           <div className="flex items-center justify-between gap-3">
             <BackLink href="/setlists">All setlists</BackLink>
-            <div className="flex items-center gap-2">
-              <ShareLinkButton
-                path={`/setlists/${data.id}`}
-                title={`${data.title} · ChordPH`}
-              />
-              <SetListDetailsDrawer
-                mode="edit"
-                setList={data}
-              />
-              <SetListOptions request={{ kind: "personal", id: data.id }} />
-            </div>
+            <SetListOptions request={{ kind: "personal", id: data.id }} setList={data} />
           </div>
         }
         title={data.title}
@@ -124,10 +112,9 @@ export default async function SetListPage({
           ) : null
         }
       >
-        <SetListEditor key={`${data.updatedAt}:${data.tracks.map((track) => track.id).join(",")}`} setList={data} />
-        <Link href={`/setlists/${data.id}/tracks`} className="ml-12 mt-4 inline-flex h-10 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]">
-          + Add tracks
-        </Link>
+        <SetListEditor key={`${data.updatedAt}:${data.tracks.map((track) => track.id).join(",")}`} setList={data}
+          emptyAction={<Link href={`/setlists/${data.id}/tracks`} className="inline-flex h-10 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]">+ Add tracks</Link>}
+        />
       </Dashboard>
     </AppShell>
   );

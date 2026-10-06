@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 
 import { BandLibrary } from "@/app/bands/_components/band-library";
 import { AppShell } from "@/components/shared/app-shell";
-import { Dashboard } from "@/components/shared/dashboard";
 import { auth } from "@/lib/auth";
 import {
   GroupService,
@@ -29,14 +28,7 @@ export default async function BandsPage() {
 
   return (
     <AppShell mobileDocumentScroll>
-      <Dashboard
-        mobileDocumentScroll
-        eyebrow="YOUR BANDS"
-        title="Play together"
-        description="Create bands for the musicians you perform or practice with. Member management and stage sync controls will build on this foundation."
-      >
-        <BandLibrary items={bands} />
-      </Dashboard>
+      <BandLibrary items={bands} />
     </AppShell>
   );
 }

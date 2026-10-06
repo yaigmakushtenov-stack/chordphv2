@@ -142,7 +142,7 @@ const stageView = await loadModule("src/app/events/_components/stage-view.tsx", 
   react: React,
   "react/jsx-runtime": ReactJsx,
   "next/link": { default: ({ href, children }) => React.createElement("a", { href }, children) },
-  "@/components/shared/chart-playback-toolbar": { ChartPlaybackToolbar: () => React.createElement("div", { "aria-label": "Chart playback toolbar" }), ChartTransposeControls: () => null, ChartViewSelect: () => null },
+  "@/components/shared/chart-playback-toolbar": { ChartPlaybackDock: ({ children }) => children, ChartPlaybackToolbar: () => React.createElement("div", { "aria-label": "Chart playback toolbar" }), ChartTransposeControls: () => null, ChartViewSelect: () => null, ChartDiagramSelect: () => null },
   "@/components/shared/theme-toggle": { MoonIcon: () => null, SunIcon: () => null },
   "@/components/shared/chords/chord-card": { ChordCard: () => null },
   "@/components/shared/chords/piano-chord-card": { PianoChordCard: () => null },
@@ -221,7 +221,7 @@ const html = await readFile(path.join(root, ".next/server/app/offline.html"), "u
 const worker = await readFile(path.join(root, "public/offline-worker.js"), "utf8");
 vm.runInNewContext(worker, {
   self: { location: { origin }, addEventListener: (name, callback) => events.set(name, callback), skipWaiting: async () => {}, clients: { claim: async () => {} } },
-  caches: { open: async () => { if (storageBlocked) throw new Error("Storage blocked"); return cache; }, keys: async () => ["chordph-reader-v9"], delete: async () => true },
+  caches: { open: async () => { if (storageBlocked) throw new Error("Storage blocked"); return cache; }, keys: async () => ["chordph-reader-v12"], delete: async () => true },
   URL, Response, AbortController, setTimeout, clearTimeout,
   fetch: async (request) => {
     if (disconnected) throw new TypeError("Network disconnected");

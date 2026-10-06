@@ -1,23 +1,24 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type RefObject } from "react";
 import { ScreenWakeLock } from "@/components/shared/screen-wake-lock";
 import { SongChart, parseSongChartSource } from "@/components/shared/chords/song-chart";
 import { ChordCard } from "@/components/shared/chords/chord-card";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
 import { ChordPopover } from "@/app/track/_components/chord-popover";
 import { TrackAutoScroll } from "@/app/track/_components/track-auto-scroll";
+import { ChartDiagramSelect } from "@/components/shared/chart-playback-toolbar";
 import { GUITAR_CHORDS, PIANO_CHORDS, UKELELE_CHORDS, normalizeChordSymbol } from "@/data/chords";
 import { splitVariationSuffix, transposeChordPro, type AccidentalPreference } from "@/lib/chords/chord-pro";
 import { getTransposedSetListKey } from "@/lib/setlists/setlist-track-settings";
 import type { OfflineChart as ChartData } from "@/types/offline";
 
-export function OfflineChart({ chart }: { chart: ChartData }) {
+export function OfflineChart({ chart, playbackAreaRef }: { chart: ChartData; playbackAreaRef: RefObject<HTMLElement | null> }) {
   const chartRef = useRef<HTMLDivElement>(null);
   const [transpose, setTranspose] = useState(chart.transpose);
   const [fontSize, setFontSize] = useState(13);
   const [vocals, setVocals] = useState(false);
-  const [instrument, setInstrument] = useState("guitar");
+  const [instrument, setInstrument] = useState<"guitar" | "piano" | "ukulele">("guitar");
   const [accidentals, setAccidentals] = useState<AccidentalPreference>(chart.key.includes("b") ? "flats" : "sharps");
   const source = useMemo(() => transposeChordPro(chart.lyricsAndChords, transpose, accidentals), [chart.lyricsAndChords, transpose, accidentals]);
 
@@ -40,10 +41,10 @@ export function OfflineChart({ chart }: { chart: ChartData }) {
     <p className="mt-1 text-[12px] text-[#666] dark:text-[#b4b4bc]">Tuning {chart.tuning}{chart.capo !== null ? ` · Capo ${chart.capo}` : ""}</p>
     <div ref={chartRef} className="mt-5">{chart.lyricsAndChords.trim() ? <SongChart lyricsOnly={vocals} sections={parseSongChartSource(source)} fontSize={fontSize} renderChord={renderChord} /> : <p className="text-[13px] text-[#666] dark:text-[#b4b4bc]">No lyrics or chords in this saved song.</p>}</div>
     {chart.notes ? <section className="mt-6"><h3 className="text-[13px] font-bold">Notes</h3><p className="mt-2 whitespace-pre-wrap break-words text-[13px] text-[#666] dark:text-[#b4b4bc]">{chart.notes}</p></section> : null}
-    {chart.lyricsAndChords.trim() ? <TrackAutoScroll chartRef={chartRef} fontSize={fontSize} minFontSize={11} maxFontSize={18} onFontSizeChange={setFontSize}
+    {chart.lyricsAndChords.trim() ? <TrackAutoScroll chartRef={chartRef} playbackAreaRef={playbackAreaRef} fontSize={fontSize} minFontSize={11} maxFontSize={18} onFontSizeChange={setFontSize}
       accidentals={accidentals} onAccidentalsChange={() => setAccidentals((value) => value === "sharps" ? "flats" : "sharps")}
       transpose={transpose} displayKey={getTransposedSetListKey(chart.key, transpose)} onTransposeChange={setTranspose} vocals={vocals} onVocalsChange={setVocals}
-      instrumentOptions={<select aria-label="Chord diagram instrument" value={instrument} onChange={(event) => setInstrument(event.target.value)} className="h-10 rounded-full border border-[#d8d3c8] bg-white px-3 text-[12px] font-bold text-[#151515] focus-visible:outline-2 focus-visible:outline-[#ed1746] dark:border-[#343740] dark:bg-[#202023] dark:text-white"><option value="guitar">Guitar diagrams</option><option value="piano">Piano diagrams</option><option value="ukulele">Ukulele diagrams</option></select>}
+      instrumentOptions={<ChartDiagramSelect value={instrument} onChange={setInstrument} />}
     /> : null}
   </article>;
 }

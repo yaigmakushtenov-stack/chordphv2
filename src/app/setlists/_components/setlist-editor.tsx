@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { DragHandleIcon, useDragReorder } from "@/components/shared/use-drag-reorder";
 
 import * as SetListActions from "@/actions/setlist-actions";
@@ -12,9 +12,11 @@ import type { SetListDetailData, SetListTrackData } from "@/types/setlist";
 type SetListEditorProps = {
   setList: SetListDetailData;
   isEditing?: boolean;
+  trackPath?: string;
+  emptyAction?: ReactNode;
 };
 
-export function SetListEditor({ setList, isEditing = false }: SetListEditorProps) {
+export function SetListEditor({ setList, isEditing = false, trackPath = `/setlists/${setList.id}/tracks`, emptyAction }: SetListEditorProps) {
   const router = useRouter();
   const [tracks, setTracks] = useState(setList.tracks);
   const [isPending, startTransition] = useTransition();
@@ -92,7 +94,7 @@ export function SetListEditor({ setList, isEditing = false }: SetListEditorProps
                 </span>
                 {item.trackId ? (
                   <Link
-                    href={`/setlists/${setList.id}/tracks/${item.id}`}
+                    href={`${trackPath}/${item.id}`}
                     className="min-w-0 flex-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
                   >
                     <span className="block truncate text-[15px] font-bold hover:text-[#ed1746]">
@@ -159,6 +161,7 @@ export function SetListEditor({ setList, isEditing = false }: SetListEditorProps
           </ol>
         ) : (
           <div className="px-6 py-16 text-center">
+            {emptyAction ? <div className="mb-5">{emptyAction}</div> : null}
             <h2 className="text-[16px] font-bold">This setlist is empty</h2>
             <p className="mx-auto mt-2 max-w-md text-[13px] leading-5 text-[#666] dark:text-[#b4b4bc]">
               Browse your private tracks and approved public tracks to build the playing order.

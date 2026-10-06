@@ -127,7 +127,8 @@ const setListDetailSelect = {
 
 const bandSetListDetailSelect = {
   group: { select: { name: true } },
-  event: { select: { title: true } },
+  event: { select: { id: true, title: true } },
+  eventSetList: { select: { id: true } },
   setList: { select: { ...setListDetailSelect, ownerId: true } },
 } satisfies Prisma.EventGroupSetListSelect;
 
@@ -143,6 +144,10 @@ const bandSetListTrackSelect = {
       visibilityStatus: true,
       publicityStatus: true,
       key: true,
+      tuning: true,
+      capo: true,
+      tempo: true,
+      timeSignature: true,
       annotation: { select: { lyricsAndChords: true } },
     },
   },

@@ -4,8 +4,6 @@ import { notFound, redirect } from "next/navigation";
 
 import { BandTrackChart } from "@/app/setlists/_components/band-track-chart";
 import { AppShell } from "@/components/shared/app-shell";
-import { BackLink } from "@/components/shared/back-link";
-import { Dashboard } from "@/components/shared/dashboard";
 import { auth } from "@/lib/auth";
 import { parseSetListTrackArrangement, parseSetListTrackTranspose } from "@/lib/setlists/setlist-track-settings";
 import { SetListService } from "@/services/setlist-service";
@@ -25,19 +23,19 @@ export default async function BandSetListTrackPage({ params }: {
   const arrangement = parseSetListTrackArrangement(item.settings);
   return (
     <AppShell documentScroll>
-      <Dashboard
-        documentScroll
-        headerNavigation={<BackLink href={`/setlists/bands/${assignmentId}`}>{item.setList.title}</BackLink>}
-        eyebrow="BAND SETLIST TRACK"
-        title={item.track.title}
-        description={item.track.artistName}
-      >
         <BandTrackChart
+          title={item.track.title}
+          artistName={item.track.artistName}
+          setListTitle={item.setList.title}
+          backHref={`/setlists/bands/${assignmentId}`}
+          tuning={arrangement?.tuning ?? item.track.tuning}
+          capo={arrangement?.capo ?? item.track.capo}
+          tempo={arrangement?.tempo ?? item.track.tempo}
+          timeSignature={arrangement?.timeSignature ?? item.track.timeSignature ?? ""}
           lyricsAndChords={arrangement?.lyricsAndChords ?? item.track.annotation?.lyricsAndChords ?? ""}
           baseKey={arrangement?.key ?? item.track.key}
           initialTranspose={parseSetListTrackTranspose(item.settings)}
         />
-      </Dashboard>
     </AppShell>
   );
 }

@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { ChartPlaybackToolbar, ChartTransposeControls, ChartViewSelect } from "@/components/shared/chart-playback-toolbar";
+import { ChartDiagramSelect, ChartPlaybackDock, ChartPlaybackToolbar, ChartTransposeControls, ChartViewSelect } from "@/components/shared/chart-playback-toolbar";
 import { MoonIcon, SunIcon } from "@/components/shared/theme-toggle";
 import { ChordCard } from "@/components/shared/chords/chord-card";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
@@ -111,6 +111,7 @@ export function StageView({ playlist, offline = false, local = false, onExit }: 
   const [theme, setTheme] = useState<StageTheme>("dark");
   const [stageInstrument, setStageInstrument] =
     useState<StageInstrumentId>("instruments");
+  const [diagramInstrument, setDiagramInstrument] = useState<StageChordInstrument>("guitar");
   const [trackTransposes, setTrackTransposes] = useState<StageTrackTransposes>(
     () =>
       Object.fromEntries(
@@ -837,32 +838,38 @@ export function StageView({ playlist, offline = false, local = false, onExit }: 
             </button>
             <StageChordPopoverContent
               chordReference={selectedChord.reference}
-              instrument="guitar"
+              instrument={diagramInstrument}
             />
           </div>
         </div>
       ) : null}
 
+      <div className="h-[calc(61px+env(safe-area-inset-bottom))]">
+      <ChartPlaybackDock areaRef={scrollerRef}>
       <ChartPlaybackToolbar
+        className="pointer-events-auto w-full rounded-t-2xl border-x @min-[640px]/playback:w-fit @min-[640px]/playback:max-w-[calc(100%-1rem)]"
         isDark={isDark} speed={scrollSpeed} zoom={chartZoom} minZoom={MIN_STAGE_ZOOM} maxZoom={MAX_STAGE_ZOOM} accidentals={accidentals}
         onPlay={toggleAutoScroll} onSpeedDown={decreaseScrollSpeed} onSpeedUp={increaseScrollSpeed}
         onZoomOut={() => setChartZoom((value) => Math.max(MIN_STAGE_ZOOM, value - STAGE_ZOOM_STEP))}
         onZoomIn={() => setChartZoom((value) => Math.min(MAX_STAGE_ZOOM, value + STAGE_ZOOM_STEP))}
         onAccidentalsChange={() => setAccidentals((value) => value === "sharps" ? "flats" : "sharps")}
+        transposeControls={<ChartTransposeControls isDark={isDark} value={activeTrackTranspose} displayKey={activeTrackKey} disabled={!activeSetListTrackId} onChange={(value) => {
+          if (activeSetListTrackId) setTrackTransposes((current) => ({ ...current, [activeSetListTrackId]: clampTranspose(value) }));
+        }} />}
+        viewControls={<ChartViewSelect isDark={isDark} vocals={stageInstrument === "vocals"} onChange={(vocals) => setStageInstrument(vocals ? "vocals" : "instruments")} />}
+        diagramControls={stageInstrument !== "vocals" ? <ChartDiagramSelect isDark={isDark} value={diagramInstrument} onChange={setDiagramInstrument} /> : null}
         options={(closeOptions) => <>
           <p className="truncate text-[13px] font-bold">{activeAnchor ? `${activeAnchor.trackTitle} / ${activeAnchor.sectionTitle}` : playlist.setListTitle}</p>
-          <ChartTransposeControls isDark={isDark} value={activeTrackTranspose} displayKey={activeTrackKey} disabled={!activeSetListTrackId} onChange={(value) => {
-            if (activeSetListTrackId) setTrackTransposes((current) => ({ ...current, [activeSetListTrackId]: clampTranspose(value) }));
-          }} />
-          <ChartViewSelect isDark={isDark} vocals={stageInstrument === "vocals"} onChange={(vocals) => setStageInstrument(vocals ? "vocals" : "instruments")} />
           <div className="grid grid-cols-3 gap-2">
             <button type="button" onClick={() => { closeOptions(); setIsNavigatorOpen((value) => !value); }} className={stageButtonClass(isDark)}>Sections</button>
             <button type="button" onClick={() => jumpByOffset(-1)} disabled={!activeAnchor || anchors[0]?.id === activeAnchor.id} className={stageButtonClass(isDark)}>Prev</button>
             <button type="button" onClick={() => jumpByOffset(1)} disabled={!activeAnchor || anchors[anchors.length - 1]?.id === activeAnchor.id} className={stageButtonClass(isDark)}>Next</button>
           </div>
-          {!isLocal && stageSync.isSyncAvailable ? <button type="button" onClick={toggleSyncMode} className={`${stageButtonClass(isDark)} gap-2`} aria-label={syncMode === "synced" ? "Unlink stage" : "Link stage"} aria-pressed={syncMode === "synced"}><StageSyncIcon synced={syncMode === "synced"} />{syncMode === "synced" ? "Unlink" : "Link"}</button> : null}
+          {!isLocal && stageSync.isSyncAvailable ? <button type="button" onClick={toggleSyncMode} className={stageButtonClass(isDark)} aria-label={syncMode === "synced" ? "Unlink stage" : "Link stage"} aria-pressed={syncMode === "synced"}>{syncMode === "synced" ? "Unlink" : "Link"}</button> : null}
         </>}
       />
+      </ChartPlaybackDock>
+      </div>
     </main>
   );
 }
@@ -1071,43 +1078,6 @@ function StageChordPopoverContent({
       initialVariationIndex={chordReference.variationIndex}
       variationLabel={chordReference.variationNumber}
     />
-  );
-}
-
-function StageSyncIcon({ synced }: { synced: boolean }) {
-  if (!synced) {
-    return (
-      <svg
-        aria-hidden="true"
-        className="size-5"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2.4"
-        viewBox="0 0 24 24"
-      >
-        <path d="m18 6-12 12" />
-        <path d="M8.5 8.5 7.2 9.8a4 4 0 0 0 5.7 5.7l1.3-1.3" />
-        <path d="m15.5 15.5 1.3-1.3a4 4 0 0 0-5.7-5.7L9.8 9.8" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg
-      aria-hidden="true"
-      className="size-5"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2.4"
-      viewBox="0 0 24 24"
-    >
-      <path d="M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1L11 4.9" />
-      <path d="M14 11a5 5 0 0 0-7.1 0l-2.1 2.1a5 5 0 0 0 7.1 7.1l1.1-1.1" />
-    </svg>
   );
 }
 

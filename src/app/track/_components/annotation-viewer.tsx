@@ -12,6 +12,7 @@ import { DeleteChordChartDialog } from "@/app/track/_components/delete-chord-cha
 import { useMediaLinkPreferences } from "@/lib/client/use-media-link-preferences";
 import { ChordCard } from "@/components/shared/chords/chord-card";
 import { TrackAutoScroll } from "@/app/track/_components/track-auto-scroll";
+import { ChartDiagramSelect } from "@/components/shared/chart-playback-toolbar";
 import { ChordPopover } from "@/app/track/_components/chord-popover";
 import { BackButton } from "@/components/shared/back-button";
 import { BackLink } from "@/components/shared/back-link";
@@ -70,6 +71,7 @@ export function AnnotationViewer({
 }) {
   const router = useRouter();
   const chartRef = useRef<HTMLDivElement>(null);
+  const playbackAreaRef = useRef<HTMLElement>(null);
   const [transpose, setTranspose] = useState(
     setListContext?.transposeSemitones ?? 0,
   );
@@ -271,13 +273,14 @@ export function AnnotationViewer({
           }}
         />
       ) : null}
-      {source.trim() ? <TrackAutoScroll key={track.id} chartRef={chartRef}
+      {source.trim() ? <TrackAutoScroll key={track.id} chartRef={chartRef} playbackAreaRef={playbackAreaRef}
         fontSize={chartFontSize} minFontSize={MIN_CHART_FONT_SIZE} maxFontSize={MAX_CHART_FONT_SIZE} onFontSizeChange={setChartFontSize}
         accidentals={accidentals} onAccidentalsChange={() => setAccidentals((value) => value === "sharps" ? "flats" : "sharps")}
         transpose={transpose} displayKey={displayKey} onTransposeChange={handleTransposeChange} transposeDisabled={isPending}
         vocals={vocals} onVocalsChange={setVocals}
+        instrumentOptions={<ChartDiagramSelect value={chordInstrument} onChange={setChordInstrument} />}
       /> : null}
-      <section className="min-w-0 p-3 pb-28 sm:p-6 sm:pb-28 xl:min-h-0 xl:overflow-y-auto">
+      <section ref={playbackAreaRef} className="min-w-0 p-3 pb-28 sm:p-6 sm:pb-28 xl:min-h-0 xl:overflow-y-auto">
         <div className="mb-4 flex items-center justify-between gap-3">
           {setListContext ? (
             <BackLink href={`/setlists/${setListContext.setListId}`}>

@@ -8,12 +8,13 @@ import {
   MAX_AUTO_SCROLL_SPEED,
 } from "@/components/shared/auto-scroll-speed-controls";
 
-import { ChartPlaybackToolbar, ChartTransposeControls, ChartViewSelect } from "@/components/shared/chart-playback-toolbar";
+import { ChartPlaybackDock, ChartPlaybackToolbar, ChartTransposeControls, ChartViewSelect } from "@/components/shared/chart-playback-toolbar";
 import { useAppTheme } from "@/providers/theme-provider";
 import type { AccidentalPreference } from "@/lib/chords/chord-pro";
 
 type TrackAutoScrollProps = {
   chartRef: RefObject<HTMLDivElement | null>;
+  playbackAreaRef: RefObject<HTMLElement | null>;
   fontSize: number;
   minFontSize: number;
   maxFontSize: number;
@@ -29,7 +30,7 @@ type TrackAutoScrollProps = {
   instrumentOptions?: ReactNode;
 };
 
-export function TrackAutoScroll({ chartRef, fontSize, minFontSize, maxFontSize, onFontSizeChange, accidentals, onAccidentalsChange, transpose, displayKey, onTransposeChange, transposeDisabled, vocals, onVocalsChange, instrumentOptions }: TrackAutoScrollProps) {
+export function TrackAutoScroll({ chartRef, playbackAreaRef, fontSize, minFontSize, maxFontSize, onFontSizeChange, accidentals, onAccidentalsChange, transpose, displayKey, onTransposeChange, transposeDisabled, vocals, onVocalsChange, instrumentOptions }: TrackAutoScrollProps) {
   const { resolvedTheme } = useAppTheme();
   const [speed, setSpeed] = useState(0);
   const isRunning = speed > 0;
@@ -106,20 +107,18 @@ export function TrackAutoScroll({ chartRef, fontSize, minFontSize, maxFontSize, 
     setSpeed((value) => Math.max(0, value - AUTO_SCROLL_SPEED_STEP));
   }
 
-  return <div ref={controlsRef} className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pointer-events-none">
+  return <ChartPlaybackDock areaRef={playbackAreaRef} dockRef={controlsRef}>
     <ChartPlaybackToolbar
-      className="pointer-events-auto w-fit max-w-full rounded-t-2xl border-x shadow-lg"
+      className="pointer-events-auto w-full rounded-t-2xl border-x shadow-lg @min-[640px]/playback:w-fit @min-[640px]/playback:max-w-[calc(100%-1rem)]"
       isDark={resolvedTheme === "dark"} speed={speed} zoom={fontSize / 13} minZoom={minFontSize / 13} maxZoom={maxFontSize / 13} accidentals={accidentals}
       onPlay={() => setSpeed((value) => value > 0 ? 0 : lastPlayingSpeedRef.current)}
       onSpeedDown={decreaseSpeed} onSpeedUp={() => setSpeed((value) => Math.min(MAX_AUTO_SCROLL_SPEED, value + AUTO_SCROLL_SPEED_STEP))}
       onZoomOut={() => onFontSizeChange(Math.max(minFontSize, fontSize - 1))}
       onZoomIn={() => onFontSizeChange(Math.min(maxFontSize, fontSize + 1))}
       onAccidentalsChange={onAccidentalsChange}
-      options={<>
-        <ChartTransposeControls isDark={resolvedTheme === "dark"} value={transpose} displayKey={displayKey} onChange={onTransposeChange} disabled={transposeDisabled} />
-        <ChartViewSelect isDark={resolvedTheme === "dark"} vocals={vocals} onChange={onVocalsChange} />
-        {!vocals ? instrumentOptions : null}
-      </>}
+      transposeControls={<ChartTransposeControls isDark={resolvedTheme === "dark"} value={transpose} displayKey={displayKey} onChange={onTransposeChange} disabled={transposeDisabled} />}
+      viewControls={<ChartViewSelect isDark={resolvedTheme === "dark"} vocals={vocals} onChange={onVocalsChange} />}
+      diagramControls={!vocals ? instrumentOptions : null}
     />
-  </div>;
+  </ChartPlaybackDock>;
 }

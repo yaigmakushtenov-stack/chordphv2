@@ -8,7 +8,11 @@ import { showToast } from "@/components/shared/toast";
 import { SetListEditor } from "./setlist-editor";
 import type { SetListDetailData } from "@/types/setlist";
 
-type SetListDetailsDrawerProps =
+type SetListDetailsDrawerProps = {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
+} & (
   | { mode: "create" }
   | {
       mode: "edit";
@@ -19,7 +23,7 @@ type SetListDetailsDrawerProps =
         tracks?: SetListDetailData["tracks"];
         updatedAt?: string;
       };
-    };
+    });
 
 export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
   const router = useRouter();
@@ -28,7 +32,13 @@ export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
   const initialTitle = props.mode === "edit" ? props.setList.title : "";
   const initialDescription =
     props.mode === "edit" ? (props.setList.description ?? "") : "";
-  const [isOpen, setIsOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const isOpen = props.open ?? localOpen;
+  const onOpenChange = props.onOpenChange;
+  const setIsOpen = useCallback((open: boolean): void => {
+    setLocalOpen(open);
+    onOpenChange?.(open);
+  }, [onOpenChange]);
   const [title, setTitle] = useState(initialTitle);
   const description = initialDescription;
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -43,7 +53,7 @@ export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
     setTitle(initialTitle);
     setIsConfirmingDelete(false);
     window.requestAnimationFrame(() => triggerRef.current?.focus());
-  }, [initialTitle, isPending]);
+  }, [initialTitle, isPending, setIsOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -143,7 +153,7 @@ export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
 
   return (
     <>
-      <button
+      {!props.hideTrigger ? <button
         ref={triggerRef}
         type="button"
         aria-haspopup="dialog"
@@ -167,7 +177,7 @@ export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
             New
           </>
         )}
-      </button>
+      </button> : null}
 
       <div
         className={`fixed inset-0 z-60 transition ${

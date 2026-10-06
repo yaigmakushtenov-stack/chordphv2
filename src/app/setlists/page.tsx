@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { SetListLibrary } from "@/app/setlists/_components/setlist-library";
 import { BandSetListLibrary } from "@/app/setlists/_components/band-setlist-library";
 import { AppShell } from "@/components/shared/app-shell";
-import { Dashboard } from "@/components/shared/dashboard";
 import { auth } from "@/lib/auth";
 import {
   SetListService,
@@ -33,17 +32,9 @@ export default async function SetListsPage() {
 
   return (
     <AppShell mobileDocumentScroll>
-      <Dashboard
-        mobileDocumentScroll
-        eyebrow="SETLISTS"
-        title="Plan what you’ll play"
-        description="Organize your own setlists and find the setlists assigned to your bands."
-      >
-        <div className="grid gap-10">
-          <SetListLibrary items={setLists} />
-          <BandSetListLibrary items={bandSetLists} />
-        </div>
-      </Dashboard>
+      <SetListLibrary items={setLists}>
+        <BandSetListLibrary items={bandSetLists} />
+      </SetListLibrary>
     </AppShell>
   );
 }

@@ -25,7 +25,7 @@ export function AutoScrollSpeedControls({
     <div
       role="group"
       aria-label="Auto-scroll speed controls"
-      className={`inline-flex h-10 shrink-0 items-center overflow-hidden rounded-full border ${
+      className={`inline-flex h-10 shrink-0 items-center overflow-hidden rounded-full border ${compact ? "@min-[360px]/playback:h-11" : ""} ${
         isDark
           ? "border-[#343740] bg-[#17191f] text-white"
           : "border-[#d8d3c8] bg-white text-[#111]"
