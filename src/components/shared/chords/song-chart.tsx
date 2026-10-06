@@ -24,6 +24,7 @@ type SongChartProps = {
   activeSectionIds?: readonly string[];
   className?: string;
   fontSize?: CSSProperties["fontSize"];
+  lyricsOnly?: boolean;
   onLineElement?: (lineIds: string[], element: HTMLElement | null) => void;
   onSectionElement?: (sectionId: string, element: HTMLElement | null) => void;
   renderChord: (value: string) => ReactNode;
@@ -38,6 +39,7 @@ export function SongChart({
   activeSectionIds = [],
   className = "",
   fontSize,
+  lyricsOnly = false,
   onLineElement,
   onSectionElement,
   renderChord,
@@ -47,8 +49,14 @@ export function SongChart({
   theme = "auto",
 }: SongChartProps) {
   const chartSections = useMemo(
-    () => sections.map((section) => ({ ...section, rows: getChartRows(section.lines) })),
-    [sections],
+    () => sections.map((section) => ({ ...section, rows: getChartRows(section.lines).flatMap((row): ChartRow[] => {
+      if (!lyricsOnly) return [row];
+      if (row.kind === "paired") return [{ kind: "standalone", id: row.id, lineIds: row.lineIds, text: getLyricsText(row.lyrics).trimEnd() }];
+      if (getChordAnchors(row.text).length) return [];
+      const text = getLyricsText(row.text);
+      return /^\s*N\.?C\.?\s*$/i.test(text) ? [] : [{ ...row, text }];
+    }) })),
+    [sections, lyricsOnly],
   );
   const surfaceClass = theme === "dark"
     ? "bg-[#202023] text-[#f5f5f5]"
@@ -93,7 +101,7 @@ export function SongChart({
                   {renderSectionControls ? <div className="ml-auto shrink-0">{renderSectionControls(section)}</div> : null}
                 </div>
               ) : null}
-              <div className={`min-w-0 rounded-xl px-3 py-3 ${surfaceClass}`}>
+              {!lyricsOnly || section.rows.some((row) => row.kind === "paired" || row.text.trim()) ? <div className={`min-w-0 rounded-xl px-3 py-3 ${surfaceClass}`}>
                 {section.rows.map((row) => (
                   <div
                     key={row.id}
@@ -107,7 +115,7 @@ export function SongChart({
                     )}
                   </div>
                 ))}
-              </div>
+              </div> : null}
             </div>
           </section>
         );
@@ -135,6 +143,15 @@ export function parseSongChartSource(source: string): SongChartSection[] {
   }
 
   return sections.filter((section) => section.lines.some((line) => line.text.trim()));
+}
+
+function getLyricsText(line: string): string {
+  const text = line.replace(/\[([^\]\r\n]+)\]|\(([^)\r\n]+)\)/g, (match, bracketed: string | undefined, parenthesized: string | undefined) => transposeChord((bracketed ?? parenthesized ?? "").trim(), 0, "sharps") ? "" : match);
+  const words = [...text.matchAll(/\S+/g)];
+  let chordCount = 0;
+  while (chordCount < words.length && transposeChord(words[chordCount][0], 0, "sharps")) chordCount += 1;
+  if (chordCount >= 2 && chordCount < words.length) return text.slice(words[chordCount].index);
+  return text;
 }
 
 function PairedRow({

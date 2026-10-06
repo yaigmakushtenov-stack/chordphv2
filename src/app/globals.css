@@ -78,3 +78,31 @@ body:has(.app-shell[data-scroll-mode="contained"]) {
     transform: translateX(0);
   }
 }
+
+.offline-edit-drawer[open],
+.slide-up-panel {
+  animation: panel-slide-up 200ms ease-out;
+}
+
+@keyframes panel-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes offline-drawer-left {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@media (min-width: 640px) {
+  .offline-edit-drawer[open] {
+    animation-name: offline-drawer-left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .offline-edit-drawer[open],
+  .slide-up-panel {
+    animation: none;
+  }
+}

@@ -6,6 +6,7 @@ import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/shared/app-shell";
 import { BackLink } from "@/components/shared/back-link";
 import { Dashboard } from "@/components/shared/dashboard";
+import { SetListOptions } from "@/app/setlists/_components/setlist-options";
 import { auth } from "@/lib/auth";
 import { getTransposedSetListKey, parseSetListTrackArrangement, parseSetListTrackTranspose } from "@/lib/setlists/setlist-track-settings";
 import { canViewStageTrack } from "@/services/event-service";
@@ -28,7 +29,7 @@ export default async function BandSetListPage({ params }: {
     <AppShell documentScroll>
       <Dashboard
         documentScroll
-        headerNavigation={<BackLink href="/setlists">All setlists</BackLink>}
+        headerNavigation={<div className="flex items-center justify-between gap-3"><BackLink href="/setlists">All setlists</BackLink><SetListOptions request={{ kind: "band", id: assignmentId }} /></div>}
         eyebrow={`BAND SETLIST · ${assignment.group.name}`}
         title={setList.title}
         description={`${assignment.event.title}${setList.description ? ` · ${setList.description}` : ""}`}

@@ -7,15 +7,17 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 
+import { ChartPlaybackToolbar, ChartTransposeControls, ChartViewSelect } from "@/components/shared/chart-playback-toolbar";
+import { MoonIcon, SunIcon } from "@/components/shared/theme-toggle";
 import { ChordCard } from "@/components/shared/chords/chord-card";
 import { PianoChordCard } from "@/components/shared/chords/piano-chord-card";
 import { SongChart } from "@/components/shared/chords/song-chart";
 import {
   AUTO_SCROLL_PIXELS_PER_SECOND,
   AUTO_SCROLL_SPEED_STEP,
-  AutoScrollSpeedControls,
   MAX_AUTO_SCROLL_SPEED,
 } from "@/components/shared/auto-scroll-speed-controls";
 import {
@@ -96,34 +98,19 @@ type StageSectionMetric = StageSection & {
   top: number;
 };
 
-type StageInstrumentId = "guitar" | "piano" | "ukulele" | "vocals";
-type StageChordInstrument = Exclude<StageInstrumentId, "vocals">;
+type StageInstrumentId = "instruments" | "vocals";
+type StageChordInstrument = "guitar" | "piano" | "ukulele";
 type SelectedStageChord = {
   reference: GuitarChordReference;
   value: string;
 };
 
-const STAGE_INSTRUMENT_CONFIG: Array<{
-  displayMode: StageDisplayMode;
-  id: StageInstrumentId;
-  label: string;
-  shortLabel: string;
-}> = [
-  { displayMode: "default", id: "guitar", label: "Guitar", shortLabel: "Gtr" },
-  { displayMode: "default", id: "piano", label: "Piano", shortLabel: "Pno" },
-  {
-    displayMode: "default",
-    id: "ukulele",
-    label: "Ukulele",
-    shortLabel: "Uku",
-  },
-  { displayMode: "vocals", id: "vocals", label: "Vocals", shortLabel: "Vox" },
-];
 
-export function StageView({ playlist }: { playlist: StagePlaylistData }) {
+export function StageView({ playlist, offline = false, local = false, onExit }: { playlist: StagePlaylistData; offline?: boolean; local?: boolean; onExit?: () => void }) {
+  const isLocal = offline || local;
   const [theme, setTheme] = useState<StageTheme>("dark");
   const [stageInstrument, setStageInstrument] =
-    useState<StageInstrumentId>("guitar");
+    useState<StageInstrumentId>("instruments");
   const [trackTransposes, setTrackTransposes] = useState<StageTrackTransposes>(
     () =>
       Object.fromEntries(
@@ -138,11 +125,10 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   const [scrollSpeed, setScrollSpeed] = useState(0);
   const [chartZoom, setChartZoom] = useState(1);
   const [isNavigatorOpen, setIsNavigatorOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedChord, setSelectedChord] = useState<SelectedStageChord | null>(
     null,
   );
-  const [syncMode, setSyncMode] = useState<StageSyncMode>("synced");
+  const [syncMode, setSyncMode] = useState<StageSyncMode>(isLocal ? "unsynced" : "synced");
   const [lockState, setLockState] = useState<StageSyncLockState>("free");
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
@@ -202,10 +188,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     [tracks],
   );
   const isDark = theme === "dark";
-  const selectedStageInstrument =
-    STAGE_INSTRUMENT_CONFIG.find((item) => item.id === stageInstrument) ??
-    STAGE_INSTRUMENT_CONFIG[0];
-  const stageDisplayMode = selectedStageInstrument.displayMode;
+  const stageDisplayMode: StageDisplayMode = stageInstrument === "vocals" ? "vocals" : "default";
   const appearance = getStageAppearance(stageDisplayMode, isDark);
   const [stageState, setStageState] = useState<StageRuntimeState>(() =>
     createStageRuntimeState({
@@ -351,8 +334,8 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
   );
 
   const stageSync = useStageSync({
-    bandId: playlist.band?.id ?? null,
-    canPublish: playlist.currentUser.canLead,
+    bandId: isLocal ? null : playlist.band?.id ?? null,
+    canPublish: !isLocal && playlist.currentUser.canLead,
     eventId: playlist.eventId,
     getSnapshot: getStageSyncSnapshot,
     lockState,
@@ -654,39 +637,6 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     setLockState("free");
   }
 
-  function updateActiveTrackTranspose(offset: -1 | 1): void {
-    if (!activeSetListTrackId) {
-      return;
-    }
-
-    setTrackTransposes((current) => {
-      const nextTranspose = clampTranspose(
-        (current[activeSetListTrackId] ?? 0) + offset,
-      );
-      const nextTransposes = {
-        ...current,
-        [activeSetListTrackId]: nextTranspose,
-      };
-
-      return nextTransposes;
-    });
-  }
-
-  function resetActiveTrackTranspose(): void {
-    if (!activeSetListTrackId || activeTrackTranspose === 0) {
-      return;
-    }
-
-    setTrackTransposes((current) => {
-      const nextTransposes = {
-        ...current,
-        [activeSetListTrackId]: 0,
-      };
-
-      return nextTransposes;
-    });
-  }
-
   function handleLocalScrollIntent(): void {
     isUserScrollingRef.current = true;
     manualScrollPauseUntilRef.current =
@@ -744,9 +694,6 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
     jumpToSection(anchors[targetIndex].id);
   }
 
-  async function enterFullscreen(): Promise<void> {
-    await document.documentElement.requestFullscreen?.().catch(() => undefined);
-  }
 
   return (
     <main
@@ -754,8 +701,12 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
         isDark ? "bg-[#08090b] text-[#f5f3ed]" : "bg-[#f8f7f3] text-[#151515]"
       }`}
     >
-      <Link
-        href={`/events/${playlist.eventId}`}
+      <button type="button" aria-label="Toggle color theme" title="Toggle color theme" onClick={() => setTheme(isDark ? "light" : "dark")} className={`fixed right-14 top-0.5 z-50 flex size-11 items-center justify-center rounded-full border backdrop-blur-md transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] sm:top-1.5 ${isDark ? "border-[#343740] bg-[#17191f] text-[#f5f3ed] hover:bg-white/10" : "border-[#d8d3c8] bg-white text-[#151515] hover:bg-black/10"}`}>
+        {isDark ? <SunIcon /> : <MoonIcon />}
+      </button>
+      <StageExitControl
+        href={offline ? "/offline" : `/events/${playlist.eventId}`}
+        onExit={onExit}
         aria-label="Close stage"
         title="Close stage"
         className={`fixed right-2 top-0.5 z-50 flex size-11 items-center justify-center rounded-full text-2xl backdrop-blur-md transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] sm:top-1.5 ${
@@ -765,7 +716,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
         }`}
       >
         <span aria-hidden="true">×</span>
-      </Link>
+      </StageExitControl>
       <div className="grid min-h-0 min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div
           ref={scrollerRef}
@@ -789,6 +740,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
                   {track.isAvailable && track.sections.length ? (
                     <SongChart
                       sections={track.sections}
+                      lyricsOnly={stageInstrument === "vocals"}
                       activeSectionIds={effectiveActiveSectionId ? [effectiveActiveSectionId] : []}
                       fontSize={`clamp(${13 * chartZoom}px, ${3.2 * chartZoom}vw, ${28 * chartZoom}px)`}
                       theme={isDark ? "dark" : "light"}
@@ -861,6 +813,7 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
           onClose={() => setIsNavigatorOpen(false)}
           onJump={jumpToSection}
           playlist={playlist}
+          offline={isLocal}
           tracks={tracks}
         />
       </div>
@@ -884,456 +837,32 @@ export function StageView({ playlist }: { playlist: StagePlaylistData }) {
             </button>
             <StageChordPopoverContent
               chordReference={selectedChord.reference}
-              instrument={stageInstrument}
+              instrument="guitar"
             />
           </div>
         </div>
       ) : null}
 
-      <footer
-        className={`relative border-t px-3 py-2 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-2 sm:px-4 ${
-          isDark
-            ? "border-[#23252a] bg-[#111216]"
-            : "border-[#dedbd2] bg-[#fffdf8]"
-        }`}
-      >
-        {isMobileMenuOpen ? (
-          <button
-            type="button"
-            aria-label="Close stage options"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="fixed inset-0 z-30 sm:hidden"
-          />
-        ) : null}
-        {isMobileMenuOpen ? (
-          <div
-            className={`absolute bottom-full left-3 right-3 z-40 mb-2 grid max-h-[calc(100dvh-8rem)] gap-3 overflow-y-auto rounded-lg border p-3 shadow-2xl sm:hidden ${
-              isDark
-                ? "border-[#343740] bg-[#111216] text-[#f5f3ed]"
-                : "border-[#d8d3c8] bg-[#fffdf8] text-[#151515]"
-            }`}
-          >
-            <div className="min-w-0">
-              <p className="truncate text-[12px] font-bold text-[#ed1746]">
-                {playlist.eventTitle}
-              </p>
-              <p className="truncate text-[15px] font-black">
-                {activeAnchor
-                  ? `${activeAnchor.trackTitle} / ${activeAnchor.sectionTitle}`
-                  : playlist.setListTitle}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {activeTrackKey ? (
-                <span
-                  className={`inline-flex h-9 items-center rounded-full px-3 text-[11px] font-bold ${
-                    isDark ? "bg-white text-[#111]" : "bg-[#111] text-white"
-                  }`}
-                >
-                  Key {activeTrackKey}
-                </span>
-              ) : null}
-              <div
-                className={`inline-flex h-9 items-center overflow-hidden rounded-full border ${
-                  isDark
-                    ? "border-[#343740] bg-[#202023]"
-                    : "border-[#d8d3c8] bg-white"
-                }`}
-                aria-label="Transpose controls"
-              >
-                <span
-                  className={`border-r px-3 text-[11px] font-black ${
-                    isDark ? "border-[#343740]" : "border-[#d8d3c8]"
-                  }`}
-                >
-                  Tr.
-                </span>
-                <button
-                  type="button"
-                  disabled={!activeSetListTrackId || activeTrackTranspose <= -12}
-                  onClick={() => updateActiveTrackTranspose(-1)}
-                  className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label="Transpose down one semitone"
-                >
-                  −
-                </button>
-                <span className="min-w-8 text-center text-[12px] font-bold tabular-nums">
-                  {activeTrackTranspose}
-                </span>
-                <button
-                  type="button"
-                  disabled={!activeSetListTrackId || activeTrackTranspose >= 12}
-                  onClick={() => updateActiveTrackTranspose(1)}
-                  className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#ed1746] hover:text-white focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label="Transpose up one semitone"
-                >
-                  +
-                </button>
-              </div>
-              <button
-                type="button"
-                disabled={!activeSetListTrackId || activeTrackTranspose === 0}
-                onClick={resetActiveTrackTranspose}
-                className={`h-9 rounded-full border px-3 text-[11px] font-bold transition focus-visible:outline-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-40 ${
-                  isDark
-                    ? "border-[#343740] bg-[#202023] hover:bg-[#2a2a2f]"
-                    : "border-[#d8d3c8] bg-white hover:bg-[#f2eadf]"
-                }`}
-              >
-                Reset
-              </button>
-              <select
-                aria-label="Accidental preference"
-                value={accidentals}
-                onChange={(event) =>
-                  setAccidentals(event.target.value as AccidentalPreference)
-                }
-                className={`h-9 min-w-24 flex-1 rounded-full border px-3 text-[11px] font-bold outline-none focus:border-[#ed1746] ${
-                  isDark
-                    ? "border-[#343740] bg-[#202023] text-[#f5f3ed]"
-                    : "border-[#d8d3c8] bg-white text-[#151515]"
-                }`}
-              >
-                <option value="sharps">Sharps ♯</option>
-                <option value="flats">Flats ♭</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Link
-                href={`/events/${playlist.eventId}`}
-                className={stageButtonClass(isDark)}
-              >
-                Back
-              </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  setIsNavigatorOpen(true);
-                }}
-                className={stageButtonClass(isDark)}
-              >
-                Sections
-              </button>
-              <button
-                type="button"
-                onClick={() => jumpByOffset(-1)}
-                disabled={!activeAnchor || anchors[0]?.id === activeAnchor.id}
-                className={stageButtonClass(isDark)}
-              >
-                Prev
-              </button>
-              <button
-                type="button"
-                onClick={() => jumpByOffset(1)}
-                disabled={
-                  !activeAnchor ||
-                  anchors[anchors.length - 1]?.id === activeAnchor.id
-                }
-                className={stageButtonClass(isDark)}
-              >
-                Next
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme(isDark ? "light" : "dark")}
-                className={stageButtonClass(isDark)}
-              >
-                {isDark ? "Light" : "Dark"}
-              </button>
-              <button
-                type="button"
-                onClick={() => void enterFullscreen()}
-                className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-4 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-              >
-                Fullscreen
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={toggleSyncMode}
-                className={`${stageButtonClass(isDark)} gap-2`}
-                aria-label={syncMode === "synced" ? "Unlink stage" : "Link stage"}
-                aria-pressed={syncMode === "synced"}
-              >
-                <StageSyncIcon synced={syncMode === "synced"} />
-                {syncMode === "synced" ? "Unlink" : "Link"}
-              </button>
-              <select
-                aria-label="Stage instrument"
-                value={stageInstrument}
-                onChange={(event) =>
-                  setStageInstrument(event.target.value as StageInstrumentId)
-                }
-                className={`h-10 min-w-0 rounded-full border px-3 text-[12px] font-bold outline-none focus:border-[#ed1746] ${
-                  isDark
-                    ? "border-[#343740] bg-[#17191f] text-[#f5f3ed]"
-                    : "border-[#d8d3c8] bg-white text-[#151515]"
-                }`}
-              >
-                {STAGE_INSTRUMENT_CONFIG.map((instrument) => (
-                  <option key={instrument.id} value={instrument.id}>
-                    {instrument.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div
-                className={`flex h-10 items-center justify-center rounded-full border px-3 text-[12px] font-black ${
-                  isDark
-                    ? "border-[#343740] bg-[#17191f] text-[#f5f3ed]"
-                    : "border-[#d8d3c8] bg-white text-[#151515]"
-                }`}
-              >
-                {getStageSyncLabel({
-                  isSyncAvailable: stageSync.isSyncAvailable,
-                  lockState,
-                  status: stageSync.status,
-                  syncMode,
-                })}
-              </div>
-              {stageSync.lastControllerLabel ? (
-                <div
-                  className={`flex h-10 items-center justify-center rounded-full px-3 text-[12px] font-black ${
-                    isDark ? "bg-[#23252a]" : "bg-[#ebe7dd]"
-                  }`}
-                >
-                  By {stageSync.lastControllerLabel}
-                </div>
-              ) : null}
-            </div>
+      <ChartPlaybackToolbar
+        isDark={isDark} speed={scrollSpeed} zoom={chartZoom} minZoom={MIN_STAGE_ZOOM} maxZoom={MAX_STAGE_ZOOM} accidentals={accidentals}
+        onPlay={toggleAutoScroll} onSpeedDown={decreaseScrollSpeed} onSpeedUp={increaseScrollSpeed}
+        onZoomOut={() => setChartZoom((value) => Math.max(MIN_STAGE_ZOOM, value - STAGE_ZOOM_STEP))}
+        onZoomIn={() => setChartZoom((value) => Math.min(MAX_STAGE_ZOOM, value + STAGE_ZOOM_STEP))}
+        onAccidentalsChange={() => setAccidentals((value) => value === "sharps" ? "flats" : "sharps")}
+        options={(closeOptions) => <>
+          <p className="truncate text-[13px] font-bold">{activeAnchor ? `${activeAnchor.trackTitle} / ${activeAnchor.sectionTitle}` : playlist.setListTitle}</p>
+          <ChartTransposeControls isDark={isDark} value={activeTrackTranspose} displayKey={activeTrackKey} disabled={!activeSetListTrackId} onChange={(value) => {
+            if (activeSetListTrackId) setTrackTransposes((current) => ({ ...current, [activeSetListTrackId]: clampTranspose(value) }));
+          }} />
+          <ChartViewSelect isDark={isDark} vocals={stageInstrument === "vocals"} onChange={(vocals) => setStageInstrument(vocals ? "vocals" : "instruments")} />
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => { closeOptions(); setIsNavigatorOpen((value) => !value); }} className={stageButtonClass(isDark)}>Sections</button>
+            <button type="button" onClick={() => jumpByOffset(-1)} disabled={!activeAnchor || anchors[0]?.id === activeAnchor.id} className={stageButtonClass(isDark)}>Prev</button>
+            <button type="button" onClick={() => jumpByOffset(1)} disabled={!activeAnchor || anchors[anchors.length - 1]?.id === activeAnchor.id} className={stageButtonClass(isDark)}>Next</button>
           </div>
-        ) : null}
-        <div className="flex min-w-0 items-center justify-between gap-1 sm:hidden">
-          <button
-            type="button"
-            onClick={toggleAutoScroll}
-            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-            aria-label={scrollSpeed > 0 ? "Pause auto-scroll" : "Play auto-scroll"}
-            aria-pressed={scrollSpeed > 0}
-          >
-            <StagePlaybackIcon playing={scrollSpeed > 0} />
-          </button>
-          <AutoScrollSpeedControls
-            compact
-            speed={scrollSpeed}
-            isDark={isDark}
-            onDecrease={decreaseScrollSpeed}
-            onIncrease={increaseScrollSpeed}
-            decreaseLabel="Decrease auto-scroll speed. Double tap to stop."
-          />
-          <StageZoomControls
-            compact
-            isDark={isDark}
-            value={chartZoom}
-            onZoomOut={() =>
-              setChartZoom((value) =>
-                Math.max(MIN_STAGE_ZOOM, value - STAGE_ZOOM_STEP),
-              )
-            }
-            onZoomIn={() =>
-              setChartZoom((value) =>
-                Math.min(MAX_STAGE_ZOOM, value + STAGE_ZOOM_STEP),
-              )
-            }
-          />
-          <button
-            type="button"
-            onClick={() =>
-              setAccidentals((current) =>
-                current === "sharps" ? "flats" : "sharps",
-              )
-            }
-            className={`flex size-9 shrink-0 items-center justify-center rounded-full border text-[13px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
-              isDark
-                ? "border-[#343740] bg-[#17191f] text-[#f5f3ed] hover:border-[#ed1746]"
-                : "border-[#d8d3c8] bg-white text-[#151515] hover:border-[#ed1746]"
-            }`}
-            aria-label={
-              accidentals === "sharps"
-                ? "Use flat chord names"
-                : "Use sharp chord names"
-            }
-            title={accidentals === "sharps" ? "Using sharps" : "Using flats"}
-          >
-            {accidentals === "sharps" ? "♯" : "♭"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsMobileMenuOpen((current) => !current)}
-            className={stageIconButtonClass(isDark)}
-            aria-label="Open stage options"
-            aria-expanded={isMobileMenuOpen}
-          >
-            <span className="grid gap-0.5" aria-hidden="true">
-              <span className="size-1 rounded-full bg-current" />
-              <span className="size-1 rounded-full bg-current" />
-              <span className="size-1 rounded-full bg-current" />
-            </span>
-          </button>
-        </div>
-        <div className="hidden min-w-0 sm:block">
-          <p className="truncate text-[12px] font-bold text-[#ed1746]">
-            {playlist.eventTitle}
-          </p>
-          <p
-            className={`truncate text-[15px] font-black ${
-              isDark ? "text-[#f5f3ed]" : "text-[#151515]"
-            }`}
-          >
-            {activeAnchor
-              ? `${activeAnchor.trackTitle} / ${activeAnchor.sectionTitle}`
-              : playlist.setListTitle}
-          </p>
-        </div>
-        <div className="hidden min-w-0 items-center gap-2 overflow-x-auto pb-0.5 sm:flex sm:justify-end sm:pb-0">
-          <Link
-            href={`/events/${playlist.eventId}`}
-            className={stageButtonClass(isDark)}
-          >
-            Back
-          </Link>
-          <div
-            className={`flex h-10 shrink-0 items-center justify-center rounded-full border px-3 text-[12px] font-black ${
-              isDark
-                ? "border-[#343740] bg-[#17191f] text-[#f5f3ed]"
-                : "border-[#d8d3c8] bg-white text-[#151515]"
-            }`}
-          >
-            {getStageSyncLabel({
-              isSyncAvailable: stageSync.isSyncAvailable,
-              lockState,
-              status: stageSync.status,
-              syncMode,
-            })}
-          </div>
-          {stageSync.lastControllerLabel ? (
-            <div
-              className={`flex h-10 shrink-0 items-center justify-center rounded-full px-3 text-[12px] font-black ${
-                isDark ? "bg-[#23252a]" : "bg-[#ebe7dd]"
-              }`}
-            >
-              By {stageSync.lastControllerLabel}
-            </div>
-          ) : null}
-          <button
-            type="button"
-            onClick={toggleSyncMode}
-            className={stageButtonClass(isDark)}
-          >
-            {syncMode === "synced" ? "Unsync" : "Sync"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              setIsNavigatorOpen((current) => !current);
-            }}
-            className={stageButtonClass(isDark)}
-          >
-            Sections
-          </button>
-          <button
-            type="button"
-            onClick={() => jumpByOffset(-1)}
-            disabled={!activeAnchor || anchors[0]?.id === activeAnchor.id}
-            className={stageButtonClass(isDark)}
-          >
-            Prev
-          </button>
-          <AutoScrollSpeedControls
-            speed={scrollSpeed}
-            isDark={isDark}
-            onDecrease={decreaseScrollSpeed}
-            onIncrease={increaseScrollSpeed}
-            decreaseLabel="Decrease auto-scroll speed. Double tap to stop."
-          />
-          <button
-            type="button"
-            onClick={() => jumpByOffset(1)}
-            disabled={
-              !activeAnchor || anchors[anchors.length - 1]?.id === activeAnchor.id
-            }
-            className={stageButtonClass(isDark)}
-          >
-            Next
-          </button>
-          <button
-            type="button"
-            onClick={() => setTheme(isDark ? "light" : "dark")}
-            className={stageButtonClass(isDark)}
-          >
-            {isDark ? "Light" : "Dark"}
-          </button>
-          <StageZoomControls
-            isDark={isDark}
-            value={chartZoom}
-            onZoomOut={() =>
-              setChartZoom((value) =>
-                Math.max(MIN_STAGE_ZOOM, value - STAGE_ZOOM_STEP),
-              )
-            }
-            onZoomIn={() =>
-              setChartZoom((value) =>
-                Math.min(MAX_STAGE_ZOOM, value + STAGE_ZOOM_STEP),
-              )
-            }
-          />
-          <button
-            type="button"
-            onClick={() => void enterFullscreen()}
-            className="inline-flex h-10 shrink-0 items-center rounded-full bg-[#ed1746] px-4 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-          >
-            Fullscreen
-          </button>
-          <div
-            className={`inline-flex h-10 items-center overflow-hidden rounded-full border ${
-              isDark
-                ? "border-[#343740] bg-[#17191f]"
-                : "border-[#d8d3c8] bg-white"
-            }`}
-          >
-            <button
-              type="button"
-              disabled={!activeSetListTrackId || activeTrackTranspose <= -12}
-              onClick={() => updateActiveTrackTranspose(-1)}
-              className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#ed1746] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Transpose down one semitone"
-            >
-              -
-            </button>
-            <span className="min-w-8 text-center text-[12px] font-black tabular-nums">
-              {activeTrackTranspose}
-            </span>
-            <button
-              type="button"
-              disabled={!activeSetListTrackId || activeTrackTranspose >= 12}
-              onClick={() => updateActiveTrackTranspose(1)}
-              className="flex h-full w-9 items-center justify-center text-[16px] font-bold transition hover:bg-[#ed1746] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Transpose up one semitone"
-            >
-              +
-            </button>
-          </div>
-          <select
-            aria-label="Accidental preference"
-            value={accidentals}
-            onChange={(event) =>
-              setAccidentals(event.target.value as AccidentalPreference)
-            }
-            className={`h-10 rounded-full border px-3 text-[12px] font-bold outline-none focus:border-[#ed1746] ${
-              isDark
-                ? "border-[#343740] bg-[#17191f] text-[#f5f3ed]"
-                : "border-[#d8d3c8] bg-white text-[#151515]"
-            }`}
-          >
-            <option value="sharps">Sharps</option>
-            <option value="flats">Flats</option>
-          </select>
-        </div>
-      </footer>
+          {!isLocal && stageSync.isSyncAvailable ? <button type="button" onClick={toggleSyncMode} className={`${stageButtonClass(isDark)} gap-2`} aria-label={syncMode === "synced" ? "Unlink stage" : "Link stage"} aria-pressed={syncMode === "synced"}><StageSyncIcon synced={syncMode === "synced"} />{syncMode === "synced" ? "Unlink" : "Link"}</button> : null}
+        </>}
+      />
     </main>
   );
 }
@@ -1347,7 +876,7 @@ function StageTrackHeader({
 }) {
   return (
     <header
-      className={`sticky top-0 z-20 flex h-12 min-w-0 self-start items-center justify-start gap-2 pl-3 pr-16 backdrop-blur-md sm:h-14 sm:gap-3 ${
+      className={`sticky top-0 z-20 flex h-12 min-w-0 self-start items-center justify-start gap-2 pl-3 pr-28 backdrop-blur-md sm:h-14 sm:gap-3 ${
         isDark ? "bg-[#08090b]/60 text-[#f5f3ed]" : "bg-[#f8f7f3]/60 text-[#151515]"
       }`}
     >
@@ -1374,6 +903,23 @@ function StageTrackHeader({
   );
 }
 
+function StageExitControl({ href, onExit, children, className, title, "aria-label": label }: {
+  href: string;
+  onExit?: () => void;
+  children: ReactNode;
+  className: string;
+  title?: string;
+  "aria-label"?: string;
+}) {
+  if (onExit) {
+    return <button type="button" aria-label={label} title={title} className={className} onClick={() => {
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+      onExit();
+    }}>{children}</button>;
+  }
+  return <Link href={href} aria-label={label} title={title} className={className}>{children}</Link>;
+}
+
 function StageNavigator({
   activeSectionId,
   isDark,
@@ -1381,6 +927,7 @@ function StageNavigator({
   onClose,
   onJump,
   playlist,
+  offline = false,
   tracks,
 }: {
   activeSectionId: string | null;
@@ -1389,6 +936,7 @@ function StageNavigator({
   onClose: () => void;
   onJump: (sectionId: string) => void;
   playlist: StagePlaylistData;
+  offline?: boolean;
   tracks: StageTrackDocument[];
 }) {
   if (!isOpen) {
@@ -1417,7 +965,7 @@ function StageNavigator({
       >
         <div className="min-w-0">
           <p className="truncate text-[12px] font-bold text-[#ed1746]">
-            {playlist.band?.name ?? "No band linked"}
+            {offline ? playlist.setListTitle : playlist.band?.name ?? "No band linked"}
           </p>
           <h2 className="mt-1 text-[16px] font-black">Sections</h2>
         </div>
@@ -1479,85 +1027,6 @@ function StageNavigator({
       </nav>
       </aside>
     </>
-  );
-}
-
-function StagePlaybackIcon({ playing }: { playing: boolean }) {
-  return playing ? (
-    <svg aria-hidden="true" className="size-5" fill="currentColor" viewBox="0 0 24 24">
-      <rect x="6" y="5" width="4" height="14" rx="1" />
-      <rect x="14" y="5" width="4" height="14" rx="1" />
-    </svg>
-  ) : (
-    <svg aria-hidden="true" className="size-5" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M7 4.8a1 1 0 0 1 1.5-.86l11 7.2a1 1 0 0 1 0 1.72l-11 7.2A1 1 0 0 1 7 19.2V4.8Z" />
-    </svg>
-  );
-}
-
-function StageZoomControls({
-  compact = false,
-  isDark,
-  onZoomIn,
-  onZoomOut,
-  value,
-}: {
-  compact?: boolean;
-  isDark: boolean;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  value: number;
-}) {
-  return (
-    <div
-      className={`inline-flex h-10 w-fit items-center overflow-hidden rounded-full border ${
-        isDark
-          ? "border-[#343740] bg-[#17191f]"
-          : "border-[#d8d3c8] bg-white"
-      }`}
-      aria-label="Chart font size controls"
-    >
-      <button
-        type="button"
-        disabled={value <= MIN_STAGE_ZOOM}
-        onClick={onZoomOut}
-        className={`flex h-full items-center justify-center transition hover:bg-[#ed1746] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 ${compact ? "w-8" : "w-10"}`}
-        aria-label="Decrease chart font size"
-      >
-        <StageZoomIcon sign="minus" />
-      </button>
-      <span className={`${compact ? "min-w-9" : "min-w-12"} text-center text-[11px] font-black tabular-nums`}>
-        {Math.round(value * 100)}%
-      </span>
-      <button
-        type="button"
-        disabled={value >= MAX_STAGE_ZOOM}
-        onClick={onZoomIn}
-        className={`flex h-full items-center justify-center transition hover:bg-[#ed1746] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 ${compact ? "w-8" : "w-10"}`}
-        aria-label="Increase chart font size"
-      >
-        <StageZoomIcon sign="plus" />
-      </button>
-    </div>
-  );
-}
-
-function StageZoomIcon({ sign }: { sign: "minus" | "plus" }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className="size-4"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-    >
-      <circle cx="10.5" cy="10.5" r="6.5" />
-      <path d="m15.5 15.5 5 5" />
-      <path d="M7.5 10.5h6" />
-      {sign === "plus" ? <path d="M10.5 7.5v6" /> : null}
-    </svg>
   );
 }
 
@@ -1975,31 +1444,6 @@ function getLatencyCompensationPx(speed: number, sentAt: number): number {
   return (elapsedMs / 1000) * speed * AUTO_SCROLL_PIXELS_PER_SECOND;
 }
 
-function getStageSyncLabel(sync: {
-  isSyncAvailable: boolean;
-  lockState: StageSyncLockState;
-  status: string;
-  syncMode: StageSyncMode;
-}): string {
-  if (!sync.isSyncAvailable) {
-    return "Solo stage";
-  }
-
-  if (sync.status === "connecting") {
-    return "Syncing";
-  }
-
-  if (sync.status !== "connected") {
-    return "Offline";
-  }
-
-  if (sync.syncMode === "unsynced") {
-    return "Unsync + Free";
-  }
-
-  return sync.lockState === "locked" ? "Sync + Locked" : "Sync + Free";
-}
-
 function clampScrollSpeed(value: number): number {
   if (!Number.isFinite(value)) {
     return 0;
@@ -2107,14 +1551,6 @@ function getSectionProgressRatioFromMetrics(
 
 function stageButtonClass(isDark: boolean): string {
   return `inline-flex h-10 shrink-0 items-center justify-center rounded-full border px-4 text-[12px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-40 ${
-    isDark
-      ? "border-[#343740] bg-[#17191f] text-[#f5f3ed] hover:border-[#ed1746]"
-      : "border-[#d8d3c8] bg-white text-[#151515] hover:border-[#ed1746]"
-  }`;
-}
-
-function stageIconButtonClass(isDark: boolean): string {
-  return `flex size-10 shrink-0 items-center justify-center rounded-full border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
     isDark
       ? "border-[#343740] bg-[#17191f] text-[#f5f3ed] hover:border-[#ed1746]"
       : "border-[#d8d3c8] bg-white text-[#151515] hover:border-[#ed1746]"

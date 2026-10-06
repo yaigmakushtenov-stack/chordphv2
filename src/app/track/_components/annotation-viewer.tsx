@@ -7,10 +7,10 @@ import { useEffect, useId, useMemo, useRef, useState, useTransition, type ReactN
 import * as SetListActions from "@/actions/setlist-actions";
 import * as TrackActions from "@/actions/track-actions";
 import { TrackAudioAttachment } from "@/app/track/_components/audio/track-audio-attachment";
+import { SaveChartOffline } from "@/components/shared/offline/save-chart-offline";
 import { DeleteChordChartDialog } from "@/app/track/_components/delete-chord-chart-dialog";
 import { useMediaLinkPreferences } from "@/lib/client/use-media-link-preferences";
 import { ChordCard } from "@/components/shared/chords/chord-card";
-import { ChordFullscreenPerformanceLauncher } from "@/components/shared/chords/chord-fullscreen-performance";
 import { TrackAutoScroll } from "@/app/track/_components/track-auto-scroll";
 import { ChordPopover } from "@/app/track/_components/chord-popover";
 import { BackButton } from "@/components/shared/back-button";
@@ -21,7 +21,6 @@ import { SongChart, parseSongChartSource } from "@/components/shared/chords/song
 import { ShareLinkButton } from "@/components/shared/share-link-button";
 import { PracticeAudioPlayer } from "@/components/shared/practice-audio-player";
 import { showToast } from "@/components/shared/toast";
-import { MAX_SETLIST_TRANSPOSE } from "@/lib/setlists/setlist-track-settings";
 
 import {
   splitVariationSuffix,
@@ -47,7 +46,6 @@ const MIN_CHART_FONT_SIZE = 11;
 const MAX_CHART_FONT_SIZE = 18;
 
 export function AnnotationViewer({
-  autoScroll = false,
   canDeleteChordChart = false,
   mediaLinkConfiguration,
   quickAddSetLists,
@@ -85,6 +83,7 @@ export function AnnotationViewer({
   const [chordInstrument, setChordInstrument] =
     useState<TrackChordInstrument>("guitar");
   const [chartFontSize, setChartFontSize] = useState(13);
+  const [vocals, setVocals] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isArrangementDialogOpen, setIsArrangementDialogOpen] = useState(false);
@@ -108,7 +107,7 @@ export function AnnotationViewer({
       return;
     }
 
-    optionsPanelRef.current?.focus();
+    optionsPanelRef.current?.focus({ preventScroll: true });
 
     function handlePointerDown(pointerEvent: PointerEvent): void {
       if (!optionsRef.current?.contains(pointerEvent.target as Node)) {
@@ -272,20 +271,13 @@ export function AnnotationViewer({
           }}
         />
       ) : null}
-      {autoScroll ? (
-        source.trim() ? <TrackAutoScroll key={track.id} chartRef={chartRef} /> : null
-      ) : <ChordFullscreenPerformanceLauncher
-        chordInstrument={chordInstrument}
-        onVariationChange={handleVariationChange}
-        track={{
-          title: track.title,
-          artistName: track.artistName,
-          key: setListContext ? displayKey : track.key,
-          lyricsAndChords: setListContext ? source : track.lyricsAndChords,
-        }}
-        trackPreference={trackPreference}
-      />}
-      <section className={`min-w-0 p-3 sm:p-6 xl:min-h-0 xl:overflow-y-auto ${autoScroll ? "pb-44 sm:pb-44" : ""}`}>
+      {source.trim() ? <TrackAutoScroll key={track.id} chartRef={chartRef}
+        fontSize={chartFontSize} minFontSize={MIN_CHART_FONT_SIZE} maxFontSize={MAX_CHART_FONT_SIZE} onFontSizeChange={setChartFontSize}
+        accidentals={accidentals} onAccidentalsChange={() => setAccidentals((value) => value === "sharps" ? "flats" : "sharps")}
+        transpose={transpose} displayKey={displayKey} onTransposeChange={handleTransposeChange} transposeDisabled={isPending}
+        vocals={vocals} onVocalsChange={setVocals}
+      /> : null}
+      <section className="min-w-0 p-3 pb-28 sm:p-6 sm:pb-28 xl:min-h-0 xl:overflow-y-auto">
         <div className="mb-4 flex items-center justify-between gap-3">
           {setListContext ? (
             <BackLink href={`/setlists/${setListContext.setListId}`}>
@@ -322,8 +314,15 @@ export function AnnotationViewer({
                   role="dialog"
                   aria-label="Track options"
                   tabIndex={-1}
-                  className="absolute right-0 top-full z-40 mt-2 w-56 rounded-xl border border-[#d9d9d9] bg-white p-1.5 shadow-xl dark:border-[#3a3a3f] dark:bg-[#242427]"
+                  className="slide-up-panel absolute right-0 top-full z-40 mt-2 w-56 rounded-xl border border-[#d9d9d9] bg-white p-1.5 shadow-xl dark:border-[#3a3a3f] dark:bg-[#242427]"
                 >
+                  <SaveChartOffline updatedAt={track.updatedAt} onSaved={() => { setIsOptionsOpen(false); optionsTriggerRef.current?.focus(); }} chart={{
+                    id: setListContext?.setListTrackId ?? track.id,
+                    href: setListContext ? `/setlists/${setListContext.setListId}/tracks/${setListContext.setListTrackId}` : `/track/${track.id}`,
+                    title: track.title, artistName: track.artistName, key: track.key, transpose,
+                    tuning: track.tuning, capo: track.capo, tempo: track.tempo, timeSignature: track.timeSignature,
+                    lyricsAndChords: track.lyricsAndChords, notes: track.notes,
+                  }} />
                   {setListContext || track.isOwner ? (
                     <Link
                       href={setListContext
@@ -471,54 +470,7 @@ export function AnnotationViewer({
           ) : null}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 py-4">
-          <div className="inline-flex h-9 items-center overflow-hidden rounded-full border border-[#dedede] bg-white dark:border-[#3a3a3f] dark:bg-[#202023]">
-            <button type="button" disabled={isPending || transpose <= -MAX_SETLIST_TRANSPOSE} onClick={() => handleTransposeChange(transpose - 1)} className="flex h-full w-9 items-center justify-center text-[16px] font-black transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]" aria-label="Transpose down one semitone">−</button>
-            <span className="min-w-8 text-center text-[12px] font-black tabular-nums">{transpose}</span>
-            <button type="button" disabled={isPending || transpose >= MAX_SETLIST_TRANSPOSE} onClick={() => handleTransposeChange(transpose + 1)} className="flex h-full w-9 items-center justify-center text-[16px] font-black transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]" aria-label="Transpose up one semitone">+</button>
-          </div>
-          <div className="inline-flex h-9 items-center overflow-hidden rounded-full border border-[#dedede] bg-white dark:border-[#3a3a3f] dark:bg-[#202023]">
-            <button
-              type="button"
-              disabled={chartFontSize <= MIN_CHART_FONT_SIZE}
-              onClick={() =>
-                setChartFontSize((size) =>
-                  Math.max(MIN_CHART_FONT_SIZE, size - 1),
-                )
-              }
-              aria-label="Decrease chart text size"
-              className="flex h-full w-9 items-center justify-center text-[16px] font-black transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]"
-            >
-              −
-            </button>
-            <span className="min-w-8 text-center text-[12px] font-black">A</span>
-            <button
-              type="button"
-              disabled={chartFontSize >= MAX_CHART_FONT_SIZE}
-              onClick={() =>
-                setChartFontSize((size) =>
-                  Math.min(MAX_CHART_FONT_SIZE, size + 1),
-                )
-              }
-              aria-label="Increase chart text size"
-              className="flex h-full w-9 items-center justify-center text-[16px] font-black transition hover:bg-[#f4f4f4] disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] dark:hover:bg-[#28282c]"
-            >
-              +
-            </button>
-          </div>
-          <button
-            type="button"
-            aria-label={accidentals === "sharps" ? "Sharps. Switch to flats" : "Flats. Switch to sharps"}
-            title={accidentals === "sharps" ? "Sharps" : "Flats"}
-            onClick={() => setAccidentals((current) => current === "sharps" ? "flats" : "sharps")}
-            className="inline-flex size-9 items-center justify-center gap-px rounded-full border border-[#dedede] bg-white text-[15px] font-black leading-none transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] dark:bg-[#202023]"
-          >
-            <span className={accidentals === "sharps" ? "" : "opacity-35"}>♯</span>
-            <span className={accidentals === "flats" ? "" : "opacity-35"}>♭</span>
-          </button>
-        </div>
-
-        {usedChords.length ? (
+        {!vocals && usedChords.length ? (
           <TrackChordSection
             chords={usedChords}
             collapsible
@@ -536,7 +488,7 @@ export function AnnotationViewer({
             ref={chartRef}
             className="min-w-0 scroll-mt-4 overflow-x-hidden text-[12px] sm:text-[13px]"
           >
-            {setListContext?.canArrangeSections ? (
+            {!vocals && setListContext?.canArrangeSections ? (
               <SetListSectionChart
                 rawSource={track.lyricsAndChords}
                 setListId={setListContext.setListId}
@@ -547,6 +499,7 @@ export function AnnotationViewer({
               />
             ) : (
               <SongChart
+                lyricsOnly={vocals}
                 fontSize={`${chartFontSize}px`}
                 sections={chartSections}
                 renderChord={renderChartChord}

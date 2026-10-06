@@ -45,6 +45,7 @@ type MenuIconName =
   | "bands"
   | "events"
   | "chords"
+  | "offline"
   | "settings";
 
 const AppMenuContext = createContext<AppMenuContextValue | null>(null);
@@ -58,6 +59,7 @@ const MENU_ITEMS: MenuItem[] = [
     icon: "tracks",
     label: "Track library",
   },
+  { href: "/offline", icon: "offline", label: "Offline library", requiresAuth: true },
   { href: "/setlists", icon: "setlists", label: "Setlists" },
   { href: "/bands", icon: "bands", label: "Bands" },
   { href: "/events", icon: "events", label: "Events" },
@@ -141,9 +143,13 @@ export function MobileMenuButton() {
 export function LeftLibraryPanel({
   user = null,
   showDesktop = true,
+  offlineReader = false,
+  disconnected = false,
 }: {
   user?: SidebarUser | null;
   showDesktop?: boolean;
+  offlineReader?: boolean;
+  disconnected?: boolean;
 }) {
   const menu = useAppMenu();
 
@@ -157,7 +163,7 @@ export function LeftLibraryPanel({
         }
       >
         <MenuHeading />
-        <MenuContent user={user} />
+        <MenuContent user={user} offlineReader={offlineReader} disconnected={disconnected} />
       </aside>
 
       <div
@@ -203,6 +209,8 @@ export function LeftLibraryPanel({
             <MenuContent
               user={user}
               onNavigate={menu.closeMenu}
+              offlineReader={offlineReader}
+              disconnected={disconnected}
             />
           </div>
         </aside>
@@ -233,9 +241,13 @@ function MenuHeading() {
 function MenuContent({
   user,
   onNavigate,
+  offlineReader = false,
+  disconnected = false,
 }: {
   user: SidebarUser | null;
   onNavigate?: () => void;
+  offlineReader?: boolean;
+  disconnected?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -243,7 +255,11 @@ function MenuContent({
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="-mx-1 mt-5 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-1 py-1">
         <nav aria-label="Main navigation" className="grid gap-2">
-          {MENU_ITEMS.filter((item) => !item.requiresAuth || user !== null).map((item) => {
+          {MENU_ITEMS.filter((item) => !item.requiresAuth || user !== null || offlineReader).map((item) => {
+            const needsInternet = offlineReader && disconnected && !["home", "tracks", "setlists", "offline"].includes(item.icon);
+            const href = offlineReader && disconnected
+              ? item.icon === "tracks" ? "/offline?kind=chart" : item.icon === "setlists" ? "/offline?kind=setlist" : item.icon === "home" ? "/offline" : item.href
+              : item.href;
             const isActive = item.href
               ? isActivePath(pathname, item.href, item.activePrefixes)
               : false;
@@ -267,11 +283,12 @@ function MenuContent({
                       {item.note}
                     </span>
                   ) : null}
+                  {needsInternet ? <span className="mt-0.5 block text-[10px] text-[#777] dark:text-[#a1a1aa]">Internet required</span> : null}
                 </span>
               </>
             );
 
-            if (!item.href) {
+            if (!href || needsInternet) {
               return (
                 <div
                   key={item.label}
@@ -283,12 +300,18 @@ function MenuContent({
               );
             }
 
+            if (item.href === "/offline" && !offlineReader) {
+              return <a key={item.href} href={href} onClick={onNavigate} className="flex min-w-0 items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-[#f5f5f5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#1f1f22]">{content}</a>;
+            }
+
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={href}
+                prefetch={offlineReader ? false : undefined}
                 aria-current={isActive ? "page" : undefined}
                 onClick={onNavigate}
+                onNavigate={offlineReader ? (event) => { event.preventDefault(); window.location.assign(new URL(href, window.location.origin).href); } : undefined}
                 className={`flex min-w-0 items-center gap-3 rounded-xl px-2 py-2 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
                   isActive
                     ? "bg-[#fff0f3] text-[#c90f39] dark:bg-[#3a111d] dark:text-[#fb7185]"
@@ -458,6 +481,7 @@ function MenuIcon({ name }: { name: MenuIconName }) {
     events: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18M8 14h3M13 14h3M8 17h3" /></>,
     chords: <><path d="M5 4v16M10 4v16M15 4v16M20 4v16" /><path d="M5 8h15M5 13h15M5 18h15" /><circle cx="10" cy="8" r="1.5" fill="currentColor" stroke="none" /><circle cx="15" cy="13" r="1.5" fill="currentColor" stroke="none" /></>,
     settings: <><path d="M4 6h16M4 12h16M4 18h16" /><circle cx="8" cy="6" r="2" fill="currentColor" /><circle cx="16" cy="12" r="2" fill="currentColor" /><circle cx="10" cy="18" r="2" fill="currentColor" /></>,
+    offline: <><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5" /></>,
   };
 
   return (

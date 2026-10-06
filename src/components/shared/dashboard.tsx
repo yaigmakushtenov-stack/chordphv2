@@ -4,6 +4,8 @@ type DashboardProps = {
   actions?: ReactNode;
   headerNavigation?: ReactNode;
   title: string;
+  titleAction?: ReactNode;
+  compactTitle?: boolean;
   eyebrow?: string;
   description?: string;
   children: ReactNode;
@@ -15,6 +17,8 @@ export function Dashboard({
   actions,
   headerNavigation,
   title,
+  titleAction,
+  compactTitle = false,
   eyebrow,
   description,
   children,
@@ -39,9 +43,12 @@ export function Dashboard({
           </p>
         ) : null}
         <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="min-w-0 text-[30px] font-black leading-tight tracking-[-0.04em] sm:text-[40px]">
-            {title}
-          </h1>
+          <div className="flex min-w-0 items-center gap-3">
+            <h1 className={`min-w-0 break-words font-black leading-tight tracking-[-0.04em] ${compactTitle ? "text-[24px] sm:text-[30px]" : "text-[30px] sm:text-[40px]"}`}>
+              {title}
+            </h1>
+            {titleAction}
+          </div>
           {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
         </div>
         {description ? (

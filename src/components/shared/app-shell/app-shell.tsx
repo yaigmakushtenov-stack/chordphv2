@@ -13,6 +13,7 @@ import { NotificationButton } from "@/components/shared/notifications";
 import { AndroidPushRegistration } from "@/components/shared/notifications/android-push-registration";
 import { ToastProvider } from "@/components/shared/toast";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { OfflineAccountProvider } from "@/components/shared/offline/offline-account-provider";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
@@ -107,6 +108,7 @@ export async function AppShell({
       : null;
 
   return (
+    <OfflineAccountProvider userId={session?.user?.id ?? null}>
     <AppMenuProvider>
       <div
         data-scroll-mode={documentScroll ? "document" : mobileDocumentScroll ? "responsive" : "contained"}
@@ -223,5 +225,6 @@ export async function AppShell({
         {!focusMode ? <StickyMusicPlayer /> : null}
       </div>
     </AppMenuProvider>
+    </OfflineAccountProvider>
   );
 }

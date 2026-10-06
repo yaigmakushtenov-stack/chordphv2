@@ -32,6 +32,7 @@ type IconName =
   | "event"
   | "library"
   | "music"
+  | "offline"
   | "play"
   | "setlist";
 
@@ -542,10 +543,10 @@ function PublicSongs({ tracks }: { tracks: DashboardPublicTrackData[] }) {
 
 function QuickToolsDock() {
   const tools: Array<{ href: string; icon: IconName; label: string }> = [
-    { href: "/annotations", icon: "library", label: "Songs" },
+    { href: "/annotation", icon: "library", label: "Songs" },
     { href: "/setlists", icon: "setlist", label: "Setlists" },
-    { href: "/chord-chart", icon: "chords", label: "Chords" },
-    { href: "/track/new/annotate", icon: "annotation", label: "Create chart" },
+    { href: "/events", icon: "event", label: "Events" },
+    { href: "/offline", icon: "offline", label: "Offline" },
   ];
 
   return (
@@ -557,6 +558,8 @@ function QuickToolsDock() {
         <Link
           key={tool.href}
           href={tool.href}
+          prefetch={tool.href === "/offline" ? false : undefined}
+          onNavigate={tool.href === "/offline" ? (event) => { event.preventDefault(); window.location.assign(new URL(tool.href, window.location.origin).href); } : undefined}
           className="flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl px-1 py-2 text-[10px] font-bold text-[#5f5f5f] transition hover:bg-[#f2f2f2] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-[#ed1746] lg:flex-row lg:gap-2 lg:py-3 lg:text-[12px] dark:text-[#c4c4cc] dark:hover:bg-[#28282c] dark:hover:text-[#fb7185]"
         >
           <DashboardIcon name={tool.icon} className="size-5" />
@@ -623,6 +626,7 @@ function DashboardIcon({
         <circle cx="16" cy="16" r="3" />
       </>
     ),
+    offline: <path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5" />,
     play: <path d="m8 5 11 7-11 7V5Z" />,
     setlist: (
       <>

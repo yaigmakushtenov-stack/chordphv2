@@ -6,6 +6,7 @@ import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { prepareAndroidPushLogout, resumeAndroidPushAfterFailedLogout } from "@/lib/client/android-push";
 import { showToast } from "@/components/shared/toast";
+import { readOfflineState, setOfflineAccount } from "@/lib/client/offline-store";
 
 type LogoutButtonProps = {
   variant?: "header" | "menu";
@@ -35,6 +36,13 @@ export function LogoutButton({ variant = "header" }: LogoutButtonProps) {
   const [error, setError] = useState<string>();
 
   async function handleLogout() {
+    try {
+      const state = await readOfflineState();
+      if (state.downloads.length && !window.confirm("Logging out removes your saved offline charts and setlists from this device. Your online songs will remain. Continue?")) return;
+    } catch {
+      setError("Couldn't check offline downloads. Enable browser storage and try again.");
+      return;
+    }
     setIsPending(true);
     setError(undefined);
 
@@ -55,6 +63,7 @@ export function LogoutButton({ variant = "header" }: LogoutButtonProps) {
     }
 
     try {
+      await setOfflineAccount(null);
       await authClient.signOut({
         fetchOptions: {
           onSuccess: () => {

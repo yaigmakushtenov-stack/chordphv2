@@ -10,6 +10,7 @@ import { BackLink } from "@/components/shared/back-link";
 import { Dashboard } from "@/components/shared/dashboard";
 import { PracticeResumeTracker } from "@/components/shared/practice-resume-tracker";
 import { ShareLinkButton } from "@/components/shared/share-link-button";
+import { SetListOptions } from "@/app/setlists/_components/setlist-options";
 import { auth } from "@/lib/auth";
 import {
   getTransposedSetListKey,
@@ -97,14 +98,6 @@ export default async function SetListPage({
       />
       <Dashboard
         documentScroll
-        actions={
-          <Link
-            href={`/setlists/${data.id}/tracks`}
-            className="inline-flex h-10 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-          >
-            + Add tracks
-          </Link>
-        }
         headerNavigation={
           <div className="flex items-center justify-between gap-3">
             <BackLink href="/setlists">All setlists</BackLink>
@@ -115,25 +108,26 @@ export default async function SetListPage({
               />
               <SetListDetailsDrawer
                 mode="edit"
-                setList={{
-                  id: data.id,
-                  title: data.title,
-                  description: data.description,
-                }}
+                setList={data}
               />
+              <SetListOptions request={{ kind: "personal", id: data.id }} />
             </div>
           </div>
         }
-        eyebrow={`SETLIST · ${data.tracks.length} ${
-          data.tracks.length === 1 ? "TRACK" : "TRACKS"
-        }`}
         title={data.title}
-        description={
-          data.description ||
-          "An ordered track list for practice, rehearsal, or performance."
+        compactTitle
+        titleAction={
+          data.tracks.some((track) => track.trackId) ? (
+            <Link href={`/setlists/${data.id}/stage`} aria-label={`Open ${data.title} in stage view`} title="Stage view · Medley" className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-[#ed1746] text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="size-4"><path d="M8 4v16l13-8Z" /></svg>
+            </Link>
+          ) : null
         }
       >
-        <SetListEditor setList={data} />
+        <SetListEditor key={`${data.updatedAt}:${data.tracks.map((track) => track.id).join(",")}`} setList={data} />
+        <Link href={`/setlists/${data.id}/tracks`} className="ml-12 mt-4 inline-flex h-10 items-center justify-center rounded-full bg-[#ed1746] px-5 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]">
+          + Add tracks
+        </Link>
       </Dashboard>
     </AppShell>
   );

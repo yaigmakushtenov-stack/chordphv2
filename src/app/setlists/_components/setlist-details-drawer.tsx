@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import * as SetListActions from "@/actions/setlist-actions";
 import { showToast } from "@/components/shared/toast";
+import { SetListEditor } from "./setlist-editor";
+import type { SetListDetailData } from "@/types/setlist";
 
 type SetListDetailsDrawerProps =
   | { mode: "create" }
@@ -14,6 +16,8 @@ type SetListDetailsDrawerProps =
         id: string;
         title: string;
         description: string | null;
+        tracks?: SetListDetailData["tracks"];
+        updatedAt?: string;
       };
     };
 
@@ -26,7 +30,7 @@ export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
     props.mode === "edit" ? (props.setList.description ?? "") : "";
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState(initialTitle);
-  const [description, setDescription] = useState(initialDescription);
+  const description = initialDescription;
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -37,10 +41,9 @@ export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
 
     setIsOpen(false);
     setTitle(initialTitle);
-    setDescription(initialDescription);
     setIsConfirmingDelete(false);
     window.requestAnimationFrame(() => triggerRef.current?.focus());
-  }, [initialDescription, initialTitle, isPending]);
+  }, [initialTitle, isPending]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -67,7 +70,6 @@ export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
 
   function openDrawer(): void {
     setTitle(initialTitle);
-    setDescription(initialDescription);
     setIsConfirmingDelete(false);
     setIsOpen(true);
   }
@@ -146,8 +148,8 @@ export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
         type="button"
         aria-haspopup="dialog"
         aria-expanded={isOpen}
-        aria-label={isEditMode ? "Edit setlist details" : "Create setlist"}
-        title={isEditMode ? "Edit setlist details" : undefined}
+        aria-label={isEditMode ? "Edit setlist" : "Create setlist"}
+        title={isEditMode ? "Edit setlist" : undefined}
         onClick={openDrawer}
         className={
           isEditMode
@@ -183,6 +185,7 @@ export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
           }`}
         />
         <aside
+          data-setlist-edit-scroll
           role="dialog"
           aria-modal="true"
           aria-labelledby="setlist-details-drawer-title"
@@ -213,7 +216,7 @@ export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="grid gap-5 p-5 sm:p-6">
+          <form id="setlist-details-form" onSubmit={handleSubmit} className="grid gap-5 p-5 sm:p-6">
             <label className="grid gap-1.5 text-[12px] font-bold">
               Setlist name
               <input
@@ -226,44 +229,15 @@ export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
                 className="h-12 rounded-xl border border-[#d9d9d9] bg-white px-3 text-[14px] font-medium outline-none transition focus:border-[#ed1746] focus:ring-3 focus:ring-[#ed1746]/10 dark:border-[#3a3a3f] dark:bg-[#202023] dark:focus:border-[#ed1746]"
               />
             </label>
-            <label className="grid gap-1.5 text-[12px] font-bold">
-              Description
-              <textarea
-                maxLength={1000}
-                rows={5}
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="Optional notes about the set"
-                className="resize-y rounded-xl border border-[#d9d9d9] bg-white px-3 py-3 text-[14px] font-medium leading-5 outline-none transition focus:border-[#ed1746] focus:ring-3 focus:ring-[#ed1746]/10 dark:border-[#3a3a3f] dark:bg-[#202023] dark:focus:border-[#ed1746]"
-              />
-            </label>
-            <div className="flex justify-end gap-2 border-t border-[#ececec] pt-5 dark:border-[#303034]">
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={closeDrawer}
-                className="inline-flex h-11 items-center justify-center rounded-full border border-[#d9d9d9] px-5 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:opacity-50 dark:border-[#3a3a3f]"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isPending || !title.trim()}
-                className="inline-flex h-11 items-center justify-center rounded-full bg-[#ed1746] px-6 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-55"
-              >
-                {isPending
-                  ? isEditMode
-                    ? "Saving…"
-                    : "Creating…"
-                  : isEditMode
-                    ? "Save details"
-                    : "Create setlist"}
-              </button>
-            </div>
           </form>
-          {isEditMode ? (
+          {props.mode === "edit" && props.setList.tracks ? (
             <div className="border-t border-[#ececec] p-5 dark:border-[#303034] sm:p-6">
-              {isConfirmingDelete ? (
+              <h3 className="mb-3 text-[12px] font-bold">Songs</h3>
+              <SetListEditor key={`${props.setList.updatedAt}:${props.setList.tracks.map((track) => track.id).join(",")}`} setList={{ ...props.setList, tracks: props.setList.tracks, updatedAt: props.setList.updatedAt ?? "" }} isEditing />
+            </div>
+          ) : null}
+          <div className="border-t border-[#ececec] p-5 dark:border-[#303034] sm:p-6">
+              {isEditMode && isConfirmingDelete ? (
                 <div
                   role="alert"
                   className="rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/35"
@@ -295,17 +269,42 @@ export function SetListDetailsDrawer(props: SetListDetailsDrawerProps) {
                   </div>
                 </div>
               ) : (
-                <button
+                <div className="flex items-center justify-between gap-4">
+                {isEditMode ? <button
                   type="button"
                   disabled={isPending}
                   onClick={() => setIsConfirmingDelete(true)}
-                  className="text-[12px] font-bold text-red-600 transition hover:text-red-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-600 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-red-200 px-2 text-[11px] font-bold text-red-600 transition hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/35"
                 >
                   Delete setlist
-                </button>
+                </button> : null}
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={closeDrawer}
+                className="inline-flex h-11 items-center justify-center rounded-full border border-[#d9d9d9] px-2 text-[11px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:opacity-50 dark:border-[#3a3a3f]"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="setlist-details-form"
+                disabled={isPending || !title.trim()}
+                className="inline-flex h-11 items-center justify-center rounded-full bg-[#ed1746] px-2 text-[11px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                {isPending
+                  ? isEditMode
+                    ? "Saving…"
+                    : "Creating…"
+                  : isEditMode
+                    ? "Save changes"
+                    : "Create setlist"}
+              </button>
+            </div>
+                </div>
               )}
             </div>
-          ) : null}
         </aside>
       </div>
     </>
