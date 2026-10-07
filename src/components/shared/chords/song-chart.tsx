@@ -51,10 +51,12 @@ export function SongChart({
   const chartSections = useMemo(
     () => sections.map((section) => ({ ...section, rows: getChartRows(section.lines).flatMap((row): ChartRow[] => {
       if (!lyricsOnly) return [row];
-      if (row.kind === "paired") return [{ kind: "standalone", id: row.id, lineIds: row.lineIds, text: getLyricsText(row.lyrics).trimEnd() }];
-      if (getChordAnchors(row.text).length) return [];
-      const text = getLyricsText(row.text);
-      return /^\s*N\.?C\.?\s*$/i.test(text) ? [] : [{ ...row, text }];
+      if (row.kind === "standalone" && getChordAnchors(row.text).length) return [];
+      const text = getLyricsText(row.kind === "paired" ? row.lyrics : row.text);
+      if (getChordAnchors(text).length || /^\s*N\.?C\.?\s*$/i.test(text)) return [];
+      return row.kind === "paired"
+        ? [{ kind: "standalone", id: row.id, lineIds: row.lineIds, text: text.trimEnd() }]
+        : [{ ...row, text }];
     }) })),
     [sections, lyricsOnly],
   );

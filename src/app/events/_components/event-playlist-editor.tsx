@@ -461,7 +461,7 @@ export function EventPlaylistEditor({
                     rowElementsRef.current.delete(playlist.id);
                   }
                 }}
-                className={`grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 px-4 py-3 transition sm:px-5 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center ${
+                className={`grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 gap-y-2 px-4 py-3 transition sm:px-5 lg:items-center ${canManage ? "lg:grid-cols-[auto_minmax(0,1fr)_auto_auto]" : ""} ${
                   draggedPlaylistId === playlist.id
                     ? "relative z-10 bg-[#fff0f3] opacity-75 shadow-lg dark:bg-[#3a111d]"
                     : "hover:bg-[#fafafa] dark:hover:bg-[#1f1f22]"
@@ -510,8 +510,15 @@ export function EventPlaylistEditor({
                     </ul>
                   ) : null}
                 </div>
-                <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-2 lg:col-span-1 lg:justify-end">
-                  {canManage ? (
+                <Link
+                  href={`/events/${event.id}/playlists/${playlist.id}/stage`}
+                  aria-label={`Open ${playlist.title} in stage view`}
+                  className="inline-flex h-9 shrink-0 items-center justify-center self-start rounded-full bg-[#ed1746] px-3 text-[11px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] lg:order-last"
+                >
+                  Stage
+                </Link>
+                {canManage ? (
+                  <div className="col-span-3 flex min-w-0 flex-wrap items-center gap-2 lg:col-span-1 lg:justify-end">
                     <label className="relative min-w-32 flex-1 lg:w-44 lg:flex-none">
                       <span className="sr-only">Band for {playlist.title}</span>
                       <select
@@ -544,44 +551,38 @@ export function EventPlaylistEditor({
                         />
                       </svg>
                     </label>
-                  ) : null}
-                  <Link
-                    href={`/events/${event.id}/playlists/${playlist.id}/stage`}
-                    className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-[#ed1746] px-3 text-[11px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-                  >
-                    Stage
-                  </Link>
-                  {isEditing ? (
-                    <>
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onPointerDown={(pointerEvent) =>
-                          handleDragStart(pointerEvent, playlist.id)
-                        }
-                        onPointerMove={handleDragMove}
-                        onPointerUp={handleDragEnd}
-                        onPointerCancel={handleDragCancel}
-                        onKeyDown={(keyboardEvent) =>
-                          handleDragKeyDown(keyboardEvent, playlist.id)
-                        }
-                        aria-label={`Arrange ${playlist.title}. Use arrow keys or drag.`}
-                        className="inline-flex size-9 touch-none cursor-grab items-center justify-center rounded-full border border-[#dedede] text-[#777] transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#3a3a3f] dark:text-[#a1a1aa]"
-                      >
-                        <DragHandleIcon />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => handleRemovePlaylist(playlist.id)}
-                        className="inline-flex size-9 items-center justify-center rounded-full text-[18px] text-[#777] transition hover:bg-[#fff0f3] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:opacity-40 dark:text-[#a1a1aa] dark:hover:bg-[#3a111d]"
-                        aria-label={`Remove ${playlist.title}`}
-                      >
-                        x
-                      </button>
-                    </>
-                  ) : null}
-                </div>
+                    {isEditing ? (
+                      <>
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onPointerDown={(pointerEvent) =>
+                            handleDragStart(pointerEvent, playlist.id)
+                          }
+                          onPointerMove={handleDragMove}
+                          onPointerUp={handleDragEnd}
+                          onPointerCancel={handleDragCancel}
+                          onKeyDown={(keyboardEvent) =>
+                            handleDragKeyDown(keyboardEvent, playlist.id)
+                          }
+                          aria-label={`Arrange ${playlist.title}. Use arrow keys or drag.`}
+                          className="inline-flex size-9 touch-none cursor-grab items-center justify-center rounded-full border border-[#dedede] text-[#777] transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#3a3a3f] dark:text-[#a1a1aa]"
+                        >
+                          <DragHandleIcon />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => handleRemovePlaylist(playlist.id)}
+                          className="inline-flex size-9 items-center justify-center rounded-full text-[18px] text-[#777] transition hover:bg-[#fff0f3] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] disabled:opacity-40 dark:text-[#a1a1aa] dark:hover:bg-[#3a111d]"
+                          aria-label={`Remove ${playlist.title}`}
+                        >
+                          x
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
               </li>
             ))}
           </ol>
