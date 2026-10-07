@@ -242,9 +242,9 @@ function AddMemberForm({ groupId }: { groupId: string }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid gap-2 sm:grid-cols-[minmax(180px,240px)_minmax(150px,200px)_auto]"
+      className="grid w-full min-w-0 gap-2 sm:w-auto sm:grid-cols-[minmax(180px,240px)_minmax(150px,200px)_auto]"
     >
-      <div className="relative">
+      <div className="relative min-w-0">
         <input
           required
           maxLength={320}
