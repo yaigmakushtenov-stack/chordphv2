@@ -20,9 +20,13 @@ export function SetListLibrary({ children, items }: SetListLibraryProps) {
   const [isManaging, setIsManaging] = useState(false);
   const [sortMode, setSortMode] = useState<"recent" | "az" | "za">("recent");
   const menuRef = useRef<HTMLDivElement>(null);
+  const createButtonRef = useRef<HTMLButtonElement>(null);
   const handleCreateOpenChange = useCallback((open: boolean): void => {
     setIsCreating(open);
-    if (!open) menuRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    if (!open) {
+      const trigger = createButtonRef.current ?? menuRef.current?.querySelector<HTMLButtonElement>("button");
+      trigger?.focus();
+    }
   }, []);
   const sortedItems = useMemo(() => {
     const nextItems = [...items];
@@ -141,8 +145,8 @@ export function SetListLibrary({ children, items }: SetListLibraryProps) {
         </div>
       }
     >
-      <div className="grid gap-10">
-        <div className="grid gap-5">
+      <div className="grid gap-6">
+        <div className="grid gap-4">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h2 className="text-[15px] font-bold">Your Setlists</h2>
@@ -150,6 +154,19 @@ export function SetListLibrary({ children, items }: SetListLibraryProps) {
                 {items.length} {items.length === 1 ? "setlist" : "setlists"}
               </p>
             </div>
+            {items.length === 0 ? (
+              <button
+                ref={createButtonRef}
+                type="button"
+                aria-haspopup="dialog"
+                aria-expanded={isCreating}
+                onClick={() => { setIsCreating(true); setIsMenuOpen(false); }}
+                className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#ed1746] px-4 text-[12px] font-bold text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+              >
+                <span aria-hidden="true" className="text-base font-medium leading-none">+</span>
+                New setlist
+              </button>
+            ) : null}
           </div>
           <SetListDetailsDrawer mode="create" hideTrigger open={isCreating} onOpenChange={handleCreateOpenChange} />
 
@@ -188,7 +205,7 @@ export function SetListLibrary({ children, items }: SetListLibraryProps) {
               ) : null}
             </section>
           ) : (
-            <section className="rounded-2xl border border-dashed border-[#d9d9d9] bg-white px-6 py-16 text-center dark:border-[#3a3a3f] dark:bg-[#171719]">
+            <section className="rounded-2xl border border-dashed border-[#d9d9d9] bg-white px-4 py-6 text-center dark:border-[#3a3a3f] dark:bg-[#171719]">
               <h2 className="text-[16px] font-bold">No setlists yet</h2>
               <p className="mx-auto mt-2 max-w-md text-[13px] leading-5 text-[#666] dark:text-[#b4b4bc]">
                 Create your first setlist, then add tracks and arrange the playing order.

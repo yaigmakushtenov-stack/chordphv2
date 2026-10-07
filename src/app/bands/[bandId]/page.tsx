@@ -6,6 +6,7 @@ import {
   BandDetail,
   type BandDetailData,
 } from "@/app/bands/_components/band-detail";
+import { BandMemberManager } from "@/app/bands/_components/band-member-manager";
 import { AppShell } from "@/components/shared/app-shell";
 import { BackLink } from "@/components/shared/back-link";
 import { Dashboard } from "@/components/shared/dashboard";
@@ -57,7 +58,9 @@ export default async function BandDetailPage({
             <div className="flex items-center justify-between gap-3">
               <BackLink href="/bands">Bands</BackLink>
               {currentMembership?.role === "OWNER" ? (
-                <NameDetailsDrawer entity="band" id={band.id} name={band.name} />
+                <NameDetailsDrawer entity="band" id={band.id} name={band.name}>
+                  <BandMemberManager groupId={band.id} members={bandData.members} />
+                </NameDetailsDrawer>
               ) : null}
             </div>
           }
@@ -94,7 +97,6 @@ function toBandDetailData(
     })),
     id: band.id,
     members: band.memberships.map((membership) => ({
-      email: membership.user.email,
       id: membership.user.id,
       image: membership.user.image,
       instrument: membership.instrument,

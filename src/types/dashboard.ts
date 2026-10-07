@@ -12,6 +12,7 @@ export type DashboardEventPlaylist = {
   bandName: string | null;
   id: string;
   orderNumber: number;
+  setListHref: string | null;
   title: string;
   trackCount: number;
 };

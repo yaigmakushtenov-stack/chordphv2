@@ -266,26 +266,43 @@ function NextEventCard({ event }: { event: DashboardNextEvent | null }) {
         </p>
         {event.playlists.length ? (
           <ol className="mt-3 grid gap-2">
-            {event.playlists.map((playlist, index) => (
-              <li
-                key={playlist.id}
-                className="flex min-w-0 items-center gap-3 rounded-lg bg-white px-3 py-2.5 dark:bg-[#242428]"
-              >
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#f1f1f1] text-[11px] font-black text-[#555] dark:bg-[#34343a] dark:text-[#d4d4d8]">
-                  {index + 1}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[12px] font-bold">
-                    {playlist.title}
+            {event.playlists.map((playlist, index) => {
+              const content = (
+                <>
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#f1f1f1] text-[11px] font-black text-[#555] dark:bg-[#34343a] dark:text-[#d4d4d8]">
+                    {index + 1}
                   </span>
-                  <span className="mt-0.5 block truncate text-[10px] text-[#777] dark:text-[#a1a1aa]">
-                    {playlist.bandName ? `${playlist.bandName} · ` : ""}
-                    {playlist.trackCount}{" "}
-                    {playlist.trackCount === 1 ? "song" : "songs"}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[12px] font-bold">
+                      {playlist.title}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[10px] text-[#777] dark:text-[#a1a1aa]">
+                      {playlist.bandName ? `${playlist.bandName} · ` : ""}
+                      {playlist.trackCount}{" "}
+                      {playlist.trackCount === 1 ? "song" : "songs"}
+                    </span>
                   </span>
-                </span>
-              </li>
-            ))}
+                </>
+              );
+
+              return (
+                <li key={playlist.id} className="min-w-0">
+                  {playlist.setListHref ? (
+                    <Link
+                      href={playlist.setListHref}
+                      aria-label={`Open setlist ${playlist.title}`}
+                      className="flex min-w-0 items-center gap-3 rounded-lg bg-white px-3 py-2.5 transition hover:bg-[#fff0f3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:bg-[#242428] dark:hover:bg-[#3a1720]"
+                    >
+                      {content}
+                    </Link>
+                  ) : (
+                    <div className="flex min-w-0 items-center gap-3 rounded-lg bg-white px-3 py-2.5 dark:bg-[#242428]">
+                      {content}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ol>
         ) : (
           <p className="mt-3 text-[12px] text-[#777] dark:text-[#a1a1aa]">

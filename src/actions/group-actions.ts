@@ -35,6 +35,15 @@ export type UpdateGroupDetailsActionInput = {
   name: string;
 };
 
+export type GroupMemberActionInput = {
+  groupId: string;
+  memberUserId: string;
+};
+
+export type UpdateGroupMemberActionInput = GroupMemberActionInput & {
+  instrument: string;
+};
+
 export type GroupActionData = {
   id: string;
   name: string;
@@ -185,6 +194,63 @@ export async function searchMemberEmails(
   }
 }
 
+export async function saveMember(
+  input: UpdateGroupMemberActionInput,
+): Promise<ActionResult<null>> {
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  if (!session?.user?.id) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to edit band members.");
+  }
+
+  if (!isGroupMemberInput(input) || !isOptionalGroupInstrument(input.instrument)) {
+    return actionFailure("VALIDATION_ERROR", "The member details are invalid.");
+  }
+
+  try {
+    await GroupService.updateGroupMember({
+      groupId: input.groupId,
+      memberUserId: input.memberUserId,
+      instrument: input.instrument,
+      userId: session.user.id,
+    });
+    revalidatePath(`/bands/${input.groupId}`);
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleGroupServiceError(error);
+  }
+}
+
+export async function removeMember(
+  input: GroupMemberActionInput,
+): Promise<ActionResult<null>> {
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  if (!session?.user?.id) {
+    return actionFailure("UNAUTHENTICATED", "Sign in to remove band members.");
+  }
+
+  if (!isGroupMemberInput(input)) {
+    return actionFailure("VALIDATION_ERROR", "The selected member is invalid.");
+  }
+
+  try {
+    await GroupService.removeGroupMember({
+      groupId: input.groupId,
+      memberUserId: input.memberUserId,
+      userId: session.user.id,
+    });
+    revalidatePath(`/bands/${input.groupId}`);
+    revalidatePath("/bands");
+    revalidatePath("/events");
+    revalidatePath("/setlists");
+    revalidatePath("/");
+    return actionSuccess(null);
+  } catch (error: unknown) {
+    return handleGroupServiceError(error);
+  }
+}
+
 export async function saveDetails(
   input: UpdateGroupDetailsActionInput,
 ): Promise<ActionResult<null>> {
@@ -259,6 +325,18 @@ function handleGroupServiceError<T>(error: unknown): ActionResult<T> {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isGroupMemberInput(value: unknown): value is GroupMemberActionInput {
+  return (
+    isRecord(value) &&
+    typeof value.groupId === "string" &&
+    value.groupId.trim().length > 0 &&
+    value.groupId.length <= 255 &&
+    typeof value.memberUserId === "string" &&
+    value.memberUserId.trim().length > 0 &&
+    value.memberUserId.length <= 255
+  );
 }
 
 function isOptionalGroupInstrument(

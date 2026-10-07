@@ -38,7 +38,6 @@ export type BandDetailData = {
   }[];
   id: string;
   members: {
-    email: string;
     id: string;
     image: string | null;
     instrument: GroupInstrument | null;
@@ -105,9 +104,6 @@ export function BandDetail({ band }: BandDetailProps) {
                     <span className="min-w-0">
                       <span className="block truncate text-[15px] font-bold">
                         {member.name}
-                      </span>
-                      <span className="mt-1 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
-                        {member.email}
                       </span>
                     </span>
                   </div>

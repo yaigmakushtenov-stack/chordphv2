@@ -95,6 +95,7 @@ const eventDetailSelect = {
         take: 1,
         orderBy: [{ createdAt: "asc" as const }, { id: "asc" as const }],
         select: {
+          id: true,
           group: {
             select: {
               id: true,
@@ -371,6 +372,25 @@ export async function getEventDetailForUser(
       ...eventDetailSelect,
       eventSetLists: {
         ...eventDetailSelect.eventSetLists,
+        select: {
+          ...eventDetailSelect.eventSetLists.select,
+          eventGroupSetLists: {
+            ...eventDetailSelect.eventSetLists.select.eventGroupSetLists,
+            where:
+              access.ownerId === normalizedUserId
+                ? undefined
+                : {
+                    group: {
+                      memberships: {
+                        some: {
+                          userId: normalizedUserId,
+                          status: GroupMembershipStatus.ACCEPTED,
+                        },
+                      },
+                    },
+                  },
+          },
+        },
         where:
           access.ownerId === normalizedUserId
             ? undefined

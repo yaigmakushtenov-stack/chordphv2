@@ -93,7 +93,7 @@ export default async function Home() {
           activeEventIds={events
             .filter((event) => isUpcomingEvent(event, now))
             .map((event) => event.id)}
-          nextEvent={toDashboardNextEvent(nextEventDetail)}
+          nextEvent={toDashboardNextEvent(nextEventDetail, session?.user?.id)}
           publicTracks={publicTracks}
         />
       </Dashboard>
@@ -117,6 +117,7 @@ function isUpcomingEvent(
 
 function toDashboardNextEvent(
   event: EventDetailRecord | null,
+  userId: string | undefined,
 ): DashboardNextEvent | null {
   if (!event) {
     return null;
@@ -125,13 +126,23 @@ function toDashboardNextEvent(
   return {
     id: event.id,
     place: event.place,
-    playlists: event.eventSetLists.map((playlist) => ({
-      bandName: playlist.eventGroupSetLists[0]?.group.name ?? null,
-      id: playlist.id,
-      orderNumber: playlist.orderNumber,
-      title: playlist.setList.title,
-      trackCount: playlist.setList._count.tracks,
-    })),
+    playlists: event.eventSetLists.map((playlist) => {
+      const assignment = playlist.eventGroupSetLists[0];
+
+      return {
+        bandName: assignment?.group.name ?? null,
+        id: playlist.id,
+        orderNumber: playlist.orderNumber,
+        setListHref:
+          playlist.setList.ownerId === userId
+            ? `/setlists/${playlist.setListId}`
+            : assignment
+              ? `/setlists/bands/${assignment.id}`
+              : null,
+        title: playlist.setList.title,
+        trackCount: playlist.setList._count.tracks,
+      };
+    }),
     startDate: event.startDate.toISOString(),
     title: event.title,
   };

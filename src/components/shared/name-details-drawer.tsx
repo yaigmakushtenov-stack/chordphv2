@@ -2,6 +2,7 @@
 
 import {
   type FormEvent,
+  type ReactNode,
   useCallback,
   useEffect,
   useRef,
@@ -16,6 +17,7 @@ import { showToast } from "@/components/shared/toast";
 import { clearPracticeResumeForEvent } from "@/lib/client/practice-resume-store";
 
 type NameDetailsDrawerProps = {
+  children?: ReactNode;
   entity: "band" | "event";
   id: string;
   name: string;
@@ -214,6 +216,8 @@ export function NameDetailsDrawer(props: NameDetailsDrawerProps) {
               </button>
             </div>
           </form>
+
+          {isOpen ? props.children : null}
 
           <div className="border-t border-[#ececec] p-5 dark:border-[#303034] sm:p-6">
             {isConfirmingDelete ? (

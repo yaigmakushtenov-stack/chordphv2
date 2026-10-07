@@ -50,7 +50,6 @@ const groupDetailSelect = {
       user: {
         select: {
           id: true,
-          email: true,
           image: true,
           name: true,
         },
@@ -331,6 +330,79 @@ export async function searchGroupMemberSuggestions(input: {
   });
 }
 
+export async function updateGroupMember(input: {
+  groupId: string;
+  memberUserId: string;
+  instrument: string;
+  userId: string;
+}): Promise<void> {
+  const groupId = requireText(input.groupId, "groupId", 255);
+  const memberUserId = requireText(input.memberUserId, "memberUserId", 255);
+  const userId = requireText(input.userId, "userId", 255);
+  const instrument = optionalInstrument(input.instrument);
+
+  if (!(await userHasGroupPermission(userId, groupId, GroupPermission.UPDATE_GROUP))) {
+    throw new GroupServiceError("FORBIDDEN", "Only the band owner can edit members.");
+  }
+
+  const result = await prisma.groupMembership.updateMany({
+    where: {
+      groupId,
+      userId: memberUserId,
+      group: groupPermissionWhere(userId, GroupPermission.UPDATE_GROUP),
+    },
+    data: { instrument },
+  });
+
+  if (result.count === 0) {
+    throw new GroupServiceError("NOT_FOUND", "This member is no longer available to edit.");
+  }
+}
+
+export async function removeGroupMember(input: {
+  groupId: string;
+  memberUserId: string;
+  userId: string;
+}): Promise<void> {
+  const groupId = requireText(input.groupId, "groupId", 255);
+  const memberUserId = requireText(input.memberUserId, "memberUserId", 255);
+  const userId = requireText(input.userId, "userId", 255);
+
+  if (!(await userHasGroupPermission(userId, groupId, GroupPermission.REMOVE_MEMBERS))) {
+    throw new GroupServiceError("FORBIDDEN", "Only the band owner can remove members.");
+  }
+
+  const result = await prisma.groupMembership.deleteMany({
+    where: {
+      groupId,
+      userId: memberUserId,
+      role: { not: GroupRole.OWNER },
+      group: groupPermissionWhere(userId, GroupPermission.REMOVE_MEMBERS),
+    },
+  });
+
+  if (result.count === 0) {
+    throw new GroupServiceError("CONFLICT", "This member cannot be removed or is no longer in the band.");
+  }
+}
+
+function groupPermissionWhere(
+  userId: string,
+  permission: GroupPermissionValue,
+): Prisma.GroupWhereInput {
+  return {
+    memberships: {
+      some: {
+        userId,
+        status: GroupMembershipStatus.ACCEPTED,
+        role: {
+          in: Object.values(GroupRole).filter((role) => hasGroupPermission(role, permission)),
+        },
+      },
+    },
+  };
+}
+
 export async function updateGroupDetails(input: {
   groupId: string;
   name: string;
@@ -479,6 +551,8 @@ export const GroupService = {
   deleteGroup,
   getGroupDetailForUser,
   listGroupsForUser,
+  removeGroupMember,
   searchGroupMemberSuggestions,
+  updateGroupMember,
   updateGroupDetails,
 };
