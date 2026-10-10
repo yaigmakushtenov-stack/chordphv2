@@ -7,7 +7,7 @@ import * as MediaLinkActions from "@/actions/media-link-actions";
 import * as TrackActions from "@/actions/track-actions";
 import Link from "next/link";
 import { useMediaLinkPreferences } from "@/lib/client/use-media-link-preferences";
-import { AudioUpload } from "@/app/track/_components/audio/audio-upload";
+import { uploadNewAudioFile, validateAudioFile } from "@/app/track/_components/audio/audio-upload";
 import {
   ChordLine,
   TrackChordSection,
@@ -61,6 +61,11 @@ type StoredTrackDetailsDraft = Omit<TrackDetailsDraft, "tags"> & {
   tags?: string[];
 };
 
+type PendingTrackAudio = {
+  file: File;
+  playbackUrl: string;
+};
+
 type StoredAnnotationDraft = {
   details: StoredTrackDetailsDraft;
   annotation: TrackAnnotationDraft;
@@ -104,6 +109,7 @@ export function AnnotationEditor({
   const [selectedAudio, setSelectedAudio] = useState<SelectedTrackAudio | null>(
     null,
   );
+  const [pendingAudio, setPendingAudio] = useState<PendingTrackAudio | null>(null);
   const [detailsSavedAt, setDetailsSavedAt] = useState(
     initialData.detailsUpdatedAt,
   );
@@ -137,6 +143,21 @@ export function AnnotationEditor({
   const displayedKey = details.key
     ? transposeChord(details.key, transposeBy, accidentals)
     : null;
+
+  useEffect(() => {
+    if (!pendingAudio) return;
+    return () => URL.revokeObjectURL(pendingAudio.playbackUrl);
+  }, [pendingAudio]);
+
+  function selectAudioFile(file: File): void {
+    const error = validateAudioFile(file);
+    if (error) {
+      showToast({ title: "Could not select audio", description: error, tone: "error" });
+      return;
+    }
+    setSelectedAudio(null);
+    setPendingAudio({ file, playbackUrl: URL.createObjectURL(file) });
+  }
 
   useEffect(() => {
     if (!isCreateMode) {
@@ -307,10 +328,30 @@ export function AnnotationEditor({
         } catch {
           setDraftStorageAvailable(false);
         }
+
+        let audioError: string | null = null;
+        if (pendingAudio) {
+          try {
+            const uploaded = await uploadNewAudioFile(pendingAudio.file);
+            if (!uploaded.ok) {
+              audioError = uploaded.error.message;
+            } else {
+              const attached = await TrackActions.attachAudio({
+                trackId: result.data.trackId,
+                musicFileId: uploaded.data.id,
+              });
+              if (!attached.ok) audioError = attached.error.message;
+            }
+          } catch {
+            audioError = "Audio could not be added. You can add it from the track page.";
+          }
+        }
         showToast({
-          title: "Track created",
-          description: "Your private track and chord chart/tab are ready.",
-          tone: "success",
+          title: audioError ? "Track created without audio" : "Track created",
+          description: audioError
+            ? `${audioError} Your chord chart/tab is saved.`
+            : "Your private track and chord chart/tab are ready.",
+          tone: audioError ? "error" : "success",
         });
         router.replace(`/track/${result.data.trackId}`);
         return;
@@ -530,8 +571,12 @@ export function AnnotationEditor({
               isCreateMode={isCreateMode}
               onUpdate={updateDetails}
               selectedAudio={selectedAudio}
-              onAudioSelect={setSelectedAudio}
-              onAudioRemove={() => setSelectedAudio(null)}
+              pendingAudio={pendingAudio}
+              onAudioSelect={selectAudioFile}
+              onAudioRemove={() => {
+                setSelectedAudio(null);
+                setPendingAudio(null);
+              }}
             />
           </>
         ) : null}
@@ -1026,6 +1071,7 @@ function TrackReferencesSection({
   isCreateMode,
   onUpdate,
   selectedAudio,
+  pendingAudio,
   onAudioSelect,
   onAudioRemove,
 }: {
@@ -1033,7 +1079,8 @@ function TrackReferencesSection({
   isCreateMode: boolean;
   onUpdate: DetailsUpdate;
   selectedAudio: SelectedTrackAudio | null;
-  onAudioSelect: (audio: SelectedTrackAudio) => void;
+  pendingAudio: PendingTrackAudio | null;
+  onAudioSelect: (file: File) => void;
   onAudioRemove: () => void;
 }) {
   const [searchResult, setSearchResult] =
@@ -1147,9 +1194,9 @@ function TrackReferencesSection({
         <div className="mt-5 border-t border-[#ececec] pt-5 dark:border-[#303034]">
           <OptionalAudioSection
             selectedAudio={selectedAudio}
+            pendingAudio={pendingAudio}
             onSelect={onAudioSelect}
             onRemove={onAudioRemove}
-            embedded
           />
         </div>
       ) : null}
@@ -1543,59 +1590,70 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function OptionalAudioSection({
   selectedAudio,
+  pendingAudio,
   onSelect,
   onRemove,
-  embedded = false,
 }: {
   selectedAudio: SelectedTrackAudio | null;
-  onSelect: (audio: SelectedTrackAudio) => void;
+  pendingAudio: PendingTrackAudio | null;
+  onSelect: (file: File) => void;
   onRemove: () => void;
-  embedded?: boolean;
 }) {
+  const audio = pendingAudio
+    ? {
+        title: pendingAudio.file.name,
+        originalFileName: pendingAudio.file.name,
+        playbackUrl: pendingAudio.playbackUrl,
+      }
+    : selectedAudio;
   return (
     <div className="grid gap-4">
-      {selectedAudio ? (
+      {audio ? (
         <section className="rounded-2xl border border-[#e4e4e4] bg-white p-4 dark:border-[#303034] dark:bg-[#171719]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-[13px] font-bold">
-                {selectedAudio.title}
+                {audio.title}
               </p>
               <p className="mt-1 truncate text-[11px] text-[#717171] dark:text-[#a1a1aa]">
-                {selectedAudio.originalFileName}
+                {audio.originalFileName}
               </p>
             </div>
             <button
               type="button"
               onClick={onRemove}
-              className="h-9 rounded-full border border-[#dedede] px-4 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] dark:border-[#3a3a3f]"
+              className="h-9 rounded-full border border-[#dedede] px-4 text-[12px] font-bold transition hover:border-[#ed1746] hover:text-[#ed1746] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:border-[#3a3a3f] dark:text-[#f5f5f5] dark:hover:border-[#ed1746]"
             >
-              Detach
+              Remove audio
             </button>
           </div>
           <PracticeAudioPlayer
-            src={selectedAudio.playbackUrl}
+            src={audio.playbackUrl}
             className="mt-3 w-full"
-            title={selectedAudio.title}
+            title={audio.title}
           />
         </section>
       ) : null}
 
-      <AudioUpload
-        embedded={embedded}
-        heading={selectedAudio ? "Replace optional audio" : "Optional audio"}
-        description="Upload one reference audio file only when it helps with the chord chart/tab or rehearsal. MP3 and other common audio formats up to 50 MB are supported."
-        multiple={false}
-        onUploadComplete={(file) =>
-          onSelect({
-            id: file.id,
-            title: file.title,
-            originalFileName: file.originalFileName,
-            playbackUrl: file.playbackUrl,
-            durationSeconds: file.durationSeconds,
-          })
-        }
-      />
+      <div>
+        <p className="text-[13px] font-semibold text-[#111] dark:text-[#f5f5f5]">Optional audio</p>
+        <p className="mt-1 text-[12px] leading-5 text-[#717171] dark:text-[#a1a1aa]">
+          Choose one MP3, M4A, Ogg, FLAC, or WAV file up to 50 MB. Preview it here;
+          it uploads only after your chord chart/tab is created. Leaving this draft
+          uploads nothing. After refreshing, choose the file again.
+        </p>
+        <input
+          type="file"
+          aria-label={audio ? "Replace optional audio" : "Choose optional audio"}
+          accept="audio/flac,audio/mp4,audio/mpeg,audio/ogg,audio/wav,.flac,.m4a,.mp4,.mp3,.ogg,.oga,.wav"
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            if (file) onSelect(file);
+            event.currentTarget.value = "";
+          }}
+          className="mt-3 block w-full min-w-0 rounded-lg text-[12px] text-[#555] file:mr-3 file:cursor-pointer file:rounded-full file:border-0 file:bg-[#ed1746] file:px-4 file:py-2 file:text-[12px] file:font-bold file:text-white hover:file:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] dark:text-[#c4c4cc] dark:file:bg-[#ed1746] dark:file:text-white dark:hover:file:bg-[#ff315d]"
+        />
+      </div>
     </div>
   );
 }

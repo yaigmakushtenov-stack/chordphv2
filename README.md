@@ -47,25 +47,44 @@ chordph/
   music/<user-id>/<generated-file-name>
 ```
 
-Authenticated clients request a five-minute upload URL from
-`POST /api/storage/upload-url`:
+Audio uploads call the authenticated `MusicActions.prepareUpload` Server Action
+to validate file details and obtain a five-minute signed upload URL and required
+headers. The browser uploads the file directly to R2 with `PUT`, bypassing
+Vercel's request-body limit. `MusicActions.completeUpload` then verifies ownership
+and the stored file's size and content type before making it available.
 
-```json
-{
-  "folder": "images",
-  "fileName": "cover.jpg",
-  "contentType": "image/jpeg",
-  "size": 245760
-}
-```
+New Annotate keeps selected audio in browser memory for a local preview. It
+creates the track and annotation before uploading and attaching that audio.
+Abandoned drafts and failed annotation creation do not upload the selected file.
+Reloading the page requires selecting the local file again. If uploading or
+attaching audio fails after creation, the annotation remains saved and audio can
+be added from the track page. Standalone music-library uploads still start when
+a file is selected.
 
-The response contains the R2 object key, upload URL, expiration, and
-required headers. Upload the file body directly to that URL with `PUT`.
+The R2 client uses `requestChecksumCalculation: "WHEN_REQUIRED"` so the SDK does
+not add an empty-body checksum to signed upload URLs generated without a body.
 
 Configure the bucket's CORS rules to allow `PUT` and `Content-Type` from
 `http://localhost:3000` and each trusted production origin. Never expose
 `R2_ACCESS_KEY_ID` or `R2_SECRET_ACCESS_KEY` to browser code. Presigned URLs must
 use the R2 S3 API endpoint rather than a public bucket URL or custom domain.
+
+In the R2 dashboard, open the bucket's Settings and edit its CORS policy. Add
+the exact live-site origin (scheme and hostname, without a path) to
+`AllowedOrigins`, retaining any existing rules needed for playback or other
+clients. An upload rule looks like this; replace the example origin with your
+live site's origin:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://your-live-domain.example", "http://localhost:3000"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["Content-Type"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
 
 When migrating existing objects, preserve their complete `chordph/` keys so
 existing database records continue to resolve. Keep the Backblaze bucket until
