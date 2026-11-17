@@ -28,9 +28,10 @@ type TrackAutoScrollProps = {
   vocals: boolean;
   onVocalsChange: (vocals: boolean) => void;
   instrumentOptions?: ReactNode;
+  songNavigation?: ReactNode;
 };
 
-export function TrackAutoScroll({ chartRef, playbackAreaRef, fontSize, minFontSize, maxFontSize, onFontSizeChange, accidentals, onAccidentalsChange, transpose, displayKey, onTransposeChange, transposeDisabled, vocals, onVocalsChange, instrumentOptions }: TrackAutoScrollProps) {
+export function TrackAutoScroll({ chartRef, playbackAreaRef, fontSize, minFontSize, maxFontSize, onFontSizeChange, accidentals, onAccidentalsChange, transpose, displayKey, onTransposeChange, transposeDisabled, vocals, onVocalsChange, instrumentOptions, songNavigation }: TrackAutoScrollProps) {
   const { resolvedTheme } = useAppTheme();
   const [speed, setSpeed] = useState(0);
   const isRunning = speed > 0;
@@ -118,6 +119,7 @@ export function TrackAutoScroll({ chartRef, playbackAreaRef, fontSize, minFontSi
       onAccidentalsChange={onAccidentalsChange}
       transposeControls={<ChartTransposeControls isDark={resolvedTheme === "dark"} value={transpose} displayKey={displayKey} onChange={onTransposeChange} disabled={transposeDisabled} />}
       viewControls={<ChartViewSelect isDark={resolvedTheme === "dark"} vocals={vocals} onChange={onVocalsChange} />}
+      songNavigation={songNavigation}
       diagramControls={!vocals ? instrumentOptions : null}
     />
   </ChartPlaybackDock>;

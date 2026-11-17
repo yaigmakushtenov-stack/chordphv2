@@ -1,5 +1,6 @@
 "use client";
 
+import { SwipeRow } from "./swipe-row";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
@@ -83,45 +84,13 @@ export function SetListEditor({ setList, isEditing = false, trackPath = `/setlis
                 key={item.id}
                 ref={(element) => reorder.bindRow(item.id, element)}
                 data-setlist-track-id={item.id}
-                className={`flex min-w-0 items-center gap-3 py-4 transition ${
+                className={`min-w-0 py-4 transition ${
                   reorder.draggedId === item.id
                     ? "relative z-10 bg-[#fff0f3] opacity-75 shadow-lg dark:bg-[#3a111d]"
                     : "hover:bg-[#fafafa] dark:hover:bg-[#1f1f22]"
                 }`}
               >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f1f1f1] text-[12px] font-black dark:bg-[#28282c]">
-                  {index + 1}
-                </span>
-                {item.trackId ? (
-                  <Link
-                    href={`${trackPath}/${item.id}`}
-                    className="min-w-0 flex-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
-                  >
-                    <span className="block truncate text-[15px] font-bold hover:text-[#ed1746]">
-                      {item.title}
-                    </span>
-                    <span className="mt-0.5 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
-                      {item.artistName} · Key {item.key} · {item.tuning}
-                    </span>
-                    {item.transposeSemitones !== 0 ? (
-                      <span className="mt-1 block truncate text-[10px] font-bold text-[#c90f39] dark:text-[#fb7185]">
-                        Transposed {item.transposeSemitones > 0 ? "+" : ""}
-                        {item.transposeSemitones} · {item.baseKey} → {item.key}
-                      </span>
-                    ) : null}
-                  </Link>
-                ) : (
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-bold">
-                      {item.title}
-                    </span>
-                    <span className="mt-0.5 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
-                      {item.artistName}
-                    </span>
-                  </span>
-                )}
-                {isEditing ? (
-                  <div className="flex shrink-0 gap-1">
+                <SwipeRow enabled={isEditing} actions={<div className="flex shrink-0 gap-1">
                     {item.trackId ? (
                       <Link
                         href={`/setlists/${setList.id}/tracks/${item.id}/edit`}
@@ -154,8 +123,41 @@ export function SetListEditor({ setList, isEditing = false, trackPath = `/setlis
                     >
                       ×
                     </button>
-                  </div>
-                ) : null}
+                  </div>}>
+                <div className="flex min-w-0 items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f1f1f1] text-[12px] font-black dark:bg-[#28282c]">
+                  {index + 1}
+                </span>
+                {item.trackId ? (
+                  <Link
+                    href={`${trackPath}/${item.id}`}
+                    className="min-w-0 flex-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]"
+                  >
+                    <span className="block truncate text-[15px] font-bold hover:text-[#ed1746]">
+                      {item.title}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
+                      {item.artistName} · Key {item.key} · {item.tuning}
+                    </span>
+                    {item.transposeSemitones !== 0 ? (
+                      <span className="mt-1 block truncate text-[10px] font-bold text-[#c90f39] dark:text-[#fb7185]">
+                        Transposed {item.transposeSemitones > 0 ? "+" : ""}
+                        {item.transposeSemitones} · {item.baseKey} → {item.key}
+                      </span>
+                    ) : null}
+                  </Link>
+                ) : (
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-bold">
+                      {item.title}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[12px] text-[#666] dark:text-[#b4b4bc]">
+                      {item.artistName}
+                    </span>
+                  </span>
+                )}
+                </div>
+                </SwipeRow>
               </li>
             ))}
           </ol>

@@ -50,9 +50,11 @@ export function AnnotationViewer({
   canDeleteChordChart = false,
   mediaLinkConfiguration,
   quickAddSetLists,
+  songNavigation,
   setListContext,
   track,
 }: {
+  songNavigation?: ReactNode;
   autoScroll?: boolean;
   canDeleteChordChart?: boolean;
   mediaLinkConfiguration: MediaLinkConfiguration;
@@ -273,14 +275,14 @@ export function AnnotationViewer({
           }}
         />
       ) : null}
-      {source.trim() ? <TrackAutoScroll key={track.id} chartRef={chartRef} playbackAreaRef={playbackAreaRef}
+      {source.trim() ? <TrackAutoScroll songNavigation={songNavigation} key={track.id} chartRef={chartRef} playbackAreaRef={playbackAreaRef}
         fontSize={chartFontSize} minFontSize={MIN_CHART_FONT_SIZE} maxFontSize={MAX_CHART_FONT_SIZE} onFontSizeChange={setChartFontSize}
         accidentals={accidentals} onAccidentalsChange={() => setAccidentals((value) => value === "sharps" ? "flats" : "sharps")}
         transpose={transpose} displayKey={displayKey} onTransposeChange={handleTransposeChange} transposeDisabled={isPending}
         vocals={vocals} onVocalsChange={setVocals}
         instrumentOptions={<ChartDiagramSelect value={chordInstrument} onChange={setChordInstrument} />}
       /> : null}
-      <section ref={playbackAreaRef} className="min-w-0 p-3 pb-28 sm:p-6 sm:pb-28 xl:min-h-0 xl:overflow-y-auto">
+      <section ref={playbackAreaRef} className="min-w-0 p-3 pb-40 sm:p-6 sm:pb-40 xl:min-h-0 xl:overscroll-contain xl:overflow-y-auto">
         <div className="mb-4 flex items-center justify-between gap-3">
           {setListContext ? (
             <BackLink href={`/setlists/${setListContext.setListId}`}>
@@ -517,7 +519,7 @@ export function AnnotationViewer({
         )}
       </section>
 
-      <aside className="grid content-start gap-4 border-t border-[#e4e4e4] p-4 dark:border-[#303034] xl:min-h-0 xl:overflow-y-auto xl:border-l xl:border-t-0">
+      <aside className="grid content-start gap-4 border-t border-[#e4e4e4] p-4 dark:border-[#303034] xl:min-h-0 xl:overscroll-contain xl:overflow-y-auto xl:border-l xl:border-t-0">
         <section className="rounded-2xl border border-[#e4e4e4] bg-white p-5 dark:border-[#303034] dark:bg-[#171719]">
           <h2 className="text-[14px] font-bold">Track details</h2>
           <dl className="mt-4 grid gap-3 text-[12px]">

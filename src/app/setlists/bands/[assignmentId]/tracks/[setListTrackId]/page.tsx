@@ -1,3 +1,5 @@
+import { SongNavigation } from "@/components/shared/song-navigation";
+import { ScrollExit } from "@/app/setlists/_components/scroll-exit";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
@@ -20,10 +22,15 @@ export default async function BandSetListTrackPage({ params }: {
   const item = await SetListService.getBandSetListTrackForUser(session.user.id, assignmentId, setListTrackId);
   if (!item) notFound();
 
+  const playlist = await SetListService.getBandSetListForUser(session.user.id, assignmentId);
+  const currentIndex = playlist?.setList.tracks.findIndex((track) => track.id === setListTrackId) ?? -1;
+  const previousTrack = currentIndex > 0 ? playlist?.setList.tracks[currentIndex - 1] : undefined;
+  const nextTrack = currentIndex >= 0 ? playlist?.setList.tracks[currentIndex + 1] : undefined;
   const arrangement = parseSetListTrackArrangement(item.settings);
   return (
-    <AppShell documentScroll>
+    <AppShell mobileDocumentScroll>
         <BandTrackChart
+        songNavigation={<SongNavigation previous={previousTrack ? { href: `/setlists/bands/${assignmentId}/tracks/${previousTrack.id}`, title: previousTrack.track.title } : undefined} next={nextTrack ? { href: `/setlists/bands/${assignmentId}/tracks/${nextTrack.id}`, title: nextTrack.track.title } : undefined} />}
           title={item.track.title}
           artistName={item.track.artistName}
           setListTitle={item.setList.title}
@@ -36,6 +43,7 @@ export default async function BandSetListTrackPage({ params }: {
           baseKey={arrangement?.key ?? item.track.key}
           initialTranspose={parseSetListTrackTranspose(item.settings)}
         />
+      <ScrollExit href={`/setlists/bands/${assignmentId}`} />
     </AppShell>
   );
 }

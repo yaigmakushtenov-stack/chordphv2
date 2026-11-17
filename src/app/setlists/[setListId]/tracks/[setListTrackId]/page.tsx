@@ -1,3 +1,5 @@
+import { SongNavigation } from "@/components/shared/song-navigation";
+import { ScrollExit } from "@/app/setlists/_components/scroll-exit";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
@@ -40,6 +42,10 @@ export default async function SetListTrackArrangementPage({
     notFound();
   }
 
+  const playlist = await SetListService.getSetListForOwner(session.user.id, setListId);
+  const currentIndex = playlist?.tracks.findIndex((track) => track.id === setListTrackId) ?? -1;
+  const previousTrack = currentIndex > 0 ? playlist?.tracks[currentIndex - 1] : undefined;
+  const nextTrack = currentIndex >= 0 ? playlist?.tracks[currentIndex + 1] : undefined;
   const arrangement = parseSetListTrackArrangement(item.settings);
   const transposeSemitones = parseSetListTrackTranspose(item.settings);
   const baseKey = arrangement?.key ?? item.track.key;
@@ -81,6 +87,7 @@ export default async function SetListTrackArrangementPage({
   return (
     <AppShell>
       <AnnotationViewer
+        songNavigation={<SongNavigation previous={previousTrack ? { href: `/setlists/${setListId}/tracks/${previousTrack.id}`, title: previousTrack.track.title } : undefined} next={nextTrack ? { href: `/setlists/${setListId}/tracks/${nextTrack.id}`, title: nextTrack.track.title } : undefined} />}
         mediaLinkConfiguration={getMediaLinkConfiguration()}
         quickAddSetLists={quickAddSetLists}
         setListContext={{
@@ -98,6 +105,7 @@ export default async function SetListTrackArrangementPage({
         }}
         track={track}
       />
+      <ScrollExit href={`/setlists/${setListId}`} />
     </AppShell>
   );
 }

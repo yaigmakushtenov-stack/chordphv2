@@ -727,7 +727,7 @@ export function StageView({ playlist, offline = false, local = false, onExit }: 
           onTouchStart={handleLocalScrollIntent}
           onWheel={handleLocalScrollIntent}
           tabIndex={-1}
-          className="min-h-0 overflow-x-hidden overflow-y-auto px-0 pb-[42vh] sm:px-8 lg:px-12"
+          className="min-h-0 overscroll-contain overflow-x-hidden overflow-y-auto px-0 pb-[42vh] sm:px-8 lg:px-12"
         >
           <div className="mx-auto grid max-w-[980px] gap-2">
             {tracks.length ? (
@@ -844,7 +844,7 @@ export function StageView({ playlist, offline = false, local = false, onExit }: 
         </div>
       ) : null}
 
-      <div className="h-[calc(61px+env(safe-area-inset-bottom))]">
+      <div className="h-[calc(117px+env(safe-area-inset-bottom))] sm:h-[calc(61px+env(safe-area-inset-bottom))]">
       <ChartPlaybackDock areaRef={scrollerRef}>
       <ChartPlaybackToolbar
         className="pointer-events-auto w-full rounded-t-2xl border-x @min-[640px]/playback:w-fit @min-[640px]/playback:max-w-[calc(100%-1rem)]"
@@ -853,6 +853,11 @@ export function StageView({ playlist, offline = false, local = false, onExit }: 
         onZoomOut={() => setChartZoom((value) => Math.max(MIN_STAGE_ZOOM, value - STAGE_ZOOM_STEP))}
         onZoomIn={() => setChartZoom((value) => Math.min(MAX_STAGE_ZOOM, value + STAGE_ZOOM_STEP))}
         onAccidentalsChange={() => setAccidentals((value) => value === "sharps" ? "flats" : "sharps")}
+        songNavigation={<nav aria-label="Setlist song navigation" className="flex shrink-0 gap-1">{([-1, 1] as const).map((offset) => {
+          const currentIndex = tracks.findIndex((track) => track.setListTrackId === activeSetListTrackId);
+          const target = currentIndex >= 0 ? tracks[currentIndex + offset] : undefined;
+          return <button key={offset} type="button" disabled={!target?.sections[0]} aria-label={offset === -1 ? "Previous song" : "Next song"} title={target?.title} onClick={() => { if (target?.sections[0]) jumpToSection(target.sections[0].id); }} className="flex size-8 shrink-0 items-center justify-center rounded-full border border-current/20 hover:border-[#ed1746] focus-visible:outline-2 focus-visible:outline-[#ed1746] disabled:opacity-30">{offset === -1 ? "\u2190" : "\u2192"}</button>;
+        })}</nav>}
         transposeControls={<ChartTransposeControls isDark={isDark} value={activeTrackTranspose} displayKey={activeTrackKey} disabled={!activeSetListTrackId} onChange={(value) => {
           if (activeSetListTrackId) setTrackTransposes((current) => ({ ...current, [activeSetListTrackId]: clampTranspose(value) }));
         }} />}
@@ -989,7 +994,7 @@ function StageNavigator({
           ×
         </button>
       </div>
-      <nav className="min-h-0 overflow-y-auto px-3 py-3" aria-label="Stage sections">
+      <nav className="min-h-0 overscroll-contain overflow-y-auto px-3 py-3" aria-label="Stage sections">
         <div className="grid gap-4">
           {tracks.map((track, trackIndex) => (
             <div key={track.setListTrackId}>

@@ -25,7 +25,7 @@ export function AutoScrollSpeedControls({
     <div
       role="group"
       aria-label="Auto-scroll speed controls"
-      className={`inline-flex h-10 shrink-0 items-center overflow-hidden rounded-full border ${compact ? "@min-[360px]/playback:h-11" : ""} ${
+      className={`inline-flex h-10 shrink-0 items-center overflow-hidden rounded-full border ${compact ? "h-11 min-w-0 flex-1 @min-[640px]/playback:flex-none" : ""} ${
         isDark
           ? "border-[#343740] bg-[#17191f] text-white"
           : "border-[#d8d3c8] bg-white text-[#111]"
@@ -35,7 +35,7 @@ export function AutoScrollSpeedControls({
         type="button"
         onClick={onDecrease}
         aria-label={decreaseLabel}
-        className={`flex h-full ${compact ? "w-7" : "w-9"} items-center justify-center text-[18px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
+        className={`flex h-full ${compact ? "min-w-7 flex-1 @min-[640px]/playback:w-7 @min-[640px]/playback:flex-none" : "w-9"} items-center justify-center text-[18px] font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746] ${
           isDark ? "hover:bg-[#303036]" : "hover:bg-[#eeeeef]"
         }`}
       >
@@ -54,7 +54,7 @@ export function AutoScrollSpeedControls({
         type="button"
         onClick={onIncrease}
         aria-label="Increase auto-scroll speed"
-        className={`flex h-full ${compact ? "w-7" : "w-9"} items-center justify-center bg-[#ed1746] text-[18px] font-black text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]`}
+        className={`flex h-full ${compact ? "min-w-7 flex-1 @min-[640px]/playback:w-7 @min-[640px]/playback:flex-none" : "w-9"} items-center justify-center bg-[#ed1746] text-[18px] font-black text-white transition hover:bg-[#d90f3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed1746]`}
       >
         +
       </button>

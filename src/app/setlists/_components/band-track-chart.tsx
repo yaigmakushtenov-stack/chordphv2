@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 
 import { BackLink } from "@/components/shared/back-link";
 import { ScreenWakeLock } from "@/components/shared/screen-wake-lock";
@@ -15,6 +15,7 @@ import { splitVariationSuffix, transposeChordPro, type AccidentalPreference } fr
 import { getTransposedSetListKey, MAX_SETLIST_TRANSPOSE } from "@/lib/setlists/setlist-track-settings";
 
 type BandTrackChartProps = {
+  songNavigation?: ReactNode;
   title: string;
   artistName: string;
   setListTitle: string;
@@ -28,7 +29,7 @@ type BandTrackChartProps = {
   initialTranspose: number;
 };
 
-export function BandTrackChart({ title, artistName, setListTitle, backHref, tuning, capo, tempo, timeSignature, lyricsAndChords, baseKey, initialTranspose }: BandTrackChartProps) {
+export function BandTrackChart({ songNavigation, title, artistName, setListTitle, backHref, tuning, capo, tempo, timeSignature, lyricsAndChords, baseKey, initialTranspose }: BandTrackChartProps) {
   const playbackAreaRef = useRef<HTMLElement>(null);
   const chartRef = useRef<HTMLDivElement>(null);
   const [transpose, setTranspose] = useState(initialTranspose);
@@ -51,7 +52,7 @@ export function BandTrackChart({ title, artistName, setListTitle, backHref, tuni
   }
 
   return (
-    <section ref={playbackAreaRef} className="min-w-0 flex-1 rounded-xl bg-white p-3 pb-28 text-[#111] sm:p-6 sm:pb-28 dark:bg-[#121214] dark:text-[#f5f5f5]">
+    <section ref={playbackAreaRef} className="min-w-0 flex-1 lg:min-h-0 lg:overflow-y-auto rounded-xl bg-white p-3 pb-40 text-[#111] sm:p-6 sm:pb-40 dark:bg-[#121214] dark:text-[#f5f5f5]">
       <ScreenWakeLock />
       <BackLink href={backHref}>{setListTitle}</BackLink>
       <h1 className="mt-5 break-words text-2xl font-black sm:text-3xl">{title}</h1>
@@ -60,7 +61,7 @@ export function BandTrackChart({ title, artistName, setListTitle, backHref, tuni
       <div ref={chartRef} className="mt-6">
         {lyricsAndChords.trim() ? <SongChart lyricsOnly={vocals} sections={parseSongChartSource(source)} fontSize={fontSize} renderChord={renderChord} /> : <p className="text-[13px] text-[#666] dark:text-[#b4b4bc]">No lyrics or chords have been added to this track yet.</p>}
       </div>
-      {lyricsAndChords.trim() ? <TrackAutoScroll chartRef={chartRef} playbackAreaRef={playbackAreaRef} fontSize={fontSize} minFontSize={11} maxFontSize={18} onFontSizeChange={setFontSize}
+      {lyricsAndChords.trim() ? <TrackAutoScroll songNavigation={songNavigation} chartRef={chartRef} playbackAreaRef={playbackAreaRef} fontSize={fontSize} minFontSize={11} maxFontSize={18} onFontSizeChange={setFontSize}
         accidentals={accidentals} onAccidentalsChange={() => setAccidentals((value) => value === "sharps" ? "flats" : "sharps")}
         transpose={transpose} displayKey={getTransposedSetListKey(baseKey, transpose)} onTransposeChange={(value) => setTranspose(Math.max(-MAX_SETLIST_TRANSPOSE, Math.min(MAX_SETLIST_TRANSPOSE, value)))}
         vocals={vocals} onVocalsChange={setVocals} instrumentOptions={<ChartDiagramSelect value={instrument} onChange={setInstrument} />}

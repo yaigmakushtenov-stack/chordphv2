@@ -1,5 +1,9 @@
 "use client";
 
+import { SwipeRow } from "./swipe-row";
+import * as SetListActions from "@/actions/setlist-actions";
+import { showToast } from "@/components/shared/toast";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
@@ -13,6 +17,23 @@ type SetListLibraryProps = {
 };
 
 export function SetListLibrary({ children, items }: SetListLibraryProps) {
+  const router = useRouter();
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [removed, setRemoved] = useState<string[]>([]);
+  async function deleteSetlist(id: string): Promise<void> {
+    if (deleting) return;
+    setDeleting(id);
+    try {
+      const result = await SetListActions.deleteSetList(id);
+      if (!result.ok) {
+        showToast({ title: "Setlist not deleted", description: result.error.message, tone: "error" });
+        return;
+      }
+      setRemoved((current) => [...current, id]);
+      showToast({ title: "Setlist deleted", tone: "success" });
+      router.refresh();
+    } finally { setDeleting(null); }
+  }
   const listId = useId();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -29,7 +50,7 @@ export function SetListLibrary({ children, items }: SetListLibraryProps) {
     }
   }, []);
   const sortedItems = useMemo(() => {
-    const nextItems = [...items];
+    const nextItems = items.filter((item) => !removed.includes(item.id));
 
     if (sortMode === "az") {
       return nextItems.sort((a, b) => a.title.localeCompare(b.title));
@@ -43,8 +64,8 @@ export function SetListLibrary({ children, items }: SetListLibraryProps) {
       (a, b) =>
         new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     );
-  }, [items, sortMode]);
-  const visibleItems = isExpanded ? sortedItems : sortedItems.slice(0, 3);
+  }, [items, sortMode, removed]);
+  const visibleItems = isExpanded || isManaging ? sortedItems : sortedItems.slice(0, 3);
 
   useEffect(() => {
     if (!isMenuOpen) {
@@ -114,7 +135,7 @@ export function SetListLibrary({ children, items }: SetListLibraryProps) {
                 }}
                 className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px] font-bold transition hover:bg-[#f4f4f4] focus-visible:outline-2 focus-visible:outline-[#ed1746] dark:hover:bg-[#2a2a2e]"
               >
-                Edit or delete
+                Edit
                 <span className="text-[#ed1746]">{isManaging ? "On" : "Off"}</span>
               </button>
               <div className="my-1 border-t border-[#e8e8e8] dark:border-[#343438]" />
@@ -168,6 +189,7 @@ export function SetListLibrary({ children, items }: SetListLibraryProps) {
               </button>
             ) : null}
           </div>
+          {isManaging ? <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-300"><span>Swipe left for actions. Use the menu to sort setlists.</span><button type="button" onClick={() => setIsManaging(false)} className="rounded-full px-4 py-2 font-bold text-[#ed1746] focus-visible:outline-2 focus-visible:outline-[#ed1746]">Done</button></div> : null}
           <SetListDetailsDrawer mode="create" hideTrigger open={isCreating} onOpenChange={handleCreateOpenChange} />
 
           {items.length ? (
@@ -176,8 +198,12 @@ export function SetListLibrary({ children, items }: SetListLibraryProps) {
                 {visibleItems.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center gap-3 px-2 py-2 sm:px-3"
+                    className="min-w-0 px-2 py-2 sm:px-3"
                   >
+                    <SwipeRow enabled={isManaging} actions={<>
+                      <SetListDetailsDrawer mode="edit" setList={item} />
+                      <button type="button" disabled={deleting !== null} onClick={() => void deleteSetlist(item.id)} aria-label={`Delete ${item.title}`} className="rounded-full px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-[#ed1746] disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-950">Delete</button>
+                    </>}>
                     <Link
                       href={`/setlists/${item.id}`}
                       className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-2 transition hover:bg-[#fafafa] focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ed1746] sm:px-2 dark:hover:bg-[#1f1f22]"
@@ -192,9 +218,7 @@ export function SetListLibrary({ children, items }: SetListLibraryProps) {
                         {item.trackCount === 1 ? "track" : "tracks"}
                       </span>
                     </Link>
-                    {isManaging ? (
-                      <SetListDetailsDrawer mode="edit" setList={item} />
-                    ) : null}
+                    </SwipeRow>
                   </div>
                 ))}
               </div>
