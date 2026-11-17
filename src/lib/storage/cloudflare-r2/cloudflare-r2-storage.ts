@@ -147,6 +147,7 @@ export class CloudflareR2Storage implements StorageProvider {
       endpoint: config.endpoint,
       region: config.region,
       forcePathStyle: true,
+      requestChecksumCalculation: "WHEN_REQUIRED",
       credentials: {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,

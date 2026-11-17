@@ -6,6 +6,7 @@ import * as MusicActions from "@/actions/music-actions";
 import { MiniAudioPlayer } from "@/app/track/_components/audio/mini-audio-player";
 import { showToast } from "@/components/shared/toast";
 import { upsertMusicLibraryFile } from "@/lib/client/music-library-store";
+import { actionFailure, actionSuccess, type ActionResult } from "@/lib/actions";
 import type { MusicFileListItemData } from "@/types/music";
 
 const SUPPORTED_AUDIO_TYPES = new Set([
@@ -17,6 +18,52 @@ const SUPPORTED_AUDIO_TYPES = new Set([
 ]);
 const ACCEPTED_AUDIO_TYPES = Array.from(SUPPORTED_AUDIO_TYPES).join(",");
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
+
+export function validateAudioFile(file: File): string | null {
+  if (!normalizeAudioContentType(file)) {
+    return "Unsupported audio type.";
+  }
+
+  if (file.size < 1 || file.size > MAX_AUDIO_BYTES) {
+    return "File must be 50 MB or smaller.";
+  }
+
+  return null;
+}
+
+export async function uploadNewAudioFile(
+  file: File,
+): Promise<ActionResult<MusicFileListItemData>> {
+  const validationError = validateAudioFile(file);
+  if (validationError) {
+    return actionFailure("VALIDATION_ERROR", validationError);
+  }
+
+  const draft = await createAudioUploadDraft(file);
+  const prepared = await MusicActions.prepareUpload({
+    ...draft,
+    duplicateStrategy: "create",
+  });
+  if (!prepared.ok) return prepared;
+  if (prepared.data.outcome === "duplicate") {
+    return actionSuccess(prepared.data.file);
+  }
+
+  const response = await fetch(prepared.data.upload.url, {
+    method: "PUT",
+    headers: prepared.data.upload.headers,
+    body: file,
+  });
+  if (!response.ok) {
+    return actionFailure("UNAVAILABLE", "The audio upload failed.");
+  }
+
+  const completed = await MusicActions.completeUpload({
+    fileId: prepared.data.file.id,
+  });
+  if (completed.ok) upsertMusicLibraryFile(completed.data);
+  return completed;
+}
 
 type AudioUploadProps = {
   allowOverwrite?: boolean;
@@ -93,34 +140,15 @@ export function AudioUpload({
   }
 
   async function uploadFile(id: string, file: File) {
-    const contentType = normalizeAudioContentType(file);
-
-    if (!contentType) {
-      updateItem(id, "error", "Unsupported audio type.");
-      return;
-    }
-
-    if (file.size < 1 || file.size > MAX_AUDIO_BYTES) {
-      updateItem(id, "error", "File must be 50 MB or smaller.");
+    const validationError = validateAudioFile(file);
+    if (validationError) {
+      updateItem(id, "error", validationError);
       return;
     }
 
     try {
       updateItem(id, "preparing", "Preparing");
-      const [sourceSha256, durationSeconds] = await Promise.all([
-        hashFile(file),
-        readAudioDuration(file),
-      ]);
-      const draft: PreparedUploadDraft = {
-        originalFileName: file.name,
-        contentType,
-        sourceSizeBytes: file.size,
-        sourceSha256,
-        storedSizeBytes: file.size,
-        storedSha256: sourceSha256,
-        title: createTitleFromFileName(file.name),
-        durationSeconds,
-      };
+      const draft = await createAudioUploadDraft(file);
 
       await uploadPreparedFile(id, file, draft);
     } catch (error: unknown) {
@@ -152,18 +180,16 @@ export function AudioUpload({
 
       updateItem(id, "uploading", "Uploading");
       const uploadResponse = await fetch(
-        createMusicUploadUrl(prepareResult.data.file.id),
+        prepareResult.data.upload.url,
         {
           method: "PUT",
-          headers: {
-            "Content-Type": draft.contentType,
-          },
+          headers: prepareResult.data.upload.headers,
           body: file,
         },
       );
 
       if (!uploadResponse.ok) {
-        updateItem(id, "error", "Upload failed.");
+        updateItem(id, "error", "Upload failed. Please try again.");
         return;
       }
 
@@ -340,6 +366,26 @@ export function AudioUpload({
   );
 }
 
+async function createAudioUploadDraft(file: File): Promise<PreparedUploadDraft> {
+  const contentType = normalizeAudioContentType(file);
+  if (!contentType) throw new Error("Unsupported audio type.");
+
+  const [sourceSha256, durationSeconds] = await Promise.all([
+    hashFile(file),
+    readAudioDuration(file),
+  ]);
+  return {
+    originalFileName: file.name,
+    contentType,
+    sourceSizeBytes: file.size,
+    sourceSha256,
+    storedSizeBytes: file.size,
+    storedSha256: sourceSha256,
+    title: createTitleFromFileName(file.name),
+    durationSeconds,
+  };
+}
+
 function normalizeAudioContentType(file: File) {
   if (SUPPORTED_AUDIO_TYPES.has(file.type)) {
     return file.type;
@@ -409,10 +455,6 @@ function createTitleFromFileName(fileName: string) {
   const title = name.replace(/\.[^.]+$/, "").trim();
 
   return title || fileName;
-}
-
-function createMusicUploadUrl(fileId: string) {
-  return `/music/files/${encodeURIComponent(fileId)}/upload`;
 }
 
 function getUploadErrorMessage(error: unknown) {
