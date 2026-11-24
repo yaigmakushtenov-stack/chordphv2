@@ -190,12 +190,14 @@ export function EventLibrary({ items }: EventLibraryProps) {
                       {item.setListCount === 1 ? "setlist" : "setlists"}
                     </span>
                   </Link>
-                  {isManaging && item.isOwner ? (
-                    <NameDetailsDrawer
-                      entity="event"
-                      id={item.id}
-                      name={item.title}
-                    />
+                  {item.isOwner ? (
+                    <div className={isManaging ? "shrink-0" : "hidden shrink-0 lg:block"}>
+                      <NameDetailsDrawer
+                        entity="event"
+                        id={item.id}
+                        name={item.title}
+                      />
+                    </div>
                   ) : null}
                 </div>
               ))}
